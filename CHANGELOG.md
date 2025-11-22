@@ -1,6 +1,6 @@
 # Change Log
 
-## v2.10.2 - 2025-09-03
+## v2.11.0 - 2025-11-22
 
 ### 🔧 Maintenance & Improvements
 
