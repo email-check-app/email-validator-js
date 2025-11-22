@@ -3,7 +3,7 @@
  */
 
 // In production, use the npm package:
-// import { edgeHandler } from '@devmehq/email-validator-js/serverless/vercel';
+// import { edgeHandler } from '@emailcheck/email-validator-js/serverless/vercel';
 
 // For local development, use the built files:
 import vercelAdapter from '../../../../dist/serverless/adapters/vercel.js';

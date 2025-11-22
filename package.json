@@ -1,5 +1,5 @@
 {
-  "name": "@devmehq/email-validator-js",
+  "name": "@emailcheck/email-validator-js",
   "version": "2.10.2",
   "private": false,
   "description": "Advanced email validation with MX records, SMTP verification, disposable email detection, batch processing, and caching. Production-ready with TypeScript support.",
@@ -19,14 +19,14 @@
     "cache",
     "rfc5321"
   ],
-  "homepage": "https://github.com/devmehq/email-validator-js#readme",
-  "bugs": "https://github.com/devmehq/email-validator-js/issues",
+  "homepage": "https://github.com/email-check-app/email-validator-js#readme",
+  "bugs": "https://github.com/email-check-app/email-validator-js/issues",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/devmehq/email-validator-js.git"
+    "url": "git+ssh://git@github.com/email-check-app/email-validator-js.git"
   },
   "license": "BSL 1.1",
-  "author": "DEV.ME <support@dev.me> (https://dev.me)",
+  "author": "EMAIL-CHECK.APP <support@email-check.app> (https://email-check.app)",
   "exports": {
     ".": {
       "require": "./dist/index.js",
@@ -95,7 +95,7 @@
     "tiny-lru": "^11.4.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.6",
+    "@biomejs/biome": "^2.3.7",
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",

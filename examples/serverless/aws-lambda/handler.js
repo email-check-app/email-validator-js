@@ -4,7 +4,7 @@
  */
 
 // In production, use the npm package:
-// import { apiGatewayHandler, lambdaHandler, cacheHandler } from '@devmehq/email-validator-js/serverless/aws';
+// import { apiGatewayHandler, lambdaHandler, cacheHandler } from '@emailcheck/email-validator-js/serverless/aws';
 
 // For local development, use the built files:
 const { apiGatewayHandler, lambdaHandler, cacheHandler } = require('../../../dist/serverless/adapters/aws-lambda.js').default;
@@ -79,9 +79,9 @@ export const customValidator = async (event, context) => {
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         error: 'Internal server error',
-        message: error.message 
+        message: error.message
       }),
     };
   }

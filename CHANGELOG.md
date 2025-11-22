@@ -319,7 +319,7 @@ This release brings significant performance improvements, new features, and bett
 - Performance optimization guide
 - Migration guide (MIGRATION.md)
 - Advanced usage examples
-- Commercial licensing information at https://dev.me/license/email-validator
+- Commercial licensing information at https://email-check.app/license/email-validator
 
 ### Migration Notes
 This release is **fully backward compatible**. All existing code will continue to work without changes. New features are opt-in through new functions. See [MIGRATION.md](./MIGRATION.md) for details.
@@ -329,7 +329,7 @@ This release is **fully backward compatible**. All existing code will continue t
 
 ## v2.0.0
 - Update license from MIT to BSL-1.1
-- Improve performance use es6 set to speed up domain lookups thanks to [@ArsenyYankovsky](https://github.com/ArsenyYankovsky) [#221](https://github.com/devmehq/email-validator-js/pull/221)
+- Improve performance use es6 set to speed up domain lookups thanks to [@ArsenyYankovsky](https://github.com/ArsenyYankovsky) [#221](https://github.com/email-check-app/email-validator-js/pull/221)
 - Update dependencies
 - Update lists
 

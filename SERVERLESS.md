@@ -41,7 +41,7 @@ The serverless implementation of email-validator-js provides a platform-agnostic
 
 ```javascript
 // handler.js
-import { apiGatewayHandler, lambdaHandler } from '@devmehq/email-validator-js/serverless/aws';
+import { apiGatewayHandler, lambdaHandler } from '@emailcheck/email-validator-js/serverless/aws';
 
 // For API Gateway
 export const validateEmail = apiGatewayHandler;
@@ -100,7 +100,7 @@ Resources:
 
 ```javascript
 // api/validate.js
-import { edgeHandler } from '@devmehq/email-validator-js/serverless/vercel';
+import { edgeHandler } from '@emailcheck/email-validator-js/serverless/vercel';
 
 export const config = {
   runtime: 'edge',
@@ -123,7 +123,7 @@ vercel
 
 ```javascript
 // app/api/validate/route.js
-import { edgeHandler } from '@devmehq/email-validator-js/serverless/vercel';
+import { edgeHandler } from '@emailcheck/email-validator-js/serverless/vercel';
 
 export const runtime = 'edge';
 
@@ -140,7 +140,7 @@ export async function POST(request) {
 
 ```javascript
 // worker.js
-import { workerHandler } from '@devmehq/email-validator-js/serverless/cloudflare';
+import { workerHandler } from '@emailcheck/email-validator-js/serverless/cloudflare';
 
 export default {
   async fetch(request, env, ctx) {
@@ -178,7 +178,7 @@ wrangler publish
 
 ```javascript
 // worker.js
-import { EmailValidatorDO } from '@devmehq/email-validator-js/serverless/cloudflare';
+import { EmailValidatorDO } from '@emailcheck/email-validator-js/serverless/cloudflare';
 
 export { EmailValidatorDO };
 
@@ -195,7 +195,7 @@ export default {
 
 ```javascript
 // netlify/edge-functions/validate.js
-import { validateEmailCore } from '@devmehq/email-validator-js/serverless/core';
+import { validateEmailCore } from '@emailcheck/email-validator-js/serverless/core';
 
 export default async (request) => {
   const url = new URL(request.url);
@@ -265,7 +265,7 @@ Deno.serve(async (req: Request) => {
 ### Basic Email Validation
 
 ```javascript
-import { validateEmailCore } from '@devmehq/email-validator-js/serverless/core';
+import { validateEmailCore } from '@emailcheck/email-validator-js/serverless/core';
 
 const result = await validateEmailCore('user@example.com');
 console.log(result);
@@ -302,7 +302,7 @@ const result = await validateEmailCore('user@gmail.com', {
 ### Batch Validation
 
 ```javascript
-import { validateEmailBatch } from '@devmehq/email-validator-js/serverless/core';
+import { validateEmailBatch } from '@emailcheck/email-validator-js/serverless/core';
 
 const emails = [
   'valid@example.com',
@@ -476,7 +476,7 @@ For full validation including MX and SMTP:
 
 ```javascript
 // Before (Node.js)
-import EmailValidator from '@devmehq/email-validator-js';
+import EmailValidator from '@emailcheck/email-validator-js';
 
 const validator = new EmailValidator();
 const result = await validator.validateEmail('user@example.com', {
@@ -485,7 +485,7 @@ const result = await validator.validateEmail('user@example.com', {
 });
 
 // After (Serverless)
-import { validateEmailCore } from '@devmehq/email-validator-js/serverless/core';
+import { validateEmailCore } from '@emailcheck/email-validator-js/serverless/core';
 
 const result = await validateEmailCore('user@example.com', {
   // MX and SMTP not available in edge runtime

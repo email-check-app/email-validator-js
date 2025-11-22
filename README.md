@@ -1,9 +1,9 @@
 # Advanced Email Validator
 
-[![NPM version](https://badgen.net/npm/v/@devmehq/email-validator-js)](https://npm.im/@devmehq/email-validator-js)
-[![Build Status](https://github.com/devmehq/email-validator-js/workflows/CI/badge.svg)](https://github.com/devmehq/email-validator-js/actions)
-[![Downloads](https://img.shields.io/npm/dm/@devmehq/email-validator-js.svg)](https://www.npmjs.com/package/@devmehq/email-validator-js)
-[![UNPKG](https://img.shields.io/badge/UNPKG-OK-179BD7.svg)](https://unpkg.com/browse/@devmehq/email-validator-js@latest/)
+[![NPM version](https://badgen.net/npm/v/@emailcheck/email-validator-js)](https://npm.im/@emailcheck/email-validator-js)
+[![Build Status](https://github.com/email-check-app/email-validator-js/workflows/CI/badge.svg)](https://github.com/email-check-app/email-validator-js/actions)
+[![Downloads](https://img.shields.io/npm/dm/@emailcheck/email-validator-js.svg)](https://www.npmjs.com/package/@emailcheck/email-validator-js)
+[![UNPKG](https://img.shields.io/badge/UNPKG-OK-179BD7.svg)](https://unpkg.com/browse/@emailcheck/email-validator-js@latest/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/license-BSL%201.1-blue.svg)](LICENSE.md)
 
@@ -98,12 +98,12 @@ email-validator-js is licensed under [Business Source License 1.1](LICENSE.md).
 
 Install the module through Yarn:
 ```bash
-yarn add @devmehq/email-validator-js
+yarn add @emailcheck/email-validator-js
 ```
 
 Or NPM:
 ```bash
-npm install @devmehq/email-validator-js
+npm install @emailcheck/email-validator-js
 ```
 
 ### Requirements
@@ -118,7 +118,7 @@ npm install @devmehq/email-validator-js
 ## Quick Start
 
 ```typescript
-import { verifyEmail } from '@devmehq/email-validator-js';
+import { verifyEmail } from '@emailcheck/email-validator-js';
 
 // Basic usage
 const result = await verifyEmail({
@@ -522,7 +522,7 @@ interface DomainRegistrationInfo {
 Array of 70+ common email domains used for typo detection.
 
 ```typescript
-import { COMMON_EMAIL_DOMAINS } from '@devmehq/email-validator-js';
+import { COMMON_EMAIL_DOMAINS } from '@emailcheck/email-validator-js';
 
 console.log(COMMON_EMAIL_DOMAINS);
 // ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', ...]
@@ -588,7 +588,7 @@ Number of retry attempts for transient failures. Default: `1`.
 
 ### Basic Usage
 ```typescript
-import { verifyEmail } from '@devmehq/email-validator-js';
+import { verifyEmail } from '@emailcheck/email-validator-js';
 
 const { validFormat, validSmtp, validMx } = await verifyEmail({ 
   emailAddress: 'foo@email.com', 
@@ -603,7 +603,7 @@ const { validFormat, validSmtp, validMx } = await verifyEmail({
 
 ### Detailed Verification (NEW)
 ```typescript
-import { verifyEmailDetailed } from '@devmehq/email-validator-js';
+import { verifyEmailDetailed } from '@emailcheck/email-validator-js';
 
 const result = await verifyEmailDetailed({
   emailAddress: 'foo@email.com',
@@ -621,7 +621,7 @@ const result = await verifyEmailDetailed({
 
 ### Batch Verification (NEW)
 ```typescript
-import { verifyEmailBatch } from '@devmehq/email-validator-js';
+import { verifyEmailBatch } from '@emailcheck/email-validator-js';
 
 const emails = ['user1@gmail.com', 'user2@example.com', 'invalid@fake.com'];
 
@@ -638,7 +638,7 @@ const result = await verifyEmailBatch({
 
 ### Name Detection (ENHANCED)
 ```typescript
-import { detectName, verifyEmailDetailed } from '@devmehq/email-validator-js';
+import { detectName, verifyEmailDetailed } from '@emailcheck/email-validator-js';
 
 // Standalone name detection - now with composite name support
 const name = detectName('john.doe@example.com');
@@ -677,7 +677,7 @@ const resultCustom = await verifyEmail({
 
 ### Domain Typo Detection (NEW)
 ```typescript
-import { suggestEmailDomain, verifyEmailDetailed } from '@devmehq/email-validator-js';
+import { suggestEmailDomain, verifyEmailDetailed } from '@emailcheck/email-validator-js';
 
 // Standalone domain suggestion
 const suggestion = suggestEmailDomain('user@gmial.com');
@@ -802,7 +802,7 @@ The package includes serverless adapters for major cloud platforms. The serverle
 ### AWS Lambda
 
 ```javascript
-import { apiGatewayHandler } from '@devmehq/email-validator-js/serverless/aws';
+import { apiGatewayHandler } from '@emailcheck/email-validator-js/serverless/aws';
 
 export const handler = apiGatewayHandler;
 ```
@@ -810,7 +810,7 @@ export const handler = apiGatewayHandler;
 ### Vercel Edge Functions
 
 ```javascript
-import { edgeHandler } from '@devmehq/email-validator-js/serverless/vercel';
+import { edgeHandler } from '@emailcheck/email-validator-js/serverless/vercel';
 
 export const config = {
   runtime: 'edge',
@@ -822,7 +822,7 @@ export default edgeHandler;
 ### Cloudflare Workers
 
 ```javascript
-import { workerHandler } from '@devmehq/email-validator-js/serverless/cloudflare';
+import { workerHandler } from '@emailcheck/email-validator-js/serverless/cloudflare';
 
 export default {
   async fetch(request, env, ctx) {
@@ -878,7 +878,7 @@ The library includes intelligent caching to improve performance:
 Access the list of 70+ common email domains used for typo detection:
 
 ```typescript
-import { COMMON_EMAIL_DOMAINS } from '@devmehq/email-validator-js';
+import { COMMON_EMAIL_DOMAINS } from '@emailcheck/email-validator-js';
 
 console.log(COMMON_EMAIL_DOMAINS);
 // ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', ...]
@@ -957,7 +957,7 @@ We welcome contributions! Please feel free to open an issue or create a pull req
 ### Development Setup
 ```bash
 # Clone the repo
-git clone https://github.com/devmehq/email-validator-js.git
+git clone https://github.com/email-check-app/email-validator-js.git
 cd email-validator-js
 
 # Install dependencies
@@ -974,7 +974,7 @@ yarn build
 
 For issues, questions, or commercial licensing:
 
-🐛 [Open an Issue](https://github.com/devmehq/email-validator-js/issues)
+🐛 [Open an Issue](https://github.com/email-check-app/email-validator-js/issues)
 📧 [Email Support](mailto:support@email-check.app)
 📄 [Commercial License](https://email-check.app/license/email-validator)
 🌐 [Visit email-check.app](https://email-check.app)

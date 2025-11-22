@@ -3,7 +3,7 @@
  */
 
 // In production, use the npm package:
-// import { workerHandler, EmailValidatorDO } from '@devmehq/email-validator-js/serverless/cloudflare';
+// import { workerHandler, EmailValidatorDO } from '@emailcheck/email-validator-js/serverless/cloudflare';
 
 // For local development, use the built files:
 import cloudflareAdapter from '../../../../dist/serverless/adapters/cloudflare.js';
@@ -16,24 +16,24 @@ export { EmailValidatorDO };
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    
+
     // Route to Durable Object for stateful validation
     if (url.pathname.startsWith('/do/')) {
       const id = env.EMAIL_VALIDATOR.idFromName('global');
       const validator = env.EMAIL_VALIDATOR.get(id);
-      
+
       // Remove /do prefix and forward to Durable Object
       const doUrl = new URL(request.url);
       doUrl.pathname = doUrl.pathname.replace('/do', '');
       const doRequest = new Request(doUrl, request);
-      
+
       return validator.fetch(doRequest);
     }
-    
+
     // Use the standard worker handler
     return workerHandler(request, env, ctx);
   },
-  
+
   // Scheduled worker for cache cleanup (optional)
   async scheduled(event, env, ctx) {
     switch (event.cron) {
@@ -51,17 +51,17 @@ export default {
 async function handleRateLimit(request, env) {
   const ip = request.headers.get('CF-Connecting-IP');
   if (!ip) return null;
-  
+
   const key = `rate-limit:${ip}`;
   const limit = 100; // requests per minute
-  
+
   const current = await env.EMAIL_CACHE.get(key);
   const count = current ? parseInt(current) : 0;
-  
+
   if (count >= limit) {
     return new Response('Rate limit exceeded', { status: 429 });
   }
-  
+
   await env.EMAIL_CACHE.put(key, String(count + 1), { expirationTtl: 60 });
   return null;
 }
