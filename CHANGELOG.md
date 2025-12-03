@@ -1,5 +1,9 @@
 # Change Log
 
+## v2.12.0 - 2025-12-03
+- Update dependencies to latest versions
+- Update name detection algorithms for better accuracy
+
 ## v2.11.0 - 2025-11-22
 
 ### 🔧 Maintenance & Improvements
