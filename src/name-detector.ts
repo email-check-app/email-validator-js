@@ -714,8 +714,20 @@ export function defaultNameDetectionMethod(email: string): DetectedName | null {
           const reverseScore = getLastNameScore(firstParsed.cleaned) + getFirstNameScore(lastParsed.cleaned);
           const normalScore = firstNameScore + lastNameScore;
 
-          // Check if both parts could be names (more lenient with numbers)
-          const bothPartsValid = isLikelyName(first, true) && isLikelyName(last, true);
+          // Check if both parts could be names (more lenient with numbers and single letters)
+          // But be more restrictive: only allow single letters if the other part is longer
+          const firstLikely = isLikelyName(first, true, true);
+          const lastLikely = isLikelyName(last, true, true);
+
+          // Additional check: if one part is a single letter, the other should be at least 2 characters
+          const oneIsSingleLetter = first.length === 1 || last.length === 1;
+          const otherIsLongEnough = oneIsSingleLetter
+            ? first.length === 1
+              ? last.length >= 2
+              : first.length >= 2
+            : true;
+
+          const bothPartsValid = firstLikely && lastLikely && otherIsLongEnough;
 
           if (bothPartsValid) {
             // Smart handling: Always try to extract clean names when possible
@@ -790,7 +802,7 @@ export function defaultNameDetectionMethod(email: string): DetectedName | null {
             isYearLike(last);
 
           if (isLastSuffix) {
-            if (isLikelyName(first, true) && isLikelyName(middle, true)) {
+            if (isLikelyName(first, true, true) && isLikelyName(middle, true, true)) {
               // Clean numbers from names if present
               const cleanedFirst = firstParsed.hasNumbers ? firstParsed.cleaned : first;
               const cleanedMiddle = middleParsed.hasNumbers ? middleParsed.cleaned : middle;
@@ -806,7 +818,7 @@ export function defaultNameDetectionMethod(email: string): DetectedName | null {
               }
               break;
             }
-          } else if (isLikelyName(first, true) && isLikelyName(last, true)) {
+          } else if (isLikelyName(first, true, true) && isLikelyName(last, true, true)) {
             // Intelligently handle three-part names
             const cleanedFirst = firstParsed.hasNumbers ? firstParsed.cleaned : first;
             const cleanedLast = lastParsed.hasNumbers ? lastParsed.cleaned : last;
@@ -837,7 +849,7 @@ export function defaultNameDetectionMethod(email: string): DetectedName | null {
           const effectiveLastIndex = isLastPartSuffix ? parts.length - 2 : parts.length - 1;
           const lastToUse = effectiveLastIndex >= 0 ? parts[effectiveLastIndex] : null;
 
-          if (lastToUse && isLikelyName(firstPart, true) && isLikelyName(lastToUse, true)) {
+          if (lastToUse && isLikelyName(firstPart, true, true) && isLikelyName(lastToUse, true, true)) {
             const firstParsed = parseCompositeNamePart(firstPart);
             const lastParsed = parseCompositeNamePart(lastToUse);
 
@@ -884,8 +896,8 @@ export function defaultNameDetectionMethod(email: string): DetectedName | null {
   if (!firstName && !lastName) {
     const parsed = parseCompositeNamePart(cleanedLocal);
 
-    // Check if it could be a single name (allow alphanumeric)
-    if (isLikelyName(cleanedLocal, true)) {
+    // Check if it could be a single name (allow alphanumeric but NOT single letters)
+    if (isLikelyName(cleanedLocal, true, false)) {
       if (/^[a-zA-Z]+$/.test(cleanedLocal)) {
         // Pure alphabetic - likely a single name
         const nameScore = Math.max(getFirstNameScore(cleanedLocal), getLastNameScore(cleanedLocal));

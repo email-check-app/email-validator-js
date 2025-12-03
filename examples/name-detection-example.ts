@@ -13,6 +13,8 @@ const emails = [
   'admin@example.com',
   'john.doe123@example.com',
   'john.doe+newsletter@example.com',
+  'k.Delong@aol.com', // Single-letter first name example
+  'j.Smith@example.com', // Another single-letter first name example
 ];
 
 emails.forEach((email) => {

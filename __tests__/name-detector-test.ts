@@ -767,6 +767,48 @@ describe('Name Detection', () => {
       });
     });
 
+    it('should handle single-letter first names without numbers', () => {
+      const testCases = [
+        { email: 'k.Delong@aol.com', firstName: 'K', lastName: 'Delong', confidence: 0.95 },
+        { email: 'j.Smith@example.com', firstName: 'J', lastName: 'Smith' },
+        { email: 'a.Jones@test.com', firstName: 'A', lastName: 'Jones' },
+        { email: 'm.Brown@domain.org', firstName: 'M', lastName: 'Brown' },
+        { email: 's.Wilson@email.net', firstName: 'S', lastName: 'Wilson' },
+        { email: 't.Anderson@company.com', firstName: 'T', lastName: 'Anderson' },
+        { email: 'l.Thomas@university.edu', firstName: 'L', lastName: 'Thomas' },
+        { email: 'r.Jackson@hospital.org', firstName: 'R', lastName: 'Jackson' },
+      ];
+
+      testCases.forEach(({ email, firstName, lastName, confidence }) => {
+        const result = defaultNameDetectionMethod(email);
+        expect(result).toBeTruthy();
+        expect(result?.firstName).toBe(firstName);
+        expect(result?.lastName).toBe(lastName);
+        if (confidence) {
+          expect(result?.confidence).toBeGreaterThanOrEqual(confidence);
+        } else {
+          expect(result?.confidence).toBeGreaterThan(0.8); // High confidence for dot separator with known last name
+        }
+      });
+    });
+
+    it('should handle single-letter first names with different separators', () => {
+      const testCases = [
+        { email: 'k_Delong@aol.com', firstName: 'K', lastName: 'Delong' },
+        { email: 'j-Smith@example.com', firstName: 'J', lastName: 'Smith' },
+        { email: 'a_Jones@test.com', firstName: 'A', lastName: 'Jones' },
+        { email: 'm-Brown@domain.org', firstName: 'M', lastName: 'Brown' },
+      ];
+
+      testCases.forEach(({ email, firstName, lastName }) => {
+        const result = defaultNameDetectionMethod(email);
+        expect(result).toBeTruthy();
+        expect(result?.firstName).toBe(firstName);
+        expect(result?.lastName).toBe(lastName);
+        expect(result?.confidence).toBeGreaterThan(0.6); // Reasonable confidence
+      });
+    });
+
     it('should handle titles in names', () => {
       const testCases = [
         { email: 'doctor.smith@example.com', firstName: 'Doctor', lastName: 'Smith' }, // Not reversed
