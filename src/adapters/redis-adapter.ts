@@ -41,25 +41,11 @@ export class RedisAdapter<T> implements ICacheStore<T> {
 
     // Default JSON serializer with Date support
     this.jsonSerializer = options.jsonSerializer || {
-      stringify: (value: T) =>
-        JSON.stringify(value, (key, v) => {
-          // Check if value is our Date wrapper (avoid infinite recursion)
-          if (v && typeof v === 'object' && v.__type === 'Date') {
-            return v;
-          }
-          // Check if value is a Date (this won't work as JSON.stringify converts Dates to strings first)
-          if (v instanceof Date) {
-            return { __type: 'Date', value: v.toISOString() };
-          }
-          // Check if value is an ISO date string, but not inside a Date wrapper (avoid infinite recursion)
-          if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/.test(v) && key !== 'value') {
-            const date = new Date(v);
-            if (!isNaN(date.getTime())) {
-              return { __type: 'Date', value: v };
-            }
-          }
-          return v;
-        }),
+      stringify: (value: T) => {
+        // Pre-process the object to convert Dates to a special format
+        const processed = this.processDatesForSerialization(value);
+        return JSON.stringify(processed);
+      },
       parse: (value: string) =>
         JSON.parse(value, (key, v) => {
           if (v && typeof v === 'object' && v.__type === 'Date') {
@@ -72,6 +58,29 @@ export class RedisAdapter<T> implements ICacheStore<T> {
 
   private getKey(key: string): string {
     return `${this.keyPrefix}${key}`;
+  }
+
+  /**
+   * Recursively process an object to convert Date instances to a serializable format
+   */
+  private processDatesForSerialization(obj: any): any {
+    if (obj instanceof Date) {
+      return { __type: 'Date', value: obj.toISOString() };
+    }
+
+    if (obj && typeof obj === 'object') {
+      if (Array.isArray(obj)) {
+        return obj.map((item) => this.processDatesForSerialization(item));
+      }
+
+      const result: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        result[key] = this.processDatesForSerialization(value);
+      }
+      return result;
+    }
+
+    return obj;
   }
 
   async get(key: string): Promise<T | null> {

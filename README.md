@@ -20,6 +20,7 @@
 - [API Reference](#api-reference)
 - [Configuration](#configuration-options)
 - [Examples](#examples)
+- [Custom Cache Injection](#-custom-cache-injection)
 - [Performance & Caching](#-performance--caching)
 - [Email Provider Databases](#️-email-provider-databases)
 - [Testing](#testing)
@@ -776,21 +777,285 @@ for (const [email, result] of batch.results) {
 
 ```typescript
 // First verification - hits DNS and SMTP
-const first = await verifyEmail({ 
+const first = await verifyEmail({
   emailAddress: 'cached@example.com',
-  verifyMx: true 
+  verifyMx: true
 });
 // Takes ~500ms
 
 // Second verification - uses cache
-const second = await verifyEmail({ 
+const second = await verifyEmail({
   emailAddress: 'cached@example.com',
-  verifyMx: true 
+  verifyMx: true
 });
 // Takes ~1ms (cached)
 
 // Clear cache if needed
 clearAllCaches();
+```
+
+## 🚀 Custom Cache Injection
+
+The library supports parameter-based cache injection, allowing you to use custom cache backends like Redis, Memcached, or any LRU-compatible cache implementation.
+
+### Built-in Cache Adapters
+
+#### LRU Cache (Default)
+```typescript
+import { CacheFactory } from '@emailcheck/email-validator-js';
+
+// Create LRU cache with custom settings
+const lruCache = CacheFactory.createLRUCache({
+  mx: 1800000,        // 30 minutes for MX records
+  disposable: 86400000,  // 24 hours for disposable checks
+  free: 86400000,        // 24 hours for free email checks
+  smtp: 1800000,        // 30 minutes for SMTP verification
+});
+
+// Use with email verification
+const result = await verifyEmail({
+  emailAddress: 'user@example.com',
+  verifyMx: true,
+  verifySmtp: true,
+  cache: lruCache  // Pass the cache instance
+});
+```
+
+#### Redis Cache
+```typescript
+import { CacheFactory } from '@emailcheck/email-validator-js';
+import Redis from 'ioredis';
+
+// Create Redis client
+const redis = new Redis({
+  host: 'localhost',
+  port: 6379,
+});
+
+// Create Redis cache adapter
+const redisCache = CacheFactory.createRedisCache(redis, {
+  keyPrefix: 'email_validator:',
+  defaultTtlMs: 3600000, // 1 hour default TTL
+  jsonSerializer: {
+    stringify: (value) => JSON.stringify(value),
+    parse: (value) => JSON.parse(value)
+  }
+});
+
+// Use with batch verification
+const batchResult = await verifyEmailBatch({
+  emailAddresses: ['user1@example.com', 'user2@example.com'],
+  verifyMx: true,
+  verifySmtp: true,
+  cache: redisCache,
+  concurrency: 10
+});
+```
+
+### Custom Cache Implementation
+
+Create your own cache adapter by implementing the `ICacheStore` interface:
+
+```typescript
+import { CacheFactory, type ICacheStore } from '@emailcheck/email-validator-js';
+
+class MyCustomCache<T> implements ICacheStore<T> {
+  private store = new Map<string, { value: T; expiry: number }>();
+
+  async get(key: string): Promise<T | null> {
+    const item = this.store.get(key);
+    if (!item) return null;
+
+    if (Date.now() > item.expiry) {
+      this.store.delete(key);
+      return null;
+    }
+
+    return item.value;
+  }
+
+  async set(key: string, value: T, ttlMs?: number): Promise<void> {
+    const expiry = Date.now() + (ttlMs || 3600000);
+    this.store.set(key, { value, expiry });
+  }
+
+  async delete(key: string): Promise<boolean> {
+    return this.store.delete(key);
+  }
+
+  async has(key: string): Promise<boolean> {
+    return this.store.has(key);
+  }
+
+  async clear(): Promise<void> {
+    this.store.clear();
+  }
+
+  size(): number {
+    return this.store.size;
+  }
+}
+
+// Create custom cache
+const customCache = CacheFactory.createCustomCache(
+  (cacheType, defaultTtl, defaultSize) => new MyCustomCache(),
+  {
+    mx: 1800000,
+    disposable: 86400000,
+    free: 86400000
+  }
+);
+
+// Use with verification
+const result = await verifyEmailDetailed({
+  emailAddress: 'user@example.com',
+  verifyMx: true,
+  verifySmtp: true,
+  checkDisposable: true,
+  cache: customCache
+});
+```
+
+### Mixed Cache Configuration
+
+Use different cache backends for different types of data:
+
+```typescript
+const mixedCache = CacheFactory.createMixedCache({
+  // Use Redis for frequently accessed data
+  mx: {
+    store: redisStore,  // Your Redis store implementation
+    ttlMs: 1800000
+  },
+  smtp: {
+    store: redisStore,
+    ttlMs: 900000
+  },
+
+  // Use LRU for less critical data
+  disposable: {
+    ttlMs: 86400000  // 24 hours
+  },
+  free: {
+    ttlMs: 86400000  // 24 hours
+  },
+  domainValid: {
+    ttlMs: 86400000  // 24 hours
+  }
+});
+
+// Verification will use appropriate cache for each operation
+await verifyEmail({
+  emailAddress: 'user@tempmail.com',
+  verifyMx: true,
+  verifySmtp: true,
+  checkDisposable: true,
+  checkFree: true,
+  cache: mixedCache
+});
+```
+
+### Cache Best Practices
+
+1. **Choose Appropriate TTL**:
+   - MX Records: 30-60 minutes (DNS changes infrequently)
+   - SMTP Results: 15-30 minutes (Mailbox status changes)
+   - Disposable/Free Lists: 12-24 hours (Provider lists update slowly)
+
+2. **Handle Cache Errors Gracefully**:
+```typescript
+const result = await verifyEmail({
+  emailAddress: 'user@example.com',
+  cache: unreliableCache, // Cache might fail
+  verifyMx: true,
+  verifySmtp: true
+});
+// Library continues to work even if cache operations fail
+```
+
+3. **Monitor Cache Hit Rates**:
+```typescript
+import { CacheFactory } from '@emailcheck/email-validator-js';
+
+// Create cache with hit tracking
+const cache = CacheFactory.createLRUCache();
+let hits = 0;
+let misses = 0;
+
+// Wrap cache store to track metrics
+const trackingCache = {
+  get: async (key: string) => {
+    const result = await cache.mx.get(key);
+    if (result !== null && result !== undefined) {
+      hits++;
+    } else {
+      misses++;
+    }
+    return result;
+  },
+  set: cache.mx.set.bind(cache.mx),
+  delete: cache.mx.delete.bind(cache.mx),
+  has: cache.mx.has.bind(cache.mx),
+  clear: cache.mx.clear.bind(cache.mx),
+  size: () => cache.mx.size()
+};
+
+// Monitor performance
+console.log(`Cache hit rate: ${(hits / (hits + misses) * 100).toFixed(1)}%`);
+```
+
+### Cache Key Structure
+
+The library uses the following cache key patterns:
+
+- **MX Records**: Domain name (e.g., `example.com`)
+- **SMTP Verification**: Full email with `:smtp` suffix (e.g., `user@example.com:smtp`)
+- **Disposable Check**: Domain name (e.g., `tempmail.com`)
+- **Free Provider Check**: Domain name (e.g., `gmail.com`)
+- **Domain Validation**: Domain name (e.g., `example.com`)
+
+### Redis Production Setup
+
+For production Redis deployment:
+
+```typescript
+import Redis from 'ioredis';
+import { CacheFactory } from '@emailcheck/email-validator-js';
+
+// Production Redis configuration
+const redis = new Redis({
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379'),
+  password: process.env.REDIS_PASSWORD,
+  db: parseInt(process.env.REDIS_DB || '0'),
+  retryDelayOnFailover: 100,
+  maxRetriesPerRequest: 3,
+  lazyConnect: true,
+  keepAlive: 30000,
+  family: 4,
+});
+
+// Handle Redis connection errors
+redis.on('error', (err) => {
+  console.error('Redis connection error:', err);
+});
+
+// Production cache with appropriate settings
+const productionCache = CacheFactory.createRedisCache(redis, {
+  keyPrefix: 'prod:email:',
+  defaultTtlMs: 3600000,
+  // Configure for high availability
+  jsonSerializer: {
+    stringify: (value: any) => JSON.stringify(value),
+    parse: (value: string) => JSON.parse(value)
+  }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  await redis.quit();
+  process.exit(0);
+});
 ```
 
 **Note:** Yahoo, Hotmail, and some providers always return `validSmtp: true` as they don't allow mailbox verification.
