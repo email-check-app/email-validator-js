@@ -1,4 +1,4 @@
-import { verifyEmailDetailed } from './index';
+import { verifyEmail } from './index';
 import type { BatchVerificationResult, DetailedVerificationResult, IBatchVerifyParams } from './types';
 
 /**
@@ -37,7 +37,7 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
   for (const batch of batches) {
     const batchPromises = batch.map(async (email) => {
       try {
-        const result = await verifyEmailDetailed({
+        const result = await verifyEmail({
           emailAddress: email,
           timeout,
           verifyMx,

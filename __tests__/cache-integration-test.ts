@@ -6,7 +6,7 @@
 import { LRUAdapter } from '../src/adapters/lru-adapter';
 import { CacheFactory } from '../src/cache-factory';
 import { resolveMxRecords } from '../src/dns';
-import { isDisposableEmail, isFreeEmail, verifyEmailDetailed } from '../src/index';
+import { isDisposableEmail, isFreeEmail, verifyEmail } from '../src/index';
 
 describe('Cache Integration', () => {
   // No need to reset cache for parameter-based testing
@@ -113,13 +113,12 @@ describe('Cache Integration', () => {
       const customCache = CacheFactory.createCustomCache((cacheType, defaultTtl, defaultSize) => mockCache);
 
       // Perform verification that checks multiple cache types
-      await verifyEmailDetailed({
+      await verifyEmail({
         emailAddress: 'test@gmail.com',
         verifyMx: false, // Set to false to avoid DNS issues in test
         verifySmtp: false, // Set to false to avoid SMTP issues in test
         checkDisposable: true,
         checkFree: true,
-        detailed: true,
         cache: customCache,
       });
 
@@ -217,13 +216,12 @@ describe('Cache Integration', () => {
       });
 
       // Should work despite disposable cache failing
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'test@gmail.com',
         verifyMx: false,
         verifySmtp: false,
         checkDisposable: true,
         checkFree: true,
-        detailed: true,
         cache: customCache,
       });
 

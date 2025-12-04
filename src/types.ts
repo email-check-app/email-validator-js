@@ -50,19 +50,6 @@ export interface DetailedVerificationResult {
 }
 
 /**
- * Basic verification result (backward compatible)
- */
-export interface IVerifyEmailResult {
-  validFormat: boolean;
-  validMx: boolean | null;
-  validSmtp: boolean | null;
-  detectedName?: DetectedName | null;
-  domainSuggestion?: DomainSuggestion | null;
-  domainAge?: DomainAgeInfo | null;
-  domainRegistration?: DomainRegistrationInfo | null;
-}
-
-/**
  * Parameters for email verification
  */
 export interface IVerifyEmailParams {
@@ -72,7 +59,6 @@ export interface IVerifyEmailParams {
   verifySmtp?: boolean;
   debug?: boolean;
   smtpPort?: number;
-  detailed?: boolean;
   checkDisposable?: boolean;
   checkFree?: boolean;
   retryAttempts?: number;

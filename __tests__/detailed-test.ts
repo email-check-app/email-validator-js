@@ -2,7 +2,7 @@ import { promises as dnsPromises } from 'node:dns';
 import net, { Socket } from 'node:net';
 import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';
-import { clearAllCaches, VerificationErrorCode, verifyEmailDetailed } from '../src';
+import { clearAllCaches, VerificationErrorCode, verifyEmail } from '../src';
 
 describe('Detailed Email Verification', () => {
   let sandbox: SinonSandbox;
@@ -17,9 +17,9 @@ describe('Detailed Email Verification', () => {
     clearAllCaches();
   });
 
-  describe('#verifyEmailDetailed', () => {
+  describe('#verifyEmail', () => {
     it('should return detailed format validation error', async () => {
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'invalid-email',
         verifyMx: true,
         verifySmtp: false,
@@ -34,7 +34,7 @@ describe('Detailed Email Verification', () => {
     it('should detect disposable emails', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'mx.yopmail.com', priority: 10 }]);
 
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'test@yopmail.com',
         checkDisposable: true,
         verifyMx: true,
@@ -48,7 +48,7 @@ describe('Detailed Email Verification', () => {
     it('should detect free email providers', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'gmail-smtp-in.l.google.com', priority: 10 }]);
 
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'test@gmail.com',
         checkFree: true,
         verifyMx: true,
@@ -65,7 +65,7 @@ describe('Detailed Email Verification', () => {
       ];
       sandbox.stub(dnsPromises, 'resolveMx').resolves(mxRecords);
 
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'test@example.com',
         verifyMx: true,
       });
@@ -77,7 +77,7 @@ describe('Detailed Email Verification', () => {
     it('should handle no MX records', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([]);
 
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'test@nomx.com',
         verifyMx: true,
       });
@@ -101,7 +101,7 @@ describe('Detailed Email Verification', () => {
 
       setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'test@example.com',
         verifyMx: true,
         verifySmtp: true,
@@ -128,7 +128,7 @@ describe('Detailed Email Verification', () => {
       };
       sandbox.stub(net, 'connect').returns(socket as unknown as Socket);
 
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'test@example.com',
         verifyMx: true,
         verifySmtp: true,
@@ -157,7 +157,7 @@ describe('Detailed Email Verification', () => {
       const sharedCache = CacheFactory.createLRUCache();
 
       // First call - not cached
-      const result1 = await verifyEmailDetailed({
+      const result1 = await verifyEmail({
         emailAddress: 'test@example.com',
         verifyMx: true,
         verifySmtp: true,
@@ -166,7 +166,7 @@ describe('Detailed Email Verification', () => {
       expect(result1.metadata?.cached).toBe(false);
 
       // Second call - should be cached
-      const result2 = await verifyEmailDetailed({
+      const result2 = await verifyEmail({
         emailAddress: 'test@example.com',
         verifyMx: true,
         verifySmtp: true,
@@ -177,13 +177,13 @@ describe('Detailed Email Verification', () => {
 
     it('should validate email length constraints', async () => {
       const longLocal = 'a'.repeat(65);
-      const result1 = await verifyEmailDetailed({
+      const result1 = await verifyEmail({
         emailAddress: `${longLocal}@example.com`,
       });
       expect(result1.format.valid).toBe(false);
 
       const longDomain = 'a'.repeat(254);
-      const result2 = await verifyEmailDetailed({
+      const result2 = await verifyEmail({
         emailAddress: `test@${longDomain}.com`,
       });
       expect(result2.format.valid).toBe(false);
@@ -199,7 +199,7 @@ describe('Detailed Email Verification', () => {
       ];
 
       for (const email of invalidPatterns) {
-        const result = await verifyEmailDetailed({
+        const result = await verifyEmail({
           emailAddress: email,
         });
         expect(result.format.valid).toBe(false);

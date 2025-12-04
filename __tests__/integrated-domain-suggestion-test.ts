@@ -1,5 +1,5 @@
 import expect from 'expect';
-import { verifyEmail, verifyEmailBatch, verifyEmailDetailed } from '../src';
+import { verifyEmail, verifyEmailBatch } from '../src';
 import type { DomainSuggestionMethod } from '../src/types';
 
 describe('Integrated Domain Suggestion', () => {
@@ -10,7 +10,7 @@ describe('Integrated Domain Suggestion', () => {
         suggestDomain: true,
       });
 
-      expect(result.validFormat).toBe(true);
+      expect(result.format.valid).toBe(true);
       expect(result.domainSuggestion).toBeTruthy();
       expect(result.domainSuggestion?.suggested).toBe('john@gmail.com');
       expect(result.domainSuggestion?.confidence).toBeGreaterThanOrEqual(0.7);
@@ -19,9 +19,10 @@ describe('Integrated Domain Suggestion', () => {
     it('should not include domain suggestion by default', async () => {
       const result = await verifyEmail({
         emailAddress: 'john@gmial.com',
+        suggestDomain: false,
       });
 
-      expect(result.validFormat).toBe(true);
+      expect(result.format.valid).toBe(true);
       expect(result.domainSuggestion).toBeUndefined();
     });
 
@@ -31,7 +32,7 @@ describe('Integrated Domain Suggestion', () => {
         suggestDomain: true,
       });
 
-      expect(result.validFormat).toBe(true);
+      expect(result.format.valid).toBe(true);
       expect(result.domainSuggestion).toBeNull();
     });
 
@@ -53,7 +54,7 @@ describe('Integrated Domain Suggestion', () => {
         domainSuggestionMethod: customMethod,
       });
 
-      expect(result.validFormat).toBe(true);
+      expect(result.format.valid).toBe(true);
       expect(result.domainSuggestion?.suggested).toBe('company.com');
       expect(result.domainSuggestion?.confidence).toBe(0.95);
     });
@@ -64,7 +65,7 @@ describe('Integrated Domain Suggestion', () => {
         suggestDomain: true,
       });
 
-      expect(result.validFormat).toBe(false);
+      expect(result.format.valid).toBe(false);
       // Domain suggestion not attempted for invalid formats
       expect(result.domainSuggestion).toBeUndefined();
     });
@@ -78,14 +79,14 @@ describe('Integrated Domain Suggestion', () => {
         commonDomains: customDomains,
       });
 
-      expect(result.validFormat).toBe(true);
+      expect(result.format.valid).toBe(true);
       expect(result.domainSuggestion?.suggested).toBe('user@mycompany.com');
     });
   });
 
-  describe('verifyEmailDetailed with domain suggestion', () => {
+  describe('verifyEmail with domain suggestion', () => {
     it('should include domain suggestion by default in detailed mode', async () => {
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'jane@yaho.com',
         verifyMx: false,
         verifySmtp: false,
@@ -97,7 +98,7 @@ describe('Integrated Domain Suggestion', () => {
     });
 
     it('should not suggest when suggestDomain is false', async () => {
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'jane@yaho.com',
         suggestDomain: false,
         verifyMx: false,
@@ -109,7 +110,7 @@ describe('Integrated Domain Suggestion', () => {
     });
 
     it('should not suggest for invalid format emails', async () => {
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'not.an.email.gmial.com',
         verifyMx: false,
         verifySmtp: false,
@@ -120,7 +121,7 @@ describe('Integrated Domain Suggestion', () => {
     });
 
     it('should combine with name detection', async () => {
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'john.doe@gmial.com',
         detectName: true,
         suggestDomain: true,

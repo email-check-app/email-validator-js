@@ -51,32 +51,32 @@ describe('verifyEmailMockTest', () => {
 
     it('should perform all tests', async () => {
       setTimeout(() => self.socket.write('250 Foo'), 10);
-      const { validFormat, validMx, validSmtp } = await verifyEmail({
+      const result = await verifyEmail({
         emailAddress: 'foo@bar.com',
         verifyMx: true,
         verifySmtp: true,
       });
       sinon.assert.called(self.resolveMxStub);
       sinon.assert.called(self.connectStub);
-      expect(validFormat).toBe(true);
-      expect(validMx).toBe(true);
-      expect(validSmtp).toBe(true);
+      expect(result.format.valid).toBe(true);
+      expect(result.domain.valid).toBe(true);
+      expect(result.smtp.valid).toBe(true);
     });
 
     it('returns immediately if email is malformed invalid', async () => {
-      const { validFormat, validMx, validSmtp } = await verifyEmail({ emailAddress: 'bar.com' });
+      const result = await verifyEmail({ emailAddress: 'bar.com' });
       sinon.assert.notCalled(self.resolveMxStub);
       sinon.assert.notCalled(self.connectStub);
-      expect(validFormat).toBe(false);
-      expect(validMx).toBe(null);
-      expect(validSmtp).toBe(null);
+      expect(result.format.valid).toBe(false);
+      expect(result.domain.valid).toBe(null);
+      expect(result.smtp.valid).toBe(null);
     });
 
     describe('mailbox verification', () => {
       it('returns true when mailbox exists', async () => {
         setTimeout(() => self.socket.write('250 Foo'), 10);
-        const { validSmtp } = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
-        expect(validSmtp).toBe(true);
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.smtp.valid).toBe(true);
       });
 
       it('returns null if mailbox is yahoo', async () => {
@@ -85,9 +85,9 @@ describe('verifyEmailMockTest', () => {
 
         setTimeout(() => self.socket.write('250 Foo'), 10);
 
-        const { validSmtp } = await verifyEmail({ emailAddress: 'bar@yahoo.com', verifySmtp: true, verifyMx: true });
+        const result = await verifyEmail({ emailAddress: 'bar@yahoo.com', verifySmtp: true, verifyMx: true });
 
-        expect(validSmtp).toBe(true);
+        expect(result.smtp.valid).toBe(true);
       });
 
       it('returns false on over quota check', async () => {
@@ -105,15 +105,15 @@ describe('verifyEmailMockTest', () => {
           socket.write('250 Foo');
         }, 10);
 
-        const { validMx, validSmtp, validFormat } = await verifyEmail({
+        const result = await verifyEmail({
           emailAddress: 'bar@foo.com',
           verifySmtp: true,
           verifyMx: true,
         });
 
-        expect(validSmtp).toBe(false);
-        expect(validFormat).toBe(true);
-        expect(validMx).toBe(true);
+        expect(result.smtp.valid).toBe(false);
+        expect(result.format.valid).toBe(true);
+        expect(result.domain.valid).toBe(true);
       });
 
       it('should return null on socket error', async () => {
@@ -130,14 +130,14 @@ describe('verifyEmailMockTest', () => {
 
         self.connectStub = self.connectStub.returns(socket as unknown as Socket);
 
-        const { validSmtp, validFormat, validMx } = await verifyEmail({
+        const result = await verifyEmail({
           emailAddress: 'bar@foo.com',
           verifySmtp: true,
           verifyMx: true,
         });
-        expect(validSmtp).toBe(null);
-        expect(validMx).toBe(true);
-        expect(validFormat).toBe(true);
+        expect(result.smtp.valid).toBe(null);
+        expect(result.domain.valid).toBe(true);
+        expect(result.format.valid).toBe(true);
       });
 
       it('dodges multiline spam detecting greetings', async () => {
@@ -164,8 +164,8 @@ describe('verifyEmailMockTest', () => {
           }, 1000);
         }, 10);
 
-        const { validSmtp } = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
-        expect(validSmtp).toBe(true);
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.smtp.valid).toBe(true);
       });
 
       it('regression: does not write infinitely if there is a socket error', async () => {
@@ -209,8 +209,8 @@ describe('verifyEmailMockTest', () => {
 
         setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
-        const { validSmtp } = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
-        expect(validSmtp).toBe(null);
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.smtp.valid).toBe(null);
       });
 
       it('returns false on bad mailbox errors', async () => {
@@ -225,8 +225,8 @@ describe('verifyEmailMockTest', () => {
 
         setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
-        const { validSmtp } = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
-        expect(validSmtp).toBe(false);
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.smtp.valid).toBe(false);
       });
 
       it('returns null on spam errors', async () => {
@@ -242,8 +242,8 @@ describe('verifyEmailMockTest', () => {
 
         setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
-        const { validSmtp } = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
-        expect(validSmtp).toBe(null);
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.smtp.valid).toBe(null);
       });
 
       it('returns null on spam errors-#2', async () => {
@@ -260,8 +260,8 @@ describe('verifyEmailMockTest', () => {
 
         setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
-        const { validSmtp } = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
-        expect(validSmtp).toBe(null);
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.smtp.valid).toBe(null);
       });
     });
 
@@ -271,37 +271,37 @@ describe('verifyEmailMockTest', () => {
       });
 
       it('should return false on the domain verification', async () => {
-        const { validMx, validSmtp } = await verifyEmail({ emailAddress: 'foo@bar.com', verifyMx: true });
-        expect(validMx).toBe(false);
-        expect(validSmtp).toBe(null);
+        const result = await verifyEmail({ emailAddress: 'foo@bar.com', verifyMx: true });
+        expect(result.domain.valid).toBe(false);
+        expect(result.smtp.valid).toBe(null);
       });
     });
 
     describe('given a verifyMailbox option false', () => {
       it('should not check via socket', async () => {
-        const { validMx, validSmtp } = await verifyEmail({
+        const result = await verifyEmail({
           emailAddress: 'foo@bar.com',
           verifySmtp: false,
           verifyMx: true,
         });
         sinon.assert.called(self.resolveMxStub);
         sinon.assert.notCalled(self.connectStub);
-        expect(validSmtp).toBe(null);
-        expect(validMx).toBe(true);
+        expect(result.smtp.valid).toBe(null);
+        expect(result.domain.valid).toBe(true);
       });
     });
 
     describe('given a verifyDomain option false', () => {
       it('should not check via socket', async () => {
-        const { validMx, validSmtp } = await verifyEmail({
+        const result = await verifyEmail({
           emailAddress: 'foo@bar.com',
           verifyMx: false,
           verifySmtp: false,
         });
         sinon.assert.notCalled(self.resolveMxStub);
         sinon.assert.notCalled(self.connectStub);
-        expect(validMx).toBe(null);
-        expect(validSmtp).toBe(null);
+        expect(result.domain.valid).toBe(null);
+        expect(result.smtp.valid).toBe(null);
       });
     });
     it('should return a list of mx records, ordered by priority', async () => {

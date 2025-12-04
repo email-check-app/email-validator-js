@@ -1,5 +1,5 @@
 import expect from 'expect';
-import { verifyEmail, verifyEmailBatch, verifyEmailDetailed } from '../src';
+import { verifyEmail, verifyEmailBatch } from '../src';
 import type { NameDetectionMethod } from '../src/types';
 
 describe('Integrated Name Detection', () => {
@@ -10,7 +10,7 @@ describe('Integrated Name Detection', () => {
         detectName: true,
       });
 
-      expect(result.validFormat).toBe(true);
+      expect(result.format.valid).toBe(true);
       expect(result.detectedName).toBeTruthy();
       expect(result.detectedName?.firstName).toBe('John');
       expect(result.detectedName?.lastName).toBe('Doe');
@@ -23,7 +23,7 @@ describe('Integrated Name Detection', () => {
         detectName: false,
       });
 
-      expect(result.validFormat).toBe(true);
+      expect(result.format.valid).toBe(true);
       expect(result.detectedName).toBeUndefined();
     });
 
@@ -32,7 +32,7 @@ describe('Integrated Name Detection', () => {
         emailAddress: 'john.doe@example.com',
       });
 
-      expect(result.validFormat).toBe(true);
+      expect(result.format.valid).toBe(true);
       expect(result.detectedName).toBeUndefined();
     });
 
@@ -51,7 +51,7 @@ describe('Integrated Name Detection', () => {
         nameDetectionMethod: customMethod,
       });
 
-      expect(result.validFormat).toBe(true);
+      expect(result.format.valid).toBe(true);
       expect(result.detectedName).toBeTruthy();
       expect(result.detectedName?.firstName).toBe('Custom');
       expect(result.detectedName?.lastName).toBe('Name');
@@ -64,14 +64,14 @@ describe('Integrated Name Detection', () => {
         detectName: true,
       });
 
-      expect(result.validFormat).toBe(true);
+      expect(result.format.valid).toBe(true);
       expect(result.detectedName).toBeNull();
     });
   });
 
-  describe('verifyEmailDetailed with name detection', () => {
+  describe('verifyEmail with name detection', () => {
     it('should include detected name when detectName is true', async () => {
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'jane.smith@example.com',
         detectName: true,
         verifyMx: false,
@@ -86,7 +86,7 @@ describe('Integrated Name Detection', () => {
     });
 
     it('should not include detected name when detectName is false', async () => {
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'jane.smith@example.com',
         detectName: false,
         verifyMx: false,
@@ -98,7 +98,7 @@ describe('Integrated Name Detection', () => {
     });
 
     it('should not detect name for invalid email format', async () => {
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'not-an-email',
         detectName: true,
         verifyMx: false,
@@ -110,7 +110,7 @@ describe('Integrated Name Detection', () => {
     });
 
     it('should detect name for disposable emails', async () => {
-      const result = await verifyEmailDetailed({
+      const result = await verifyEmail({
         emailAddress: 'john.doe@yopmail.com',
         detectName: true,
         verifyMx: false,

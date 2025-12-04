@@ -129,53 +129,39 @@ const result = await verifyEmail({
   timeout: 3000
 });
 
-console.log(result.validFormat); // true
-console.log(result.validMx);     // true
-console.log(result.validSmtp);   // true or false
+console.log(result.valid);     // Overall validity
+console.log(result.format.valid); // true
+console.log(result.domain.valid); // true or false
+console.log(result.smtp.valid);   // true or false
 ```
 
 ## API Reference
 
 ### Core Functions
 
-#### `verifyEmail(params: IVerifyEmailParams): Promise<IVerifyEmailResult>`
+#### `verifyEmail(params: IVerifyEmailParams): Promise<DetailedVerificationResult>`
 
-Basic email verification with backward compatibility.
+Comprehensive email verification with detailed results and error codes.
 
 **Parameters:**
 - `emailAddress` (string, required): Email address to verify
 - `timeout` (number): Timeout in milliseconds (default: 4000)
-- `verifyMx` (boolean): Check MX records (default: false)
+- `verifyMx` (boolean): Check MX records (default: true)
 - `verifySmtp` (boolean): Verify SMTP connection (default: false)
 - `smtpPort` (number): Custom SMTP port
 - `debug` (boolean): Enable debug logging (default: false)
-- `detectName` (boolean): Detect names from email address (default: false)
-- `nameDetectionMethod` (function): Custom name detection method
-- `suggestDomain` (boolean): Enable domain typo suggestions (default: false)
-- `domainSuggestionMethod` (function): Custom domain suggestion method
-- `commonDomains` (string[]): Custom list of domains for suggestions
-
-**Returns:**
-```typescript
-{
-  validFormat: boolean;
-  validMx: boolean | null;
-  validSmtp: boolean | null;
-  detectedName?: DetectedName | null;
-  domainSuggestion?: DomainSuggestion | null;
-}
-```
-
-#### `verifyEmailDetailed(params: IVerifyEmailParams): Promise<DetailedVerificationResult>`
-
-Advanced verification with detailed results and error codes.
-
-**Additional Parameters:**
 - `checkDisposable` (boolean): Check for disposable emails (default: true)
 - `checkFree` (boolean): Check for free email providers (default: true)
 - `retryAttempts` (number): Retry attempts for failures (default: 1)
 - `detectName` (boolean): Detect names from email address (default: false)
-- `suggestDomain` (boolean): Enable domain typo suggestions (default: true in detailed mode)
+- `nameDetectionMethod` (function): Custom name detection method
+- `suggestDomain` (boolean): Enable domain typo suggestions (default: true)
+- `domainSuggestionMethod` (function): Custom domain suggestion method
+- `commonDomains` (string[]): Custom list of domains for suggestions
+- `checkDomainAge` (boolean): Check domain age (default: false)
+- `checkDomainRegistration` (boolean): Check domain registration status (default: false)
+- `whoisTimeout` (number): WHOIS lookup timeout (default: 5000)
+- `cache` (ICache): Optional custom cache instance
 
 **Returns:**
 ```typescript
@@ -591,22 +577,23 @@ Number of retry attempts for transient failures. Default: `1`.
 ```typescript
 import { verifyEmail } from '@emailcheck/email-validator-js';
 
-const { validFormat, validSmtp, validMx } = await verifyEmail({ 
-  emailAddress: 'foo@email.com', 
-  verifyMx: true, 
-  verifySmtp: true, 
-  timeout: 3000 
+const result = await verifyEmail({
+  emailAddress: 'foo@email.com',
+  verifyMx: true,
+  verifySmtp: true,
+  timeout: 3000
 });
-// validFormat: true
-// validMx: true
-// validSmtp: true
+console.log(result.valid);       // true
+console.log(result.format.valid); // true
+console.log(result.domain.valid); // true
+console.log(result.smtp.valid);   // true
 ```
 
 ### Detailed Verification (NEW)
 ```typescript
-import { verifyEmailDetailed } from '@emailcheck/email-validator-js';
+import { verifyEmail } from '@emailcheck/email-validator-js';
 
-const result = await verifyEmailDetailed({
+const result = await verifyEmail({
   emailAddress: 'foo@email.com',
   verifyMx: true,
   verifySmtp: true,
@@ -639,7 +626,7 @@ const result = await verifyEmailBatch({
 
 ### Name Detection (ENHANCED)
 ```typescript
-import { detectName, verifyEmailDetailed } from '@emailcheck/email-validator-js';
+import { detectName, verifyEmail } from '@emailcheck/email-validator-js';
 
 // Standalone name detection - now with composite name support
 const name = detectName('john.doe@mydomain.com');
@@ -657,7 +644,7 @@ const withSuffix = detectName('jane.smith.dev@mydomain.com');
 // withSuffix: { firstName: 'Jane', lastName: 'Smith', confidence: 0.7 }
 
 // Integrated with email verification
-const result = await verifyEmailDetailed({
+const result = await verifyEmail({
   emailAddress: 'jane_smith@mydomain.com',
   detectName: true
 });
@@ -678,14 +665,14 @@ const resultCustom = await verifyEmail({
 
 ### Domain Typo Detection (NEW)
 ```typescript
-import { suggestEmailDomain, verifyEmailDetailed } from '@emailcheck/email-validator-js';
+import { suggestEmailDomain, verifyEmail } from '@emailcheck/email-validator-js';
 
 // Standalone domain suggestion
 const suggestion = suggestEmailDomain('user@gmial.com');
 // suggestion: { original: 'user@gmial.com', suggested: 'user@gmail.com', confidence: 0.95 }
 
 // Integrated with email verification (enabled by default in detailed mode)
-const result = await verifyEmailDetailed({
+const result = await verifyEmail({
   emailAddress: 'john@yaho.com',
   suggestDomain: true  // Default: true for detailed verification
 });
@@ -705,20 +692,21 @@ const resultCustom = await verifyEmail({
 
 When a domain does not exist or has no MX records:
 ```typescript
-const result = await verifyEmail({ 
-  emailAddress: 'foo@bad-domain.com', 
-  verifyMx: true, 
-  verifySmtp: true 
+const result = await verifyEmail({
+  emailAddress: 'foo@bad-domain.com',
+  verifyMx: true,
+  verifySmtp: true
 });
-// validFormat: true
-// validMx: false
-// validSmtp: null (couldn't be performed)
+// result.valid: false (domain or SMTP failed)
+// result.format.valid: true
+// result.domain.valid: false
+// result.smtp.valid: null (couldn't be performed)
 ```
 
 ### Using Detailed Verification for Better Insights
 
 ```typescript
-const detailed = await verifyEmailDetailed({
+const detailed = await verifyEmail({
   emailAddress: 'user@suspicious-domain.com',
   verifyMx: true,
   verifySmtp: true,
@@ -907,7 +895,7 @@ const customCache = CacheFactory.createCustomCache(
 );
 
 // Use with verification
-const result = await verifyEmailDetailed({
+const result = await verifyEmail({
   emailAddress: 'user@mydomain.com',
   verifyMx: true,
   verifySmtp: true,
@@ -1058,7 +1046,7 @@ process.on('SIGTERM', async () => {
 });
 ```
 
-**Note:** Yahoo, Hotmail, and some providers always return `validSmtp: true` as they don't allow mailbox verification.
+**Note:** Yahoo, Hotmail, and some providers always return `result.smtp.valid: true` as they don't allow mailbox verification.
 
 ## 🌐 Serverless Deployment
 

@@ -5,12 +5,7 @@ import { resolveMxRecords } from './dns';
 import { suggestEmailDomain } from './domain-suggester';
 import { detectNameFromEmail } from './name-detector';
 import { verifyMailboxSMTP } from './smtp';
-import {
-  type DetailedVerificationResult,
-  type IVerifyEmailParams,
-  type IVerifyEmailResult,
-  VerificationErrorCode,
-} from './types';
+import { type DetailedVerificationResult, type IVerifyEmailParams, VerificationErrorCode } from './types';
 import { isValidEmail, isValidEmailDomain } from './validator';
 import { getDomainAge, getDomainRegistrationStatus } from './whois';
 
@@ -106,153 +101,9 @@ export const domainPorts: Record<string, number> = {
 };
 
 /**
- * Verify email address with basic result format (backward compatible)
+ * Verify email address
  */
-export async function verifyEmail(params: IVerifyEmailParams): Promise<IVerifyEmailResult> {
-  const {
-    emailAddress,
-    timeout = 4000,
-    verifyMx = false,
-    verifySmtp = false,
-    debug = false,
-    detectName = false,
-    nameDetectionMethod,
-    suggestDomain = false,
-    domainSuggestionMethod,
-    commonDomains,
-    checkDomainAge = false,
-    checkDomainRegistration = false,
-    whoisTimeout = 5000,
-  } = params;
-  const result: IVerifyEmailResult = { validFormat: false, validMx: null, validSmtp: null };
-
-  const log = debug ? console.debug : (..._args: unknown[]) => {};
-
-  let mxRecords: string[];
-
-  if (!isValidEmail(emailAddress)) {
-    log('[verifyEmail] Failed on wellFormed check');
-    return result;
-  }
-
-  const [local, domain] = emailAddress.split('@');
-  if (!domain || !local) {
-    log('[verifyEmail] Failed on wellFormed check');
-    return result;
-  }
-
-  result.validFormat = true;
-
-  // Detect name if requested
-  if (detectName) {
-    result.detectedName = detectNameFromEmail({
-      email: emailAddress,
-      customMethod: nameDetectionMethod,
-    });
-  }
-
-  // Suggest domain if requested
-  if (suggestDomain) {
-    const [, emailDomain] = emailAddress.split('@');
-    if (emailDomain) {
-      result.domainSuggestion = domainSuggestionMethod
-        ? domainSuggestionMethod(emailDomain)
-        : await suggestEmailDomain(emailAddress, commonDomains);
-    }
-  }
-
-  // Check domain age if requested
-  if (checkDomainAge) {
-    try {
-      result.domainAge = await getDomainAge(domain, whoisTimeout);
-    } catch (err) {
-      log('[verifyEmail] Failed to get domain age', err);
-      result.domainAge = null;
-    }
-  }
-
-  // Check domain registration if requested
-  if (checkDomainRegistration) {
-    try {
-      result.domainRegistration = await getDomainRegistrationStatus(domain, whoisTimeout);
-    } catch (err) {
-      log('[verifyEmail] Failed to get domain registration status', err);
-      result.domainRegistration = null;
-    }
-  }
-
-  // save a DNS call
-  if (!verifyMx && !verifySmtp) return result;
-
-  try {
-    mxRecords = await resolveMxRecords(domain, params.cache);
-    log('[verifyEmail] Found MX records', mxRecords);
-  } catch (err) {
-    log('[verifyEmail] Failed to resolve MX records', err);
-    mxRecords = [];
-  }
-
-  if (verifyMx || verifySmtp) {
-    result.validMx = mxRecords && mxRecords.length > 0;
-  }
-
-  if (verifySmtp && !mxRecords?.length) {
-    result.validSmtp = false;
-  }
-
-  if (verifySmtp && mxRecords?.length > 0) {
-    // Check SMTP cache first
-    const cacheKey = `${emailAddress}:smtp`;
-    const smtpCacheInstance = smtpCacheStore(params.cache);
-    const cachedSmtp = await smtpCacheInstance.get(cacheKey);
-
-    if (cachedSmtp !== null && cachedSmtp !== undefined) {
-      result.validSmtp = cachedSmtp;
-      // Still need to detect name if requested and not done yet
-      if (detectName && !result.detectedName) {
-        result.detectedName = detectNameFromEmail({
-          email: emailAddress,
-          customMethod: nameDetectionMethod,
-        });
-      }
-      return result;
-    }
-
-    // get custom port for domain if not provided in params
-    let domainPort = params.smtpPort;
-    if (!domainPort) {
-      const mxDomain = parse(mxRecords[0]);
-      if ('domain' in mxDomain && mxDomain.domain) {
-        domainPort = domainPorts[mxDomain.domain];
-        log(`[verifyEmail] Found mxDomain ${mxDomain.domain} with port ${domainPort}`);
-      }
-      if ('error' in mxDomain) {
-        log(`[verifyEmail] Failed to parse mxDomain ${mxDomain.error}`);
-      }
-    }
-
-    const smtpResult = await verifyMailboxSMTP({
-      local,
-      domain,
-      mxRecords,
-      timeout,
-      debug,
-      port: domainPort,
-      retryAttempts: params.retryAttempts,
-    });
-
-    // Cache SMTP result
-    await smtpCacheInstance.set(cacheKey, smtpResult);
-    result.validSmtp = smtpResult;
-  }
-
-  return result;
-}
-
-/**
- * Verify email address with detailed result format
- */
-export async function verifyEmailDetailed(params: IVerifyEmailParams): Promise<DetailedVerificationResult> {
+export async function verifyEmail(params: IVerifyEmailParams): Promise<DetailedVerificationResult> {
   const {
     emailAddress,
     timeout = 4000,
