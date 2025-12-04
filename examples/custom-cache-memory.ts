@@ -3,10 +3,11 @@
  * This demonstrates how to create a custom cache store with advanced features
  */
 
-import { verifyEmailDetailed } from '../src';
+import { verifyEmail } from '../src';
 import { setCustomCache } from '../src/cache';
-import { CacheFactory } from '../src/cache-factory';
-import type { ICacheStore } from '../src/cache-interface';
+import { LRUAdapter } from '../src/adapters/lru-adapter';
+import type { ICache, ICacheStore } from '../src/cache-interface';
+import { DEFAULT_CACHE_SIZE, DEFAULT_CACHE_TTL } from '../src/cache-interface';
 
 /**
  * Custom in-memory cache with time-based expiration and statistics
@@ -121,23 +122,22 @@ class CustomMemoryCache<T> implements ICacheStore<T> {
 
 async function setupCustomCache() {
   // Create custom cache instances with different configurations
-  const customCache = CacheFactory.createCustomCache((cacheType, defaultTtl, defaultSize) => {
-    // Different configurations for different cache types
-    switch (cacheType) {
-      case 'smtp':
-        // SMTP cache: smaller size, shorter TTL
-        return new CustomMemoryCache(200, 1800000); // 30 minutes
-      case 'mx':
-        // MX cache: medium size, medium TTL
-        return new CustomMemoryCache(300, 3600000); // 1 hour
-      case 'disposable':
-        // Disposable cache: larger size, longer TTL
-        return new CustomMemoryCache(1500, 172800000); // 48 hours
-      default:
-        // Default configuration
-        return new CustomMemoryCache(defaultSize, defaultTtl);
-    }
-  });
+  const customCache: ICache = {
+    // SMTP cache: smaller size, shorter TTL
+    smtp: new CustomMemoryCache(200, 1800000), // 30 minutes
+    // MX cache: medium size, medium TTL
+    mx: new CustomMemoryCache(300, 3600000), // 1 hour
+    // Disposable cache: larger size, longer TTL
+    disposable: new CustomMemoryCache(1500, 172800000), // 48 hours
+    // Free cache: default size and TTL
+    free: new CustomMemoryCache(DEFAULT_CACHE_SIZE.free, DEFAULT_CACHE_TTL.free),
+    // Domain validation cache
+    domainValid: new CustomMemoryCache(DEFAULT_CACHE_SIZE.domainValid, DEFAULT_CACHE_TTL.domainValid),
+    // Domain suggestion cache
+    domainSuggestion: new CustomMemoryCache(DEFAULT_CACHE_SIZE.domainSuggestion, DEFAULT_CACHE_TTL.domainSuggestion),
+    // WHOIS cache
+    whois: new CustomMemoryCache(DEFAULT_CACHE_SIZE.whois, DEFAULT_CACHE_TTL.whois),
+  };
 
   // Set the custom cache globally
   setCustomCache(customCache);
@@ -161,20 +161,19 @@ async function demonstrateCacheUsage() {
   for (const email of testEmails) {
     console.log(`\n📧 Verifying: ${email}`);
 
-    const result = await verifyEmailDetailed({
+    const result = await verifyEmail({
       emailAddress: email,
       verifyMx: true,
       verifySmtp: false, // Set to false for this example
       checkDisposable: true,
       checkFree: true,
-      detailed: true,
       debug: false,
     });
 
     console.log(`Result:`, {
-      valid: result.valid,
-      disposable: result.disposable,
-      freeProvider: result.freeProvider,
+      valid: result.validFormat && result.validMx,
+      disposable: result.isDisposable,
+      freeProvider: result.isFree,
       cached: result.metadata?.cached,
     });
 

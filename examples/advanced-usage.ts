@@ -1,12 +1,11 @@
 import {
   clearAllCaches,
-  type DetailedVerificationResult,
+  type VerificationResult,
   isDisposableEmail,
   isFreeEmail,
   VerificationErrorCode,
   verifyEmail,
   verifyEmailBatch,
-  verifyEmailDetailed,
 } from '../src';
 
 async function basicUsage() {
@@ -27,7 +26,7 @@ async function basicUsage() {
 async function detailedVerification() {
   console.log('\n=== Detailed Email Verification ===');
 
-  const result = await verifyEmailDetailed({
+  const result = await verifyEmail({
     emailAddress: 'test@gmail.com',
     verifyMx: true,
     verifySmtp: false,
@@ -36,17 +35,17 @@ async function detailedVerification() {
     timeout: 5000,
   });
 
-  console.log('Valid:', result.valid);
-  console.log('Format valid:', result.format.valid);
-  console.log('Domain valid:', result.domain.valid);
-  console.log('MX Records:', result.domain.mxRecords);
-  console.log('Is disposable:', result.disposable);
-  console.log('Is free provider:', result.freeProvider);
+  console.log('Valid:', result.validFormat && result.validMx);
+  console.log('Format valid:', result.validFormat);
+  console.log('MX valid:', result.validMx);
+  console.log('SMTP valid:', result.validSmtp);
+  console.log('Is disposable:', result.isDisposable);
+  console.log('Is free provider:', result.isFree);
   console.log('Verification time:', result.metadata?.verificationTime, 'ms');
   console.log('From cache:', result.metadata?.cached);
 
-  if (result.format.error) {
-    console.log('Error:', result.format.error);
+  if (result.metadata?.error) {
+    console.log('Error:', result.metadata.error);
   }
 }
 
@@ -98,8 +97,8 @@ async function checkEmailProviders() {
 
   for (const email of testEmails) {
     console.log(`${email}:`);
-    console.log(`  Disposable: ${isDisposableEmail(email)}`);
-    console.log(`  Free provider: ${isFreeEmail(email)}`);
+    console.log(`  Disposable: ${await isDisposableEmail({ emailOrDomain: email })}`);
+    console.log(`  Free provider: ${await isFreeEmail({ emailOrDomain: email })}`);
   }
 }
 
@@ -109,7 +108,7 @@ async function demonstrateCache() {
   // First verification - will hit DNS and SMTP
   console.log('First verification (no cache):');
   const start1 = Date.now();
-  const result1 = await verifyEmailDetailed({
+  const result1 = await verifyEmail({
     emailAddress: 'cache@example.com',
     verifyMx: true,
     verifySmtp: false,
@@ -120,7 +119,7 @@ async function demonstrateCache() {
   // Second verification - will use cache
   console.log('Second verification (cached):');
   const start2 = Date.now();
-  const result2 = await verifyEmailDetailed({
+  const result2 = await verifyEmail({
     emailAddress: 'cache@example.com',
     verifyMx: true,
     verifySmtp: false,
@@ -135,7 +134,7 @@ async function demonstrateCache() {
   // Third verification - cache cleared, will hit DNS again
   console.log('Third verification (cache cleared):');
   const start3 = Date.now();
-  const result3 = await verifyEmailDetailed({
+  const result3 = await verifyEmail({
     emailAddress: 'cache@example.com',
     verifyMx: true,
     verifySmtp: false,
@@ -150,22 +149,22 @@ async function handleErrors() {
   const testCases = ['invalid-format', 'user@nonexistent-domain-xyz.com', 'test@yopmail.com'];
 
   for (const email of testCases) {
-    const result = await verifyEmailDetailed({
+    const result = await verifyEmail({
       emailAddress: email,
       verifyMx: true,
       checkDisposable: true,
     });
 
     console.log(`\n${email}:`);
-    console.log(`  Valid: ${result.valid}`);
+    console.log(`  Valid: ${result.validFormat && result.validMx}`);
 
-    if (result.format.error === VerificationErrorCode.INVALID_FORMAT) {
+    if (result.metadata?.error === VerificationErrorCode.INVALID_FORMAT) {
       console.log('  Error: Invalid email format');
     }
-    if (result.domain.error === VerificationErrorCode.NO_MX_RECORDS) {
+    if (result.metadata?.error === VerificationErrorCode.NO_MX_RECORDS) {
       console.log('  Error: No MX records found');
     }
-    if (result.domain.error === VerificationErrorCode.DISPOSABLE_EMAIL) {
+    if (result.metadata?.error === VerificationErrorCode.DISPOSABLE_EMAIL) {
       console.log('  Error: Disposable email detected');
     }
   }

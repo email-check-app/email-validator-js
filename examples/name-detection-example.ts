@@ -70,11 +70,11 @@ if (customResult) {
 console.log('\nIntegrated Name Detection (NEW FEATURE):');
 console.log('=========================================');
 
-import { verifyEmailBatch, verifyEmailDetailed } from '../src';
+import { verifyEmailBatch, verifyEmail } from '../src';
 
 async function verifyWithIntegratedNameDetection() {
   // Single email verification with integrated name detection
-  const result = await verifyEmailDetailed({
+  const result = await verifyEmail({
     emailAddress: 'john.smith@gmail.com',
     detectName: true, // NEW: Enable name detection
     verifyMx: false, // Skip MX verification for example

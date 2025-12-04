@@ -5,7 +5,7 @@ import {
   isCommonDomain,
   suggestEmailDomain,
   verifyEmailBatch,
-  verifyEmailDetailed,
+  verifyEmail,
 } from '../src';
 
 // Example 1: Basic domain suggestion
@@ -71,7 +71,7 @@ console.log('======================================================');
 
 async function verifyWithSuggestions() {
   // Single email verification with domain suggestion
-  const result = await verifyEmailDetailed({
+  const result = await verifyEmail({
     emailAddress: 'john.doe@gmial.com',
     suggestDomain: true, // Enable domain suggestions
     detectName: true, // Also detect names
