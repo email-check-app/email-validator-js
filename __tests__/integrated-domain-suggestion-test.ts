@@ -144,7 +144,6 @@ describe('Integrated Domain Suggestion', () => {
         suggestDomain: true,
         verifyMx: false,
         verifySmtp: false,
-        detailed: false,
       });
 
       expect(result.summary.total).toBe(4);
@@ -170,7 +169,6 @@ describe('Integrated Domain Suggestion', () => {
         suggestDomain: true,
         verifyMx: false,
         verifySmtp: false,
-        detailed: true,
         checkDisposable: false,
         checkFree: false,
       });
@@ -202,7 +200,6 @@ describe('Integrated Domain Suggestion', () => {
         domainSuggestionMethod: customMethod,
         verifyMx: false,
         verifySmtp: false,
-        detailed: false,
       });
 
       const test1Result = result.results.get('test1@example.co');
@@ -224,7 +221,6 @@ describe('Integrated Domain Suggestion', () => {
         suggestDomain: true,
         verifyMx: false,
         verifySmtp: false,
-        detailed: true,
       });
 
       const johnResult = result.results.get('john.doe@gmial.com');

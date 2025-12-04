@@ -135,7 +135,6 @@ describe('Integrated Name Detection', () => {
         detectName: true,
         verifyMx: false,
         verifySmtp: false,
-        detailed: false,
       });
 
       expect(result.summary.total).toBe(4);
@@ -169,7 +168,6 @@ describe('Integrated Name Detection', () => {
         detectName: true,
         verifyMx: false,
         verifySmtp: false,
-        detailed: true,
         checkDisposable: false,
         checkFree: false,
       });
@@ -207,7 +205,6 @@ describe('Integrated Name Detection', () => {
         nameDetectionMethod: customMethod,
         verifyMx: false,
         verifySmtp: false,
-        detailed: false,
       });
 
       const test1Result = result.results.get('test1@example.com');
