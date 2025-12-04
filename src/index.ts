@@ -15,6 +15,9 @@ import {
 import { isValidEmail, isValidEmailDomain } from './validator';
 import { getDomainAge, getDomainRegistrationStatus } from './whois';
 
+export * from './adapters/lru-adapter';
+export * from './adapters/redis-adapter';
+
 export { verifyEmailBatch } from './batch';
 export { clearAllCaches } from './cache';
 export {
