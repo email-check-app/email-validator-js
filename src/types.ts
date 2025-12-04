@@ -226,6 +226,33 @@ export interface DomainSuggesterOptions {
 }
 
 /**
+ * Parameters for isDisposableEmail function
+ */
+export interface IDisposableEmailParams {
+  emailOrDomain: string;
+  cache?: ICache | null;
+  logger?: (...args: unknown[]) => void;
+}
+
+/**
+ * Parameters for isFreeEmail function
+ */
+export interface IFreeEmailParams {
+  emailOrDomain: string;
+  cache?: ICache | null;
+  logger?: (...args: unknown[]) => void;
+}
+
+/**
+ * Parameters for resolveMxRecords function
+ */
+export interface IResolveMxParams {
+  domain: string;
+  cache?: ICache | null;
+  logger?: (...args: unknown[]) => void;
+}
+
+/**
  * Options for email validation (serverless compatible)
  */
 export interface ValidateEmailOptions {

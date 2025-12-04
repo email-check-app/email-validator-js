@@ -305,7 +305,7 @@ describe('verifyEmailMockTest', () => {
       });
     });
     it('should return a list of mx records, ordered by priority', async () => {
-      const records = await resolveMxRecords('bar@foo.com');
+      const records = await resolveMxRecords({ domain: 'bar@foo.com' });
       expect(records).toEqual(['mx2.foo.com', 'mx3.foo.com', 'mx1.foo.com']);
     });
   });

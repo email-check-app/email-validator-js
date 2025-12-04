@@ -29,12 +29,12 @@ describe('Caching System', () => {
       const sharedCache = CacheFactory.createLRUCache();
 
       // First call - should hit DNS
-      const result1 = await resolveMxRecords('example.com', sharedCache);
+      const result1 = await resolveMxRecords({ domain: 'example.com', cache: sharedCache });
       expect(resolveMxStub.callCount).toBe(1);
       expect(result1).toEqual(['mx1.example.com']);
 
       // Second call - should use cache
-      const result2 = await resolveMxRecords('example.com', sharedCache);
+      const result2 = await resolveMxRecords({ domain: 'example.com', cache: sharedCache });
       expect(resolveMxStub.callCount).toBe(1); // Still 1, used cache
       expect(result2).toEqual(['mx1.example.com']);
     });
@@ -47,7 +47,7 @@ describe('Caching System', () => {
 
       // First call - should hit DNS and fail
       try {
-        await resolveMxRecords('invalid.com', sharedCache);
+        await resolveMxRecords({ domain: 'invalid.com', cache: sharedCache });
       } catch (_err) {
         // Expected to fail
       }
@@ -55,7 +55,7 @@ describe('Caching System', () => {
 
       // Second call - should use cached failure
       try {
-        await resolveMxRecords('invalid.com', sharedCache);
+        await resolveMxRecords({ domain: 'invalid.com', cache: sharedCache });
       } catch (_err) {
         // Expected to fail
       }
@@ -69,7 +69,7 @@ describe('Caching System', () => {
       const sharedCache = CacheFactory.createLRUCache();
 
       // First call - should check the Set
-      const result1 = await isDisposableEmail('test@yopmail.com', sharedCache);
+      const result1 = await isDisposableEmail({ emailOrDomain: 'test@yopmail.com', cache: sharedCache });
       expect(result1).toBe(true);
 
       // Clear the underlying Set to prove cache is working
@@ -77,7 +77,7 @@ describe('Caching System', () => {
       disposableProviders.length = 0;
 
       // Second call - should use cache
-      const result2 = await isDisposableEmail('test@yopmail.com', sharedCache);
+      const result2 = await isDisposableEmail({ emailOrDomain: 'test@yopmail.com', cache: sharedCache });
       expect(result2).toBe(true);
     });
 
@@ -85,11 +85,11 @@ describe('Caching System', () => {
       // Create a shared cache instance
       const sharedCache = CacheFactory.createLRUCache();
 
-      const result1 = await isDisposableEmail('test@gmail.com', sharedCache);
+      const result1 = await isDisposableEmail({ emailOrDomain: 'test@gmail.com', cache: sharedCache });
       expect(result1).toBe(false);
 
       // Second call - should use cache
-      const result2 = await isDisposableEmail('test@gmail.com', sharedCache);
+      const result2 = await isDisposableEmail({ emailOrDomain: 'test@gmail.com', cache: sharedCache });
       expect(result2).toBe(false);
     });
   });
@@ -100,7 +100,7 @@ describe('Caching System', () => {
       const sharedCache = CacheFactory.createLRUCache();
 
       // First call
-      const result1 = await isFreeEmail('test@gmail.com', sharedCache);
+      const result1 = await isFreeEmail({ emailOrDomain: 'test@gmail.com', cache: sharedCache });
       expect(result1).toBe(true);
 
       // Clear the underlying Set to prove cache is working
@@ -108,7 +108,7 @@ describe('Caching System', () => {
       freeProviders.length = 0;
 
       // Second call - should use cache
-      const result2 = await isFreeEmail('test@gmail.com', sharedCache);
+      const result2 = await isFreeEmail({ emailOrDomain: 'test@gmail.com', cache: sharedCache });
       expect(result2).toBe(true);
     });
   });

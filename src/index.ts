@@ -1,11 +1,16 @@
 import { parse } from 'psl';
 import { disposableCacheStore, freeCacheStore, smtpCacheStore } from './cache';
-import type { ICache } from './cache-interface';
 import { resolveMxRecords } from './dns';
 import { suggestEmailDomain } from './domain-suggester';
 import { detectNameFromEmail } from './name-detector';
 import { verifyMailboxSMTP } from './smtp';
-import { type IVerifyEmailParams, VerificationErrorCode, type VerificationResult } from './types';
+import {
+  type IDisposableEmailParams,
+  type IFreeEmailParams,
+  type IVerifyEmailParams,
+  VerificationErrorCode,
+  type VerificationResult,
+} from './types';
 
 import { isValidEmail, isValidEmailDomain } from './validator';
 import { getDomainAge, getDomainRegistrationStatus } from './whois';
@@ -29,11 +34,8 @@ export { getDomainAge, getDomainRegistrationStatus } from './whois';
 let disposableEmailProviders: Set<string>;
 let freeEmailProviders: Set<string>;
 
-export async function isDisposableEmail(
-  emailOrDomain: string,
-  cache?: ICache | null,
-  logger?: (...args: unknown[]) => void
-): Promise<boolean> {
+export async function isDisposableEmail(params: IDisposableEmailParams): Promise<boolean> {
+  const { emailOrDomain, cache, logger } = params;
   const log = logger || (() => {});
 
   const parts = emailOrDomain.split('@');
@@ -72,11 +74,8 @@ export async function isDisposableEmail(
   return result;
 }
 
-export async function isFreeEmail(
-  emailOrDomain: string,
-  cache?: ICache | null,
-  logger?: (...args: unknown[]) => void
-): Promise<boolean> {
+export async function isFreeEmail(params: IFreeEmailParams): Promise<boolean> {
+  const { emailOrDomain, cache, logger } = params;
   const log = logger || (() => {});
 
   const parts = emailOrDomain.split('@');
@@ -216,7 +215,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
   // Check disposable first (to potentially skip expensive operations)
   if (checkDisposable) {
     log(`[verifyEmail] Checking if ${emailAddress} is disposable email`);
-    result.isDisposable = await isDisposableEmail(emailAddress, params.cache, log);
+    result.isDisposable = await isDisposableEmail({ emailOrDomain: emailAddress, cache: params.cache, logger: log });
     log(`[verifyEmail] Disposable check result: ${result.isDisposable}`);
     if (result.isDisposable && result.metadata) {
       result.metadata.error = VerificationErrorCode.DISPOSABLE_EMAIL;
@@ -226,7 +225,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
   // Check free provider
   if (checkFree) {
     log(`[verifyEmail] Checking if ${emailAddress} is free email provider`);
-    result.isFree = await isFreeEmail(emailAddress, params.cache, log);
+    result.isFree = await isFreeEmail({ emailOrDomain: emailAddress, cache: params.cache, logger: log });
     log(`[verifyEmail] Free email check result: ${result.isFree}`);
   }
 
@@ -278,7 +277,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
   if ((verifyMx || verifySmtp) && !shouldSkipMx) {
     log(`[verifyEmail] Checking MX records for ${domain}`);
     try {
-      const mxRecords = await resolveMxRecords(domain, params.cache, log);
+      const mxRecords = await resolveMxRecords({ domain, cache: params.cache, logger: log });
       result.validMx = mxRecords.length > 0;
       log(`[verifyEmail] MX records found: ${mxRecords.length}, valid: ${result.validMx}`);
 

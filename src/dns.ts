@@ -1,12 +1,9 @@
 import { promises as dnsPromises } from 'node:dns';
 import { mxCacheStore } from './cache';
-import type { ICache } from './cache-interface';
+import type { IResolveMxParams } from './types';
 
-export async function resolveMxRecords(
-  domain: string,
-  cache?: ICache | null,
-  logger?: (...args: unknown[]) => void
-): Promise<string[]> {
+export async function resolveMxRecords(params: IResolveMxParams): Promise<string[]> {
+  const { domain, cache, logger } = params;
   const log = logger || (() => {});
 
   // Check cache first

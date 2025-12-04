@@ -38,12 +38,12 @@ describe('Cache Integration', () => {
       });
 
       // First call should miss cache
-      const result1 = await isDisposableEmail('test@10minutemail.com', customCache);
+      const result1 = await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: customCache });
       expect(cacheHits).toBe(1);
       expect(cacheSets).toBe(1);
 
       // Second call should hit cache
-      const result2 = await isDisposableEmail('test@10minutemail.com', customCache);
+      const result2 = await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: customCache });
       expect(result1).toBe(result2);
       expect(cacheHits).toBe(2); // One more get call
       expect(cacheSets).toBe(1); // No new set calls
@@ -52,9 +52,9 @@ describe('Cache Integration', () => {
     it('should not interfere with cache of different domains', async () => {
       const customCache = CacheFactory.createLRUCache();
 
-      const result1 = await isDisposableEmail('test@gmail.com', customCache);
-      const result2 = await isDisposableEmail('test@10minutemail.com', customCache);
-      const result3 = await isDisposableEmail('test@gmail.com', customCache); // Should use cache
+      const result1 = await isDisposableEmail({ emailOrDomain: 'test@gmail.com', cache: customCache });
+      const result2 = await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: customCache });
+      const result3 = await isDisposableEmail({ emailOrDomain: 'test@gmail.com', cache: customCache }); // Should use cache
 
       expect(result1).toBe(false);
       expect(result2).toBe(true);
@@ -67,8 +67,8 @@ describe('Cache Integration', () => {
       const customCache = CacheFactory.createLRUCache();
 
       // Test with a known free provider
-      const result1 = await isFreeEmail('test@gmail.com', customCache);
-      const result2 = await isFreeEmail('test@gmail.com', customCache); // Should use cache
+      const result1 = await isFreeEmail({ emailOrDomain: 'test@gmail.com', cache: customCache });
+      const result2 = await isFreeEmail({ emailOrDomain: 'test@gmail.com', cache: customCache }); // Should use cache
 
       expect(typeof result1).toBe('boolean');
       expect(result1).toBe(result2);
@@ -82,9 +82,9 @@ describe('Cache Integration', () => {
       // This might throw if DNS resolution fails, but that's ok for this test
       const domain = 'example.com';
       try {
-        await resolveMxRecords(domain, customCache);
+        await resolveMxRecords({ domain, cache: customCache });
         // Second call should be cached (though we can't directly verify)
-        await resolveMxRecords(domain, customCache);
+        await resolveMxRecords({ domain, cache: customCache });
       } catch (error) {
         // DNS resolution failed, but that's not what we're testing
         console.warn('DNS resolution failed, skipping MX cache test:', error);
@@ -144,13 +144,13 @@ describe('Cache Integration', () => {
       });
 
       // Cache a result
-      await isDisposableEmail('test@temp-mail.org', customCache);
+      await isDisposableEmail({ emailOrDomain: 'test@temp-mail.org', cache: customCache });
 
       // Wait for cache to expire
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // This should miss cache
-      const result = await isDisposableEmail('test@temp-mail.org', customCache);
+      const result = await isDisposableEmail({ emailOrDomain: 'test@temp-mail.org', cache: customCache });
       expect(typeof result).toBe('boolean');
     });
   });
@@ -168,9 +168,9 @@ describe('Cache Integration', () => {
       });
 
       // Add 3 different domains (more than cache size)
-      await isDisposableEmail('test@domain1.com', customCache);
-      await isDisposableEmail('test@domain2.com', customCache);
-      await isDisposableEmail('test@domain3.com', customCache);
+      await isDisposableEmail({ emailOrDomain: 'test@domain1.com', cache: customCache });
+      await isDisposableEmail({ emailOrDomain: 'test@domain2.com', cache: customCache });
+      await isDisposableEmail({ emailOrDomain: 'test@domain3.com', cache: customCache });
 
       // Cache should have only the last 2 entries
       expect(tinyCache.size()).toBeLessThanOrEqual(2);
@@ -194,7 +194,7 @@ describe('Cache Integration', () => {
       const customCache = CacheFactory.createCustomCache((cacheType, defaultTtl, defaultSize) => errorCache);
 
       // Should not throw even with cache errors
-      const result = await isDisposableEmail('test@example.com', customCache);
+      const result = await isDisposableEmail({ emailOrDomain: 'test@example.com', cache: customCache });
       expect(typeof result).toBe('boolean');
     });
 
@@ -233,7 +233,7 @@ describe('Cache Integration', () => {
   describe('Cache Reset', () => {
     it('should work with default cache when no cache provided', async () => {
       // Should work with default cache when no cache provided
-      const result = await isDisposableEmail('test@gmail.com');
+      const result = await isDisposableEmail({ emailOrDomain: 'test@gmail.com' });
       expect(typeof result).toBe('boolean');
     });
   });
@@ -262,8 +262,8 @@ describe('Cache Integration', () => {
       });
 
       // Test direct calls to isDisposableEmail to verify cache works
-      await isDisposableEmail('test@10minutemail.com', customCache);
-      await isDisposableEmail('test@10minutemail.com', customCache); // Should use cache
+      await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: customCache });
+      await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: customCache }); // Should use cache
 
       // Import batch verification
       const { verifyEmailBatch } = await import('../src/batch');

@@ -40,14 +40,14 @@ describe('utilsTest', () => {
 
   describe('isDisposableEmail', () => {
     it('should return true', async () => {
-      expect(await isDisposableEmail('foo@yopmail.com')).toEqual(true);
-      expect(await isDisposableEmail('foo@trackworld.xyz')).toEqual(true);
+      expect(await isDisposableEmail({ emailOrDomain: 'foo@yopmail.com' })).toEqual(true);
+      expect(await isDisposableEmail({ emailOrDomain: 'foo@trackworld.xyz' })).toEqual(true);
     });
 
     it('should return false', async () => {
-      expect(await isDisposableEmail('foo@google.com')).toEqual(false);
-      expect(await isDisposableEmail('foo@gmail.com')).toEqual(false);
-      expect(await isDisposableEmail('foo@yahoo.com')).toEqual(false);
+      expect(await isDisposableEmail({ emailOrDomain: 'foo@google.com' })).toEqual(false);
+      expect(await isDisposableEmail({ emailOrDomain: 'foo@gmail.com' })).toEqual(false);
+      expect(await isDisposableEmail({ emailOrDomain: 'foo@yahoo.com' })).toEqual(false);
     });
   });
 });

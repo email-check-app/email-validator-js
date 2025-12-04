@@ -113,19 +113,19 @@ describe('Custom Cache Implementation', () => {
       };
 
       // Test that custom cache is being used
-      await isDisposableEmail('test@domain.com', customCache);
+      await isDisposableEmail({ emailOrDomain: 'test@domain.com', cache: customCache });
       expect(cacheHits).toBeGreaterThan(0);
 
       // Reset hits for next test
       cacheHits = 0;
 
-      await isFreeEmail('test@domain.com', customCache);
+      await isFreeEmail({ emailOrDomain: 'test@domain.com', cache: customCache });
       expect(cacheHits).toBeGreaterThan(0);
     });
 
     it('should work with default cache when no cache provided', async () => {
       // Should work with default cache when no cache provided
-      const result = await isDisposableEmail('test@domain.com');
+      const result = await isDisposableEmail({ emailOrDomain: 'test@domain.com' });
       expect(typeof result).toBe('boolean');
     });
   });
@@ -139,14 +139,14 @@ describe('Custom Cache Implementation', () => {
       });
 
       // Cache a disposable email check
-      await isDisposableEmail('test@10minutemail.com', fastExpiringCache);
+      await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: fastExpiringCache });
 
       // Wait for it to expire
       await new Promise((resolve) => setTimeout(resolve, 150));
 
       // Should re-check (not from cache)
       // We can't directly test this, but the function should still work
-      const result = await isDisposableEmail('test@10minutemail.com', fastExpiringCache);
+      const result = await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: fastExpiringCache });
       expect(typeof result).toBe('boolean');
     });
   });
@@ -176,7 +176,7 @@ describe('Custom Cache Implementation', () => {
       };
 
       // Should not throw even if cache fails
-      const result = await isDisposableEmail('test@domain.com', customCache);
+      const result = await isDisposableEmail({ emailOrDomain: 'test@domain.com', cache: customCache });
       expect(typeof result).toBe('boolean');
     });
   });
@@ -207,8 +207,8 @@ describe('Custom Cache Implementation', () => {
       };
 
       // Test direct calls to ensure cache is working
-      await isDisposableEmail('test@10minutemail.com', customCache);
-      await isFreeEmail('test@gmail.com', customCache);
+      await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: customCache });
+      await isFreeEmail({ emailOrDomain: 'test@gmail.com', cache: customCache });
 
       // Should have called cache for each email
       expect(cacheCalls).toBeGreaterThan(0);

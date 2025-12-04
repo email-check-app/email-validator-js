@@ -5,9 +5,13 @@ import type { ICacheStore } from '../cache-interface';
  */
 export interface IRedisClient {
   get(key: string): Promise<string | null>;
+
   set(key: string, value: string, mode?: string, duration?: number): Promise<string | null>;
+
   del(key: string): Promise<number>;
+
   exists(key: string): Promise<number>;
+
   flushdb(): Promise<string>;
 }
 
