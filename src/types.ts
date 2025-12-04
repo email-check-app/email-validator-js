@@ -1,3 +1,5 @@
+import type { ICache } from './cache-interface';
+
 /**
  * Error codes for email verification failures
  */
@@ -82,6 +84,7 @@ export interface IVerifyEmailParams {
   checkDomainAge?: boolean;
   checkDomainRegistration?: boolean;
   whoisTimeout?: number;
+  cache?: ICache; // Optional custom cache instance
 }
 
 /**
@@ -101,6 +104,7 @@ export interface IBatchVerifyParams {
   suggestDomain?: boolean;
   domainSuggestionMethod?: DomainSuggestionMethod;
   commonDomains?: string[];
+  cache?: ICache; // Optional custom cache instance
 }
 
 /**

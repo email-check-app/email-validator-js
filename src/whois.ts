@@ -1,6 +1,6 @@
 import net from 'node:net';
 import { isValid } from 'psl';
-import { whoisCache } from './cache';
+import { whoisCacheStore } from './cache';
 import type { DomainAgeInfo, DomainRegistrationInfo } from './types';
 import { type ParsedWhoisResult, parseWhoisData } from './whois-parser';
 
@@ -85,8 +85,9 @@ function queryWhoisServer(domain: string, server: string, timeout = 5000): Promi
 
 async function getWhoisData(domain: string, timeout = 5000): Promise<ParsedWhoisResult | null> {
   const cacheKey = `whois:${domain}`;
-  const cached = whoisCache.get(cacheKey);
-  if (cached) {
+  const cache = whoisCacheStore();
+  const cached = await cache.get(cacheKey);
+  if (cached !== null && cached !== undefined) {
     return cached as ParsedWhoisResult;
   }
 
@@ -106,18 +107,18 @@ async function getWhoisData(domain: string, timeout = 5000): Promise<ParsedWhois
         const referredServer = referMatch[1];
         const whoisResponse = await queryWhoisServer(domain, referredServer, timeout);
         const whoisData = parseWhoisData({ rawData: whoisResponse, domain });
-        whoisCache.set(cacheKey, whoisData);
+        await cache.set(cacheKey, whoisData);
         return whoisData;
       }
 
       const whoisData = parseWhoisData({ rawData: ianaResponse, domain });
-      whoisCache.set(cacheKey, whoisData);
+      await cache.set(cacheKey, whoisData);
       return whoisData;
     }
 
     const whoisResponse = await queryWhoisServer(domain, whoisServer, timeout);
     const whoisData = parseWhoisData({ rawData: whoisResponse, domain });
-    whoisCache.set(cacheKey, whoisData);
+    await cache.set(cacheKey, whoisData);
     return whoisData;
   } catch (_error) {
     return null;

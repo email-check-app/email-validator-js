@@ -19,35 +19,35 @@ describe('utilsTest', () => {
 
   describe('isValidTld', () => {
     it('should succeed', async () => {
-      expect(isValidEmailDomain('foo@bar.com')).toEqual(true);
-      expect(isValidEmailDomain('foo@google.pl')).toEqual(true);
-      expect(isValidEmailDomain('foo@google.de')).toEqual(true);
-      expect(isValidEmailDomain('foo@google.co.uk')).toEqual(true);
-      expect(isValidEmailDomain('foo@google.sc')).toEqual(true);
-      expect(isValidEmailDomain('foo@google.tw')).toEqual(true);
-      expect(isValidEmailDomain('foo@google.ma')).toEqual(true);
+      expect(await isValidEmailDomain('foo@bar.com')).toEqual(true);
+      expect(await isValidEmailDomain('foo@google.pl')).toEqual(true);
+      expect(await isValidEmailDomain('foo@google.de')).toEqual(true);
+      expect(await isValidEmailDomain('foo@google.co.uk')).toEqual(true);
+      expect(await isValidEmailDomain('foo@google.sc')).toEqual(true);
+      expect(await isValidEmailDomain('foo@google.tw')).toEqual(true);
+      expect(await isValidEmailDomain('foo@google.ma')).toEqual(true);
     });
 
     it('should fail', async () => {
-      expect(isValidEmailDomain('foo')).toEqual(false);
-      expect(isValidEmailDomain('foo@google.coml')).toEqual(false);
-      expect(isValidEmailDomain('foo@foo@google.comd')).toEqual(false);
-      expect(isValidEmailDomain('foo@google.comx')).toEqual(false);
-      expect(isValidEmailDomain('foo@google.xx')).toEqual(false);
-      expect(isValidEmailDomain('foo@google.aa')).toEqual(false);
+      expect(await isValidEmailDomain('foo')).toEqual(false);
+      expect(await isValidEmailDomain('foo@google.coml')).toEqual(false);
+      expect(await isValidEmailDomain('foo@foo@google.comd')).toEqual(false);
+      expect(await isValidEmailDomain('foo@google.comx')).toEqual(false);
+      expect(await isValidEmailDomain('foo@google.xx')).toEqual(false);
+      expect(await isValidEmailDomain('foo@google.aa')).toEqual(false);
     });
   });
 
   describe('isDisposableEmail', () => {
     it('should return true', async () => {
-      expect(isDisposableEmail('foo@yopmail.com')).toEqual(true);
-      expect(isDisposableEmail('foo@trackworld.xyz')).toEqual(true);
+      expect(await isDisposableEmail('foo@yopmail.com')).toEqual(true);
+      expect(await isDisposableEmail('foo@trackworld.xyz')).toEqual(true);
     });
 
     it('should return false', async () => {
-      expect(isDisposableEmail('foo@google.com')).toEqual(false);
-      expect(isDisposableEmail('foo@gmail.com')).toEqual(false);
-      expect(isDisposableEmail('foo@yahoo.com')).toEqual(false);
+      expect(await isDisposableEmail('foo@google.com')).toEqual(false);
+      expect(await isDisposableEmail('foo@gmail.com')).toEqual(false);
+      expect(await isDisposableEmail('foo@yahoo.com')).toEqual(false);
     });
   });
 });

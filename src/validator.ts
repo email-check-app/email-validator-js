@@ -1,10 +1,11 @@
 import { isValid } from 'psl';
-import { domainValidCache } from './cache';
+import { domainValidCacheStore } from './cache';
+import type { ICache } from './cache-interface';
 
 /**
  * Validates if email domain is valid TLD
  */
-export function isValidEmailDomain(emailOrDomain: string) {
+export async function isValidEmailDomain(emailOrDomain: string, cache?: ICache | null): Promise<boolean> {
   let [_, emailDomain] = emailOrDomain?.split('@') || [];
   if (!emailDomain) {
     emailDomain = _;
@@ -14,17 +15,18 @@ export function isValidEmailDomain(emailOrDomain: string) {
   }
 
   // Check cache first
-  const cached = domainValidCache.get(emailDomain);
-  if (cached !== undefined) {
+  const cacheStore = domainValidCacheStore(cache);
+  const cached = await cacheStore.get(emailDomain);
+  if (cached !== null && cached !== undefined) {
     return cached;
   }
 
   try {
     const result = isValid(emailDomain) || false;
-    domainValidCache.set(emailDomain, result);
+    await cacheStore.set(emailDomain, result);
     return result;
   } catch (_e) {
-    domainValidCache.set(emailDomain, false);
+    await cacheStore.set(emailDomain, false);
     return false;
   }
 }

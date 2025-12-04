@@ -1,5 +1,5 @@
 import { stringSimilarity } from 'string-similarity-js';
-import { domainSuggestionCache } from './cache';
+import { domainSuggestionCacheStore } from './cache';
 import type { DomainSuggestion, ISuggestDomainParams } from './types';
 
 /**
@@ -140,9 +140,93 @@ function _isLikelyTypo(domain: string) {
 }
 
 /**
- * Default domain suggestion method using string similarity
+ * Default domain suggestion method using string similarity (sync version)
  */
 export function defaultDomainSuggestionMethod(domain: string, commonDomains?: string[]): DomainSuggestion | null {
+  // For sync version, we need to create a synchronous implementation
+  // without cache to avoid async issues
+  const domainsToCheck = commonDomains || COMMON_EMAIL_DOMAINS;
+  const lowerDomain = domain.toLowerCase();
+
+  // If domain is already in the common list, no suggestion needed
+  if (domainsToCheck.includes(lowerDomain)) {
+    return null;
+  }
+
+  // First check if it's a known typo pattern
+  for (const [correctDomain, typos] of Object.entries(TYPO_PATTERNS)) {
+    if (typos.includes(lowerDomain)) {
+      return {
+        original: domain,
+        suggested: correctDomain,
+        confidence: 0.95, // High confidence for known typo patterns
+      };
+    }
+  }
+
+  // Find the most similar domain
+  let bestMatch: { domain: string; similarity: number } | null = null;
+  const threshold = getSimilarityThreshold(lowerDomain);
+
+  for (const commonDomain of domainsToCheck) {
+    const similarity = stringSimilarity(lowerDomain, commonDomain.toLowerCase());
+
+    if (similarity >= threshold) {
+      if (!bestMatch || similarity > bestMatch.similarity) {
+        bestMatch = { domain: commonDomain, similarity };
+      }
+    }
+  }
+
+  // Additional check for very similar domains (edit distance of 1-2)
+  if (!bestMatch) {
+    for (const commonDomain of domainsToCheck) {
+      if (Math.abs(lowerDomain.length - commonDomain.length) <= 2) {
+        const similarity = stringSimilarity(lowerDomain, commonDomain.toLowerCase());
+        if (similarity >= 0.7) {
+          // Lower threshold for length-similar domains
+          if (!bestMatch || similarity > bestMatch.similarity) {
+            bestMatch = { domain: commonDomain, similarity };
+          }
+        }
+      }
+    }
+  }
+
+  if (bestMatch) {
+    // Don't suggest if the domains are too different despite similarity score
+    // This prevents suggesting unrelated domains
+    if (bestMatch.domain.charAt(0) !== lowerDomain.charAt(0) && bestMatch.similarity < 0.9) {
+      return null;
+    }
+
+    return {
+      original: domain,
+      suggested: bestMatch.domain,
+      confidence: bestMatch.similarity,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Async version of default domain suggestion method
+ */
+export async function defaultDomainSuggestionMethodAsync(
+  domain: string,
+  commonDomains?: string[]
+): Promise<DomainSuggestion | null> {
+  return defaultDomainSuggestionMethodImpl(domain, commonDomains);
+}
+
+/**
+ * Internal implementation of domain suggestion
+ */
+async function defaultDomainSuggestionMethodImpl(
+  domain: string,
+  commonDomains?: string[]
+): Promise<DomainSuggestion | null> {
   if (!domain || domain.length < 3) {
     return null;
   }
@@ -152,14 +236,21 @@ export function defaultDomainSuggestionMethod(domain: string, commonDomains?: st
 
   // Check cache first
   const cacheKey = `${lowerDomain}:${domainsToCheck.length}`;
-  const cached = domainSuggestionCache.get(cacheKey);
-  if (cached !== undefined) {
-    return cached ? { original: domain, ...cached } : null;
+  const cache = domainSuggestionCacheStore();
+  const cached = cache.get(cacheKey);
+
+  // Handle both sync and async cache returns
+  const resolved = cached && typeof cached === 'object' && 'then' in cached ? await cached : cached;
+
+  if (resolved !== null && resolved !== undefined) {
+    return resolved
+      ? { original: domain, suggested: (resolved as any).suggested, confidence: (resolved as any).confidence }
+      : null;
   }
 
   // If domain is already in the common list, no suggestion needed
   if (domainsToCheck.includes(lowerDomain)) {
-    domainSuggestionCache.set(cacheKey, null);
+    await cache.set(cacheKey, null);
     return null;
   }
 
@@ -171,8 +262,8 @@ export function defaultDomainSuggestionMethod(domain: string, commonDomains?: st
         suggested: correctDomain,
         confidence: 0.95, // High confidence for known typo patterns
       };
-      // Cache the result
-      domainSuggestionCache.set(cacheKey, { suggested: result.suggested, confidence: result.confidence });
+      // Cache the result (without original since we'll add it later)
+      await cache.set(cacheKey, { suggested: result.suggested, confidence: result.confidence });
       return result;
     }
   }
@@ -210,7 +301,7 @@ export function defaultDomainSuggestionMethod(domain: string, commonDomains?: st
     // Don't suggest if the domains are too different despite similarity score
     // This prevents suggesting unrelated domains
     if (bestMatch.domain.charAt(0) !== lowerDomain.charAt(0) && bestMatch.similarity < 0.9) {
-      domainSuggestionCache.set(cacheKey, null);
+      await cache.set(cacheKey, null);
       return null;
     }
 
@@ -220,13 +311,13 @@ export function defaultDomainSuggestionMethod(domain: string, commonDomains?: st
       confidence: bestMatch.similarity,
     };
 
-    // Cache the result
-    domainSuggestionCache.set(cacheKey, { suggested: result.suggested, confidence: result.confidence });
+    // Cache the result (without original since we'll add it later)
+    await cache.set(cacheKey, { suggested: result.suggested, confidence: result.confidence });
     return result;
   }
 
   // Cache null result
-  domainSuggestionCache.set(cacheKey, null);
+  await cache.set(cacheKey, null);
   return null;
 }
 
@@ -262,7 +353,7 @@ export function suggestDomain(params: ISuggestDomainParams): DomainSuggestion | 
  * @param commonDomains - Optional list of common domains to check against
  * @returns Domain suggestion with confidence score, or null if no suggestion
  */
-export function suggestEmailDomain(email: string, commonDomains?: string[]): DomainSuggestion | null {
+export async function suggestEmailDomain(email: string, commonDomains?: string[]): Promise<DomainSuggestion | null> {
   if (!email || !email.includes('@')) {
     return null;
   }
@@ -272,7 +363,7 @@ export function suggestEmailDomain(email: string, commonDomains?: string[]): Dom
     return null;
   }
 
-  const suggestion = suggestDomain({ domain, commonDomains });
+  const suggestion = await defaultDomainSuggestionMethodAsync(domain, commonDomains);
 
   // If we have a suggestion, update it to include the full email
   if (suggestion) {

@@ -3,6 +3,7 @@ import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';
 import { isDisposableEmail, isFreeEmail, isValidEmailDomain } from '../src';
 import { clearAllCaches, disposableCache, domainValidCache, freeCache, mxCache, smtpCache } from '../src/cache';
+import { CacheFactory } from '../src/cache-factory';
 import { resolveMxRecords } from '../src/dns';
 
 describe('Caching System', () => {
@@ -24,13 +25,16 @@ describe('Caching System', () => {
         .stub(dnsPromises, 'resolveMx')
         .resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
+      // Create a shared cache instance
+      const sharedCache = CacheFactory.createLRUCache();
+
       // First call - should hit DNS
-      const result1 = await resolveMxRecords('example.com');
+      const result1 = await resolveMxRecords('example.com', sharedCache);
       expect(resolveMxStub.callCount).toBe(1);
       expect(result1).toEqual(['mx1.example.com']);
 
       // Second call - should use cache
-      const result2 = await resolveMxRecords('example.com');
+      const result2 = await resolveMxRecords('example.com', sharedCache);
       expect(resolveMxStub.callCount).toBe(1); // Still 1, used cache
       expect(result2).toEqual(['mx1.example.com']);
     });
@@ -38,9 +42,12 @@ describe('Caching System', () => {
     it('should cache failed MX lookups', async () => {
       const resolveMxStub = sandbox.stub(dnsPromises, 'resolveMx').rejects(new Error('DNS failed'));
 
+      // Create a shared cache instance
+      const sharedCache = CacheFactory.createLRUCache();
+
       // First call - should hit DNS and fail
       try {
-        await resolveMxRecords('invalid.com');
+        await resolveMxRecords('invalid.com', sharedCache);
       } catch (_err) {
         // Expected to fail
       }
@@ -48,7 +55,7 @@ describe('Caching System', () => {
 
       // Second call - should use cached failure
       try {
-        await resolveMxRecords('invalid.com');
+        await resolveMxRecords('invalid.com', sharedCache);
       } catch (_err) {
         // Expected to fail
       }
@@ -57,9 +64,12 @@ describe('Caching System', () => {
   });
 
   describe('Disposable Email Cache', () => {
-    it('should cache disposable email checks', () => {
+    it('should cache disposable email checks', async () => {
+      // Create a shared cache instance
+      const sharedCache = CacheFactory.createLRUCache();
+
       // First call - should check the Set
-      const result1 = isDisposableEmail('test@yopmail.com');
+      const result1 = await isDisposableEmail('test@yopmail.com', sharedCache);
       expect(result1).toBe(true);
 
       // Clear the underlying Set to prove cache is working
@@ -67,24 +77,30 @@ describe('Caching System', () => {
       disposableProviders.length = 0;
 
       // Second call - should use cache
-      const result2 = isDisposableEmail('test@yopmail.com');
+      const result2 = await isDisposableEmail('test@yopmail.com', sharedCache);
       expect(result2).toBe(true);
     });
 
-    it('should cache non-disposable email checks', () => {
-      const result1 = isDisposableEmail('test@gmail.com');
+    it('should cache non-disposable email checks', async () => {
+      // Create a shared cache instance
+      const sharedCache = CacheFactory.createLRUCache();
+
+      const result1 = await isDisposableEmail('test@gmail.com', sharedCache);
       expect(result1).toBe(false);
 
       // Second call - should use cache
-      const result2 = isDisposableEmail('test@gmail.com');
+      const result2 = await isDisposableEmail('test@gmail.com', sharedCache);
       expect(result2).toBe(false);
     });
   });
 
   describe('Free Email Cache', () => {
-    it('should cache free email provider checks', () => {
+    it('should cache free email provider checks', async () => {
+      // Create a shared cache instance
+      const sharedCache = CacheFactory.createLRUCache();
+
       // First call
-      const result1 = isFreeEmail('test@gmail.com');
+      const result1 = await isFreeEmail('test@gmail.com', sharedCache);
       expect(result1).toBe(true);
 
       // Clear the underlying Set to prove cache is working
@@ -92,19 +108,22 @@ describe('Caching System', () => {
       freeProviders.length = 0;
 
       // Second call - should use cache
-      const result2 = isFreeEmail('test@gmail.com');
+      const result2 = await isFreeEmail('test@gmail.com', sharedCache);
       expect(result2).toBe(true);
     });
   });
 
   describe('Domain Validation Cache', () => {
-    it('should cache domain validation results', () => {
+    it('should cache domain validation results', async () => {
+      // Create a shared cache instance
+      const sharedCache = CacheFactory.createLRUCache();
+
       // First call
-      const result1 = isValidEmailDomain('example.com');
+      const result1 = await isValidEmailDomain('example.com', sharedCache);
       expect(typeof result1).toBe('boolean');
 
       // Second call - should use cache (we can't easily stub psl.isValid)
-      const result2 = isValidEmailDomain('example.com');
+      const result2 = await isValidEmailDomain('example.com', sharedCache);
       expect(result2).toBe(result1);
     });
   });

@@ -152,11 +152,16 @@ describe('Detailed Email Verification', () => {
 
       setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
+      // Create a shared cache instance
+      const { CacheFactory } = require('../src/cache-factory');
+      const sharedCache = CacheFactory.createLRUCache();
+
       // First call - not cached
       const result1 = await verifyEmailDetailed({
         emailAddress: 'test@example.com',
         verifyMx: true,
         verifySmtp: true,
+        cache: sharedCache,
       });
       expect(result1.metadata?.cached).toBe(false);
 
@@ -165,6 +170,7 @@ describe('Detailed Email Verification', () => {
         emailAddress: 'test@example.com',
         verifyMx: true,
         verifySmtp: true,
+        cache: sharedCache,
       });
       expect(result2.metadata?.cached).toBe(true);
     });

@@ -11,79 +11,79 @@ import {
 
 describe('Domain Suggestion', () => {
   describe('suggestEmailDomain', () => {
-    it('should suggest gmail.com for common typos', () => {
+    it('should suggest gmail.com for common typos', async () => {
       const typos = ['gmial.com', 'gmai.com', 'gmali.com', 'gmil.com', 'gmaill.com', 'gmail.co', 'gmail.cm'];
 
-      typos.forEach((typo) => {
-        const result = suggestEmailDomain(`test@${typo}`);
+      for (const typo of typos) {
+        const result = await suggestEmailDomain(`test@${typo}`);
         expect(result).toBeTruthy();
         expect(result?.suggested).toBe('test@gmail.com');
         expect(result?.confidence).toBeGreaterThanOrEqual(0.7);
-      });
+      }
     });
 
-    it('should suggest yahoo.com for common typos', () => {
+    it('should suggest yahoo.com for common typos', async () => {
       const typos = ['yaho.com', 'yahooo.com', 'yahoo.co', 'yahoo.cm', 'yhaoo.com'];
 
-      typos.forEach((typo) => {
-        const result = suggestEmailDomain(`user@${typo}`);
+      for (const typo of typos) {
+        const result = await suggestEmailDomain(`user@${typo}`);
         expect(result).toBeTruthy();
         expect(result?.suggested).toBe('user@yahoo.com');
         expect(result?.confidence).toBeGreaterThanOrEqual(0.7);
-      });
+      }
     });
 
-    it('should suggest hotmail.com for common typos', () => {
+    it('should suggest hotmail.com for common typos', async () => {
       const typos = ['hotmai.com', 'hotmial.com', 'hotmal.com', 'hotmil.com', 'hotmail.co', 'hotmail.cm'];
 
-      typos.forEach((typo) => {
-        const result = suggestEmailDomain(`person@${typo}`);
+      for (const typo of typos) {
+        const result = await suggestEmailDomain(`person@${typo}`);
         expect(result).toBeTruthy();
         expect(result?.suggested).toBe('person@hotmail.com');
         expect(result?.confidence).toBeGreaterThanOrEqual(0.7);
-      });
+      }
     });
 
-    it('should suggest outlook.com for common typos', () => {
+    it('should suggest outlook.com for common typos', async () => {
       const typos = ['outlok.com', 'outloo.com', 'outlook.co', 'outlook.cm', 'outlokk.com'];
 
-      typos.forEach((typo) => {
-        const result = suggestEmailDomain(`contact@${typo}`);
+      for (const typo of typos) {
+        const result = await suggestEmailDomain(`contact@${typo}`);
         expect(result).toBeTruthy();
         expect(result?.suggested).toBe('contact@outlook.com');
         expect(result?.confidence).toBeGreaterThanOrEqual(0.7);
-      });
+      }
     });
 
-    it('should not suggest for valid common domains', () => {
+    it('should not suggest for valid common domains', async () => {
       const validDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com'];
 
-      validDomains.forEach((domain) => {
-        const result = suggestEmailDomain(`test@${domain}`);
+      for (const domain of validDomains) {
+        const result = await suggestEmailDomain(`test@${domain}`);
         expect(result).toBeNull();
-      });
+      }
     });
 
-    it('should handle invalid email formats', () => {
-      expect(suggestEmailDomain('')).toBeNull();
-      expect(suggestEmailDomain('notanemail')).toBeNull();
-      expect(suggestEmailDomain('@domain.com')).toBeNull();
+    it('should handle invalid email formats', async () => {
+      expect(await suggestEmailDomain('')).toBeNull();
+      expect(await suggestEmailDomain('notanemail')).toBeNull();
+      expect(await suggestEmailDomain('@domain.com')).toBeNull();
     });
 
-    it('should suggest for slightly misspelled domains', () => {
-      const result = suggestEmailDomain('john@goooogle.com');
+    it('should suggest for slightly misspelled domains', async () => {
+      const result = await suggestEmailDomain('john@goooogle.com');
       expect(result).toBeTruthy();
       expect(result?.suggested).toBe('john@google.com');
     });
 
-    it('should not suggest for completely different domains', () => {
-      const result = suggestEmailDomain('test@mycompany.com');
+    it('should not suggest for completely different domains', async () => {
+      const result = await suggestEmailDomain('test@mycompany.com');
       expect(result).toBeNull();
     });
 
-    it('should use custom domain list when provided', () => {
+    it('should use custom domain list when provided', async () => {
       const customDomains = ['company.com', 'business.org'];
-      const result = suggestEmailDomain('user@compny.com', customDomains);
+      const result = await suggestEmailDomain('user@compny.com', customDomains);
       expect(result).toBeTruthy();
       expect(result?.suggested).toBe('user@company.com');
     });

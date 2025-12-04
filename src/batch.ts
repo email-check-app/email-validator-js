@@ -24,6 +24,7 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
     suggestDomain = false,
     domainSuggestionMethod,
     commonDomains,
+    cache,
   } = params;
 
   const startTime = Date.now();
@@ -55,6 +56,7 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
               suggestDomain,
               domainSuggestionMethod,
               commonDomains,
+              cache,
             })
           : await verifyEmail({
               emailAddress: email,
@@ -66,6 +68,7 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
               suggestDomain,
               domainSuggestionMethod,
               commonDomains,
+              cache,
             });
 
         if (detailed) {

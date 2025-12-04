@@ -1,10 +1,12 @@
 import { promises as dnsPromises } from 'node:dns';
-import { mxCache } from './cache';
+import { mxCacheStore } from './cache';
+import type { ICache } from './cache-interface';
 
-export async function resolveMxRecords(domain: string): Promise<string[]> {
+export async function resolveMxRecords(domain: string, cache?: ICache | null): Promise<string[]> {
   // Check cache first
-  const cached = mxCache.get(domain);
-  if (cached !== undefined) {
+  const cacheStore = mxCacheStore(cache);
+  const cached = await cacheStore.get(domain);
+  if (cached !== null && cached !== undefined) {
     return cached;
   }
 
@@ -23,12 +25,12 @@ export async function resolveMxRecords(domain: string): Promise<string[]> {
     const exchanges = records.map((record) => record.exchange);
 
     // Cache the result
-    mxCache.set(domain, exchanges);
+    await cacheStore.set(domain, exchanges);
 
     return exchanges;
   } catch (error) {
     // Cache negative results for shorter time
-    mxCache.set(domain, []);
+    await cacheStore.set(domain, []);
     throw error;
   }
 }
