@@ -2,19 +2,19 @@ import { promises as dnsPromises } from 'node:dns';
 import net, { Socket } from 'node:net';
 import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';
-import { clearAllCaches, type VerificationResult, verifyEmailBatch } from '../src';
+import { clearDefaultCache, type VerificationResult, verifyEmailBatch } from '../src';
 
 describe('Batch Email Verification', () => {
   let sandbox: SinonSandbox;
 
   beforeEach(() => {
     sandbox = sinon.createSandbox();
-    clearAllCaches();
+    clearDefaultCache();
   });
 
   afterEach(() => {
     sandbox.restore();
-    clearAllCaches();
+    clearDefaultCache();
   });
 
   describe('#verifyEmailBatch', () => {

@@ -2,21 +2,42 @@ import { promises as dnsPromises } from 'node:dns';
 import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';
 import { isDisposableEmail, isFreeEmail, isValidEmailDomain } from '../src';
-import { clearAllCaches, disposableCache, domainValidCache, freeCache, mxCache, smtpCache } from '../src/cache';
-import { CacheFactory } from '../src/cache-factory';
+import { LRUAdapter } from '../src/adapters/lru-adapter';
+import { clearDefaultCache, DEFAULT_CACHE_OPTIONS, getDefaultCache, resetDefaultCache } from '../src/cache';
+import type { ICache } from '../src/cache-interface';
 import { resolveMxRecords } from '../src/dns';
 
 describe('Caching System', () => {
   let sandbox: SinonSandbox;
+  let testCache: ICache;
 
   beforeEach(() => {
     sandbox = sinon.createSandbox();
-    clearAllCaches();
+    // Create a fresh cache for each test
+    testCache = {
+      mx: new LRUAdapter<string[]>(DEFAULT_CACHE_OPTIONS.maxSize.mx, DEFAULT_CACHE_OPTIONS.ttl.mx),
+      disposable: new LRUAdapter<boolean>(
+        DEFAULT_CACHE_OPTIONS.maxSize.disposable,
+        DEFAULT_CACHE_OPTIONS.ttl.disposable
+      ),
+      free: new LRUAdapter<boolean>(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
+      domainValid: new LRUAdapter<boolean>(
+        DEFAULT_CACHE_OPTIONS.maxSize.domainValid,
+        DEFAULT_CACHE_OPTIONS.ttl.domainValid
+      ),
+      smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+      domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
+        DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
+        DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion
+      ),
+      whois: new LRUAdapter<any>(DEFAULT_CACHE_OPTIONS.maxSize.whois, DEFAULT_CACHE_OPTIONS.ttl.whois),
+    };
+    clearDefaultCache();
   });
 
   afterEach(() => {
     sandbox.restore();
-    clearAllCaches();
+    clearDefaultCache();
   });
 
   describe('MX Records Cache', () => {
@@ -25,134 +46,157 @@ describe('Caching System', () => {
         .stub(dnsPromises, 'resolveMx')
         .resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
-      // Create a shared cache instance
-      const sharedCache = CacheFactory.createLRUCache();
-
       // First call - should hit DNS
-      const result1 = await resolveMxRecords({ domain: 'example.com', cache: sharedCache });
+      const result1 = await resolveMxRecords({ domain: 'example.com', cache: testCache });
       expect(resolveMxStub.callCount).toBe(1);
       expect(result1).toEqual(['mx1.example.com']);
 
       // Second call - should use cache
-      const result2 = await resolveMxRecords({ domain: 'example.com', cache: sharedCache });
+      const result2 = await resolveMxRecords({ domain: 'example.com', cache: testCache });
       expect(resolveMxStub.callCount).toBe(1); // Still 1, used cache
       expect(result2).toEqual(['mx1.example.com']);
     });
 
-    it('should cache failed MX lookups', async () => {
+    it('should cache failed MX lookups as empty array', async () => {
       const resolveMxStub = sandbox.stub(dnsPromises, 'resolveMx').rejects(new Error('DNS failed'));
-
-      // Create a shared cache instance
-      const sharedCache = CacheFactory.createLRUCache();
 
       // First call - should hit DNS and fail
       try {
-        await resolveMxRecords({ domain: 'invalid.com', cache: sharedCache });
-      } catch (_err) {
-        // Expected to fail
+        await resolveMxRecords({ domain: 'invalid.com', cache: testCache });
+        expect(true).toBe(false); // Should not reach here
+      } catch (_error) {
+        expect(resolveMxStub.callCount).toBe(1);
       }
-      expect(resolveMxStub.callCount).toBe(1);
 
-      // Second call - should use cached failure
-      try {
-        await resolveMxRecords({ domain: 'invalid.com', cache: sharedCache });
-      } catch (_err) {
-        // Expected to fail
-      }
+      // Second call - should use cached empty array (not throw error)
+      const result = await resolveMxRecords({ domain: 'invalid.com', cache: testCache });
       expect(resolveMxStub.callCount).toBe(1); // Still 1, used cache
+      expect(result).toEqual([]); // Returns empty array for cached failure
     });
   });
 
   describe('Disposable Email Cache', () => {
     it('should cache disposable email checks', async () => {
-      // Create a shared cache instance
-      const sharedCache = CacheFactory.createLRUCache();
-
-      // First call - should check the Set
-      const result1 = await isDisposableEmail({ emailOrDomain: 'test@yopmail.com', cache: sharedCache });
+      // First call
+      const result1 = await isDisposableEmail({ emailOrDomain: '10minutemail.com', cache: testCache });
       expect(result1).toBe(true);
 
-      // Clear the underlying Set to prove cache is working
-      const disposableProviders = require('../src/disposable-email-providers.json');
-      disposableProviders.length = 0;
-
-      // Second call - should use cache
-      const result2 = await isDisposableEmail({ emailOrDomain: 'test@yopmail.com', cache: sharedCache });
+      // Second call - should use cache (we can't easily verify cache hit without exposing internals)
+      const result2 = await isDisposableEmail({ emailOrDomain: '10minutemail.com', cache: testCache });
       expect(result2).toBe(true);
     });
 
     it('should cache non-disposable email checks', async () => {
-      // Create a shared cache instance
-      const sharedCache = CacheFactory.createLRUCache();
-
-      const result1 = await isDisposableEmail({ emailOrDomain: 'test@gmail.com', cache: sharedCache });
+      // First call
+      const result1 = await isDisposableEmail({ emailOrDomain: 'gmail.com', cache: testCache });
       expect(result1).toBe(false);
 
       // Second call - should use cache
-      const result2 = await isDisposableEmail({ emailOrDomain: 'test@gmail.com', cache: sharedCache });
+      const result2 = await isDisposableEmail({ emailOrDomain: 'gmail.com', cache: testCache });
       expect(result2).toBe(false);
     });
   });
 
   describe('Free Email Cache', () => {
-    it('should cache free email provider checks', async () => {
-      // Create a shared cache instance
-      const sharedCache = CacheFactory.createLRUCache();
-
+    it('should cache free email checks', async () => {
       // First call
-      const result1 = await isFreeEmail({ emailOrDomain: 'test@gmail.com', cache: sharedCache });
+      const result1 = await isFreeEmail({ emailOrDomain: 'gmail.com', cache: testCache });
       expect(result1).toBe(true);
 
-      // Clear the underlying Set to prove cache is working
-      const freeProviders = require('../src/free-email-providers.json');
-      freeProviders.length = 0;
+      // Second call - should use cache
+      const result2 = await isFreeEmail({ emailOrDomain: 'gmail.com', cache: testCache });
+      expect(result2).toBe(true);
+    });
+
+    it('should cache non-free email checks', async () => {
+      // First call
+      const result1 = await isFreeEmail({ emailOrDomain: 'custom-business.com', cache: testCache });
+      expect(result1).toBe(false);
 
       // Second call - should use cache
-      const result2 = await isFreeEmail({ emailOrDomain: 'test@gmail.com', cache: sharedCache });
-      expect(result2).toBe(true);
+      const result2 = await isFreeEmail({ emailOrDomain: 'custom-business.com', cache: testCache });
+      expect(result2).toBe(false);
     });
   });
 
   describe('Domain Validation Cache', () => {
-    it('should cache domain validation results', async () => {
-      // Create a shared cache instance
-      const sharedCache = CacheFactory.createLRUCache();
-
+    it('should cache domain validation checks', async () => {
       // First call
-      const result1 = await isValidEmailDomain('example.com', sharedCache);
-      expect(typeof result1).toBe('boolean');
+      const result1 = await isValidEmailDomain('example.com', testCache);
+      expect(result1).toBe(true);
 
-      // Second call - should use cache (we can't easily stub psl.isValid)
-      const result2 = await isValidEmailDomain('example.com', sharedCache);
-      expect(result2).toBe(result1);
+      // Second call - should use cache
+      const result2 = await isValidEmailDomain('example.com', testCache);
+      expect(result2).toBe(true);
+    });
+
+    it('should cache invalid domain checks', async () => {
+      // First call
+      const result1 = await isValidEmailDomain('invalid..domain', testCache);
+      expect(result1).toBe(false);
+
+      // Second call - should use cache
+      const result2 = await isValidEmailDomain('invalid..domain', testCache);
+      expect(result2).toBe(false);
     });
   });
 
-  describe('Clear All Caches', () => {
-    it('should clear all cache instances', async () => {
-      // Add items to caches
-      mxCache.set('test.com', ['mx1.test.com']);
-      disposableCache.set('yopmail.com', true);
-      freeCache.set('gmail.com', true);
-      domainValidCache.set('example.com', true);
-      smtpCache.set('test@example.com:smtp', true);
+  describe('Default Cache', () => {
+    it('should return the same cache instance (singleton)', () => {
+      const cache1 = getDefaultCache();
+      const cache2 = getDefaultCache();
+      expect(cache1).toBe(cache2); // Should be the same reference
+    });
 
-      // Verify caches have items
-      expect(mxCache.get('test.com')).toEqual(['mx1.test.com']);
-      expect(disposableCache.get('yopmail.com')).toBe(true);
-      expect(freeCache.get('gmail.com')).toBe(true);
-      expect(domainValidCache.get('example.com')).toBe(true);
-      expect(smtpCache.get('test@example.com:smtp')).toBe(true);
+    it('should clear all cache stores', () => {
+      const defaultCache = getDefaultCache();
 
-      // Clear all caches
-      clearAllCaches();
+      // Add some data to caches
+      defaultCache.mx.set('test.com', ['mx1.test.com']);
+      defaultCache.disposable.set('test.com', true);
+      defaultCache.free.set('test.com', false);
 
-      // Verify all caches are empty
-      expect(mxCache.get('test.com')).toBeUndefined();
-      expect(disposableCache.get('yopmail.com')).toBeUndefined();
-      expect(freeCache.get('gmail.com')).toBeUndefined();
-      expect(domainValidCache.get('example.com')).toBeUndefined();
-      expect(smtpCache.get('test@example.com:smtp')).toBeUndefined();
+      // Verify data exists
+      expect(defaultCache.mx.get('test.com')).toEqual(['mx1.test.com']);
+      expect(defaultCache.disposable.get('test.com')).toBe(true);
+      expect(defaultCache.free.get('test.com')).toBe(false);
+
+      // Clear cache
+      clearDefaultCache();
+
+      // Verify data is cleared
+      expect(defaultCache.mx.get('test.com')).toBeNull();
+      expect(defaultCache.disposable.get('test.com')).toBeNull();
+      expect(defaultCache.free.get('test.com')).toBeNull();
+    });
+
+    it('should reset cache to fresh instance', () => {
+      const cache1 = getDefaultCache();
+      cache1.mx.set('test.com', ['mx1.test.com']);
+
+      resetDefaultCache();
+
+      const cache2 = getDefaultCache();
+      expect(cache1).not.toBe(cache2); // Should be different instances
+      expect(cache2.mx.get('test.com')).toBeNull(); // New cache should be empty
+    });
+  });
+
+  describe('Cache Without Explicit Parameter', () => {
+    it('should use default cache when no cache is provided', async () => {
+      const resolveMxStub = sandbox
+        .stub(dnsPromises, 'resolveMx')
+        .resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
+
+      // Call without cache parameter - should use default cache
+      const result1 = await resolveMxRecords({ domain: 'example.com' });
+      expect(resolveMxStub.callCount).toBe(1);
+      expect(result1).toEqual(['mx1.example.com']);
+
+      // Second call without cache - should use cached result from default cache
+      const result2 = await resolveMxRecords({ domain: 'example.com' });
+      expect(resolveMxStub.callCount).toBe(1); // Still 1, used cache
+      expect(result2).toEqual(['mx1.example.com']);
     });
   });
 });

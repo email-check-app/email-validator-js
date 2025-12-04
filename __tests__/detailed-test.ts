@@ -2,19 +2,19 @@ import { promises as dnsPromises } from 'node:dns';
 import net, { Socket } from 'node:net';
 import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';
-import { clearAllCaches, VerificationErrorCode, verifyEmail } from '../src';
+import { clearDefaultCache, getDefaultCache, VerificationErrorCode, verifyEmail } from '../src';
 
 describe('Detailed Email Verification', () => {
   let sandbox: SinonSandbox;
 
   beforeEach(() => {
     sandbox = sinon.createSandbox();
-    clearAllCaches();
+    clearDefaultCache();
   });
 
   afterEach(() => {
     sandbox.restore();
-    clearAllCaches();
+    clearDefaultCache();
   });
 
   describe('#verifyEmail', () => {
@@ -150,8 +150,7 @@ describe('Detailed Email Verification', () => {
       setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
       // Create a shared cache instance
-      const { CacheFactory } = require('../src/cache-factory');
-      const sharedCache = CacheFactory.createLRUCache();
+      const sharedCache = getDefaultCache();
 
       // First call - not cached
       const result1 = await verifyEmail({

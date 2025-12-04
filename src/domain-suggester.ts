@@ -1,5 +1,6 @@
 import { stringSimilarity } from 'string-similarity-js';
-import { domainSuggestionCacheStore } from './cache';
+import { getCacheStore } from './cache';
+import type { ICache } from './cache-interface';
 import type { DomainSuggestion, ISuggestDomainParams } from './types';
 
 /**
@@ -215,9 +216,10 @@ export function defaultDomainSuggestionMethod(domain: string, commonDomains?: st
  */
 export async function defaultDomainSuggestionMethodAsync(
   domain: string,
-  commonDomains?: string[]
+  commonDomains?: string[],
+  cache?: ICache
 ): Promise<DomainSuggestion | null> {
-  return defaultDomainSuggestionMethodImpl(domain, commonDomains);
+  return defaultDomainSuggestionMethodImpl(domain, commonDomains, cache);
 }
 
 /**
@@ -225,7 +227,8 @@ export async function defaultDomainSuggestionMethodAsync(
  */
 async function defaultDomainSuggestionMethodImpl(
   domain: string,
-  commonDomains?: string[]
+  commonDomains?: string[],
+  cache?: ICache
 ): Promise<DomainSuggestion | null> {
   if (!domain || domain.length < 3) {
     return null;
@@ -236,21 +239,19 @@ async function defaultDomainSuggestionMethodImpl(
 
   // Check cache first
   const cacheKey = `${lowerDomain}:${domainsToCheck.length}`;
-  const cache = domainSuggestionCacheStore();
-  const cached = cache.get(cacheKey);
+  const cacheStore = getCacheStore<DomainSuggestion | null>(cache, 'domainSuggestion');
+  const cached = await cacheStore.get(cacheKey);
 
   // Handle both sync and async cache returns
   const resolved = cached && typeof cached === 'object' && 'then' in cached ? await cached : cached;
 
   if (resolved !== null && resolved !== undefined) {
-    return resolved
-      ? { original: domain, suggested: (resolved as any).suggested, confidence: (resolved as any).confidence }
-      : null;
+    return resolved as DomainSuggestion | null;
   }
 
   // If domain is already in the common list, no suggestion needed
   if (domainsToCheck.includes(lowerDomain)) {
-    await cache.set(cacheKey, null);
+    await cacheStore.set(cacheKey, null);
     return null;
   }
 
@@ -262,8 +263,8 @@ async function defaultDomainSuggestionMethodImpl(
         suggested: correctDomain,
         confidence: 0.95, // High confidence for known typo patterns
       };
-      // Cache the result (without original since we'll add it later)
-      await cache.set(cacheKey, { suggested: result.suggested, confidence: result.confidence });
+      // Cache the result
+      await cacheStore.set(cacheKey, result);
       return result;
     }
   }
@@ -301,7 +302,7 @@ async function defaultDomainSuggestionMethodImpl(
     // Don't suggest if the domains are too different despite similarity score
     // This prevents suggesting unrelated domains
     if (bestMatch.domain.charAt(0) !== lowerDomain.charAt(0) && bestMatch.similarity < 0.9) {
-      await cache.set(cacheKey, null);
+      await cacheStore.set(cacheKey, null);
       return null;
     }
 
@@ -311,13 +312,13 @@ async function defaultDomainSuggestionMethodImpl(
       confidence: bestMatch.similarity,
     };
 
-    // Cache the result (without original since we'll add it later)
-    await cache.set(cacheKey, { suggested: result.suggested, confidence: result.confidence });
+    // Cache the result
+    await cacheStore.set(cacheKey, result);
     return result;
   }
 
   // Cache null result
-  await cache.set(cacheKey, null);
+  await cacheStore.set(cacheKey, null);
   return null;
 }
 
@@ -351,9 +352,14 @@ export function suggestDomain(params: ISuggestDomainParams): DomainSuggestion | 
  * Convenience function to suggest domain from email address
  * @param email - Email address to check for domain typos
  * @param commonDomains - Optional list of common domains to check against
+ * @param cache - Optional cache instance
  * @returns Domain suggestion with confidence score, or null if no suggestion
  */
-export async function suggestEmailDomain(email: string, commonDomains?: string[]): Promise<DomainSuggestion | null> {
+export async function suggestEmailDomain(
+  email: string,
+  commonDomains?: string[],
+  cache?: ICache
+): Promise<DomainSuggestion | null> {
   if (!email || !email.includes('@')) {
     return null;
   }
@@ -363,7 +369,7 @@ export async function suggestEmailDomain(email: string, commonDomains?: string[]
     return null;
   }
 
-  const suggestion = await defaultDomainSuggestionMethodAsync(domain, commonDomains);
+  const suggestion = await defaultDomainSuggestionMethodAsync(domain, commonDomains, cache);
 
   // If we have a suggestion, update it to include the full email
   if (suggestion) {

@@ -2,7 +2,7 @@ import { promises as dnsPromises, type MxRecord } from 'node:dns';
 import net, { Socket } from 'node:net';
 import expect from 'expect';
 import sinon, { type SinonSandbox, type SinonStub } from 'sinon';
-import { clearAllCaches, verifyEmail } from '../src';
+import { clearDefaultCache, verifyEmail } from '../src';
 import { resolveMxRecords } from '../src/dns';
 
 type SelfMockType = {
@@ -35,12 +35,12 @@ const self: SelfMockType = {};
 describe('verifyEmailMockTest', () => {
   beforeEach(() => {
     self.sandbox = sinon.createSandbox();
-    clearAllCaches();
+    clearDefaultCache();
   });
 
   afterEach(() => {
     self.sandbox.restore();
-    clearAllCaches();
+    clearDefaultCache();
   });
 
   describe('#verify', () => {

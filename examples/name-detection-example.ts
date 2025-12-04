@@ -1,4 +1,4 @@
-import { detectName, detectNameFromEmail, type NameDetectionMethod } from '../src';
+import { detectName, detectNameFromEmail, type NameDetectionMethod, verifyEmail, verifyEmailBatch } from '../src';
 
 // Example 1: Basic name detection
 console.log('Basic Name Detection Examples:');
@@ -70,8 +70,6 @@ if (customResult) {
 console.log('\nIntegrated Name Detection (NEW FEATURE):');
 console.log('=========================================');
 
-import { verifyEmailBatch, verifyEmail } from '../src';
-
 async function verifyWithIntegratedNameDetection() {
   // Single email verification with integrated name detection
   const result = await verifyEmail({
@@ -82,9 +80,9 @@ async function verifyWithIntegratedNameDetection() {
   });
 
   console.log(`Email: ${result.email}`);
-  console.log(`  Valid Format: ${result.format.valid}`);
-  console.log(`  Disposable: ${result.disposable}`);
-  console.log(`  Free Provider: ${result.freeProvider}`);
+  console.log(`  Valid Format: ${result.validFormat}`);
+  console.log(`  Disposable: ${result.isDisposable}`);
+  console.log(`  Free Provider: ${result.isFree}`);
 
   // Name is now included in the verification result!
   if (result.detectedName) {

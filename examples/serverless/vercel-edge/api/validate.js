@@ -7,7 +7,8 @@
 
 // For local development, use the built files:
 import vercelAdapter from '../../../../dist/serverless/adapters/vercel.js';
-const { edgeHandler } = vercelAdapter;
+
+const {edgeHandler} = vercelAdapter;
 
 // Configure as Edge Function
 export const config = {

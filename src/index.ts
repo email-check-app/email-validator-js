@@ -1,5 +1,5 @@
 import { parse } from 'psl';
-import { disposableCacheStore, freeCacheStore, smtpCacheStore } from './cache';
+import { getCacheStore } from './cache';
 import { resolveMxRecords } from './dns';
 import { suggestEmailDomain } from './domain-suggester';
 import { detectNameFromEmail } from './name-detector';
@@ -18,8 +18,7 @@ import { getDomainAge, getDomainRegistrationStatus } from './whois';
 export * from './adapters/lru-adapter';
 export * from './adapters/redis-adapter';
 export { verifyEmailBatch } from './batch';
-export { clearAllCaches } from './cache';
-export * from './cache-factory';
+export * from './cache';
 export * from './cache-interface';
 export {
   COMMON_EMAIL_DOMAINS,
@@ -49,7 +48,7 @@ export async function isDisposableEmail(params: IDisposableEmailParams): Promise
   }
 
   // Check cache first
-  const cacheStore = disposableCacheStore(cache);
+  const cacheStore = getCacheStore<boolean>(cache, 'disposable');
   let cached: boolean | null | undefined;
   try {
     cached = await cacheStore.get(emailDomain);
@@ -89,7 +88,7 @@ export async function isFreeEmail(params: IFreeEmailParams): Promise<boolean> {
   }
 
   // Check cache first
-  const cacheStore = freeCacheStore(cache);
+  const cacheStore = getCacheStore<boolean>(cache, 'free');
   let cached: boolean | null | undefined;
   try {
     cached = await cacheStore.get(emailDomain);
@@ -248,7 +247,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
   if (checkDomainAge && !shouldSkipDomainWhois) {
     log(`[verifyEmail] Checking domain age for ${domain}`);
     try {
-      result.domainAge = await getDomainAge(domain, whoisTimeout, debug);
+      result.domainAge = await getDomainAge(domain, whoisTimeout, debug, params.cache);
       log(`[verifyEmail] Domain age result:`, result.domainAge ? `${result.domainAge.ageInDays} days` : 'null');
     } catch (err) {
       log('[verifyEmail] Failed to get domain age', err);
@@ -262,7 +261,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
   if (checkDomainRegistration && !shouldSkipDomainWhois) {
     log(`[verifyEmail] Checking domain registration status for ${domain}`);
     try {
-      result.domainRegistration = await getDomainRegistrationStatus(domain, whoisTimeout, debug);
+      result.domainRegistration = await getDomainRegistrationStatus(domain, whoisTimeout, debug, params.cache);
       log(
         `[verifyEmail] Domain registration result:`,
         result.domainRegistration?.isRegistered ? 'registered' : 'not registered'
@@ -292,7 +291,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
       // SMTP verification
       if (verifySmtp && mxRecords.length > 0) {
         const cacheKey = `${emailAddress}:smtp`;
-        const smtpCacheInstance = smtpCacheStore(params.cache);
+        const smtpCacheInstance = getCacheStore<boolean | null>(params.cache, 'smtp');
         const cachedSmtp = await smtpCacheInstance.get(cacheKey);
 
         if (cachedSmtp !== null && cachedSmtp !== undefined) {

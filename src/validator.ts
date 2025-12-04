@@ -1,5 +1,5 @@
 import { isValid } from 'psl';
-import { domainValidCacheStore } from './cache';
+import { getCacheStore } from './cache';
 import type { ICache } from './cache-interface';
 
 /**
@@ -15,7 +15,7 @@ export async function isValidEmailDomain(emailOrDomain: string, cache?: ICache |
   }
 
   // Check cache first
-  const cacheStore = domainValidCacheStore(cache);
+  const cacheStore = getCacheStore<boolean>(cache, 'domainValid');
   const cached = await cacheStore.get(emailDomain);
   if (cached !== null && cached !== undefined) {
     return cached;

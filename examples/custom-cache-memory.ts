@@ -3,11 +3,9 @@
  * This demonstrates how to create a custom cache store with advanced features
  */
 
-import { verifyEmail } from '../src';
-import { setCustomCache } from '../src/cache';
-import { LRUAdapter } from '../src/adapters/lru-adapter';
+import { getDefaultCache, verifyEmail } from '../src';
+import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
 import type { ICache, ICacheStore } from '../src/cache-interface';
-import { DEFAULT_CACHE_SIZE, DEFAULT_CACHE_TTL } from '../src/cache-interface';
 
 /**
  * Custom in-memory cache with time-based expiration and statistics
@@ -30,11 +28,11 @@ class CustomMemoryCache<T> implements ICacheStore<T> {
 
   private cleanup(): void {
     const now = Date.now();
-    for (const [key, entry] of this.cache.entries()) {
+    this.cache.forEach((entry, key) => {
       if (entry.expiresAt < now) {
         this.cache.delete(key);
       }
-    }
+    });
   }
 
   private isExpired(entry: { expiresAt: number }): boolean {
@@ -50,7 +48,8 @@ class CustomMemoryCache<T> implements ICacheStore<T> {
     }
   }
 
-  get(key: string): T | null {
+  async get(key: string): Promise<T | null> {
+    this.cleanup();
     const entry = this.cache.get(key);
 
     if (!entry) {
@@ -64,35 +63,33 @@ class CustomMemoryCache<T> implements ICacheStore<T> {
       return null;
     }
 
-    // Move to end (LRU behavior)
-    this.cache.delete(key);
-    this.cache.set(key, entry);
     this.hits++;
-
     return entry.value;
   }
 
-  set(key: string, value: T, ttlMs?: number): void {
+  async set(key: string, value: T, ttlMs?: number): Promise<void> {
+    this.cleanup();
     this.evictOldest();
 
-    this.cache.set(key, {
-      value,
-      expiresAt: Date.now() + (ttlMs || this.defaultTtl),
-    });
+    const ttl = ttlMs || this.defaultTtl;
+    const expiresAt = Date.now() + ttl;
 
+    this.cache.set(key, { value, expiresAt });
     this.sets++;
   }
 
-  delete(key: string): boolean {
+  async delete(key: string): Promise<boolean> {
+    this.cleanup();
     return this.cache.delete(key);
   }
 
-  has(key: string): boolean {
+  async has(key: string): Promise<boolean> {
+    this.cleanup();
     const entry = this.cache.get(key);
     return entry !== undefined && !this.isExpired(entry);
   }
 
-  clear(): void {
+  async clear(): Promise<void> {
     this.cache.clear();
     this.hits = 0;
     this.misses = 0;
@@ -120,122 +117,126 @@ class CustomMemoryCache<T> implements ICacheStore<T> {
   }
 }
 
-async function setupCustomCache() {
+function createCustomCache(): ICache {
   // Create custom cache instances with different configurations
   const customCache: ICache = {
     // SMTP cache: smaller size, shorter TTL
-    smtp: new CustomMemoryCache(200, 1800000), // 30 minutes
+    smtp: new CustomMemoryCache(200, DEFAULT_CACHE_OPTIONS.ttl.smtp),
     // MX cache: medium size, medium TTL
-    mx: new CustomMemoryCache(300, 3600000), // 1 hour
+    mx: new CustomMemoryCache(300, DEFAULT_CACHE_OPTIONS.ttl.mx),
     // Disposable cache: larger size, longer TTL
-    disposable: new CustomMemoryCache(1500, 172800000), // 48 hours
+    disposable: new CustomMemoryCache(1500, DEFAULT_CACHE_OPTIONS.ttl.disposable),
     // Free cache: default size and TTL
-    free: new CustomMemoryCache(DEFAULT_CACHE_SIZE.free, DEFAULT_CACHE_TTL.free),
+    free: new CustomMemoryCache(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
     // Domain validation cache
-    domainValid: new CustomMemoryCache(DEFAULT_CACHE_SIZE.domainValid, DEFAULT_CACHE_TTL.domainValid),
+    domainValid: new CustomMemoryCache(
+      DEFAULT_CACHE_OPTIONS.maxSize.domainValid,
+      DEFAULT_CACHE_OPTIONS.ttl.domainValid
+    ),
     // Domain suggestion cache
-    domainSuggestion: new CustomMemoryCache(DEFAULT_CACHE_SIZE.domainSuggestion, DEFAULT_CACHE_TTL.domainSuggestion),
+    domainSuggestion: new CustomMemoryCache(
+      DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
+      DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion
+    ),
     // WHOIS cache
-    whois: new CustomMemoryCache(DEFAULT_CACHE_SIZE.whois, DEFAULT_CACHE_TTL.whois),
+    whois: new CustomMemoryCache(DEFAULT_CACHE_OPTIONS.maxSize.whois, DEFAULT_CACHE_OPTIONS.ttl.whois),
   };
 
-  // Set the custom cache globally
-  setCustomCache(customCache);
-
-  console.log('✅ Custom memory cache configured with statistics tracking');
+  return customCache;
 }
 
-async function demonstrateCacheUsage() {
+async function demonstrateDefaultCache() {
   const testEmails = [
     'test@gmail.com',
     'user@yahoo.com',
-    'admin@disposable-temp-email.com',
-    'test@gmail.com', // This should hit the cache
-    'another@example.org',
+    'test@gmail.com', // Duplicate to test cache hit
   ];
 
-  console.log('\n🔍 Verifying emails with custom memory cache...\n');
+  console.log('\n📧 Testing email verification with default cache...\n');
 
-  const smtpCache = new CustomMemoryCache<boolean | null>(200, 1800000);
-
+  // Verify emails with default cache (no cache parameter needed)
   for (const email of testEmails) {
-    console.log(`\n📧 Verifying: ${email}`);
+    try {
+      console.log(`Verifying: ${email}`);
+      const result = await verifyEmail({
+        emailAddress: email,
+        verifySmtp: false, // Skip SMTP for faster demo
+        debug: true,
+      });
 
-    const result = await verifyEmail({
-      emailAddress: email,
-      verifyMx: true,
-      verifySmtp: false, // Set to false for this example
-      checkDisposable: true,
-      checkFree: true,
-      debug: false,
-    });
-
-    console.log(`Result:`, {
-      valid: result.validFormat && result.validMx,
-      disposable: result.isDisposable,
-      freeProvider: result.isFree,
-      cached: result.metadata?.cached,
-    });
-
-    // Show cache statistics after each verification
-    if (result.metadata?.cached) {
-      console.log('📈 Cache hit!');
+      console.log(`  Valid format: ${result.validFormat}`);
+      console.log(`  Valid MX: ${result.validMx}`);
+      console.log(`  Is disposable: ${result.isDisposable}`);
+      console.log(`  Is free: ${result.isFree}`);
+      console.log('');
+    } catch (error) {
+      console.error(`  ✗ Error: ${error}\n`);
     }
   }
 
-  // Get cache statistics
-  const mxCache = new CustomMemoryCache<string[]>(300, 3600000);
-  console.log('\n📊 Final Cache Statistics:');
-  console.log('  MX Cache:', mxCache.getStats());
-  console.log('  SMTP Cache:', smtpCache.getStats());
+  // Show that default cache is a singleton
+  const defaultCache1 = getDefaultCache();
+  const defaultCache2 = getDefaultCache();
+  console.log('Default cache is singleton:', defaultCache1 === defaultCache2);
 }
 
-async function testDirectCacheOperations() {
-  console.log('\n🧪 Testing direct cache operations...\n');
+async function demonstrateCustomCache() {
+  const testEmails = ['admin@outlook.com', 'invalid@nonexistentdomain12345.com'];
 
-  const testCache = new CustomMemoryCache<string>(10, 5000); // 5 second TTL
+  console.log('\n📧 Testing email verification with custom cache...\n');
 
-  // Test basic operations
-  console.log('Setting key1 -> value1');
-  testCache.set('key1', 'value1');
+  // Create custom cache
+  const customCache = createCustomCache();
 
-  console.log('Getting key1:', testCache.get('key1'));
-  console.log('Has key1:', testCache.has('key1'));
-  console.log('Cache size:', testCache.size());
-  console.log('Cache stats:', testCache.getStats());
+  // Verify emails with custom cache
+  for (const email of testEmails) {
+    try {
+      console.log(`Verifying: ${email}`);
+      const result = await verifyEmail({
+        emailAddress: email,
+        verifySmtp: false, // Skip SMTP for faster demo
+        cache: customCache, // Pass cache directly
+        debug: true,
+      });
 
-  // Test TTL
-  console.log('\nWaiting 6 seconds for TTL to expire...');
-  await new Promise((resolve) => setTimeout(resolve, 6000));
-
-  console.log('Getting key1 after TTL:', testCache.get('key1'));
-  console.log('Cache stats after TTL:', testCache.getStats());
-}
-
-async function main() {
-  try {
-    console.log('🚀 Setting up custom memory cache for email validation...\n');
-    await setupCustomCache();
-
-    console.log('\n📊 Demonstrating cache usage...\n');
-    await demonstrateCacheUsage();
-
-    console.log('\n🧪 Testing direct cache operations...\n');
-    await testDirectCacheOperations();
-
-    console.log('\n✨ Example completed successfully!');
-    console.log('\n📝 Key points:');
-    console.log('  • Custom cache can implement advanced features');
-    console.log('  • Statistics tracking helps monitor cache performance');
-    console.log('  • LRU eviction prevents memory leaks');
-    console.log('  • TTL-based expiration keeps data fresh');
-    console.log('  • Configurable sizes and TTLs per cache type');
-  } catch (error) {
-    console.error('❌ Error:', error);
+      console.log(`  Valid format: ${result.validFormat}`);
+      console.log(`  Valid MX: ${result.validMx}`);
+      console.log(`  Is disposable: ${result.isDisposable}`);
+      console.log(`  Is free: ${result.isFree}`);
+      console.log('');
+    } catch (error) {
+      console.error(`  ✗ Error: ${error}\n`);
+    }
   }
+
+  // Show cache statistics for each cache type
+  console.log('\n📊 Cache Statistics:');
+  const cacheStats = {
+    smtp: (customCache.smtp as CustomMemoryCache<any>).getStats(),
+    mx: (customCache.mx as CustomMemoryCache<any>).getStats(),
+    disposable: (customCache.disposable as CustomMemoryCache<boolean>).getStats(),
+    free: (customCache.free as CustomMemoryCache<boolean>).getStats(),
+    domainValid: (customCache.domainValid as CustomMemoryCache<boolean>).getStats(),
+  };
+
+  for (const [type, stats] of Object.entries(cacheStats)) {
+    console.log(`\n${type.toUpperCase()} Cache:`);
+    console.log(`  Size: ${stats.size} entries`);
+    console.log(`  Hits: ${stats.hits}`);
+    console.log(`  Misses: ${stats.misses}`);
+    console.log(`  Hit Rate: ${(stats.hitRate * 100).toFixed(2)}%`);
+  }
+
+  // Test cache clearing
+  console.log('\n🔄 Testing cache clear...');
+  await customCache.disposable.clear();
+  console.log('Disposable cache cleared. New size:', (customCache.disposable as CustomMemoryCache<boolean>).size());
 }
 
-// Run the example
-if (require.main === module) {
-  main();
+// Run the demonstrations
+async function runAll() {
+  await demonstrateDefaultCache();
+  await demonstrateCustomCache();
 }
+
+runAll().catch(console.error);

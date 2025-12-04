@@ -1,5 +1,5 @@
 import { promises as dnsPromises } from 'node:dns';
-import { mxCacheStore } from './cache';
+import { getCacheStore } from './cache';
 import type { IResolveMxParams } from './types';
 
 export async function resolveMxRecords(params: IResolveMxParams): Promise<string[]> {
@@ -7,7 +7,7 @@ export async function resolveMxRecords(params: IResolveMxParams): Promise<string
   const log = logger || (() => {});
 
   // Check cache first
-  const cacheStore = mxCacheStore(cache);
+  const cacheStore = getCacheStore<string[]>(cache, 'mx');
   const cached = await cacheStore.get(domain);
   if (cached !== null && cached !== undefined) {
     log(`[resolveMxRecords] Cache hit for ${domain}: ${cached.length} MX records`);

@@ -8,6 +8,10 @@
   },
   "include": [
     "__tests__/**/*",
+    "examples/**/*.ts",
     "src/**/*"
+  ],
+  "exclude": [
+    "examples/serverless/**/*"
   ]
 }

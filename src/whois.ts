@@ -1,6 +1,7 @@
-import net from 'node:net';
+import * as net from 'node:net';
 import { isValid } from 'psl';
-import { whoisCacheStore } from './cache';
+import { getCacheStore } from './cache';
+import type { ICache } from './cache-interface';
 import type { DomainAgeInfo, DomainRegistrationInfo } from './types';
 import { type ParsedWhoisResult, parseWhoisData } from './whois-parser';
 
@@ -93,14 +94,19 @@ function queryWhoisServer(domain: string, server: string, timeout = 5000, debug 
   });
 }
 
-async function getWhoisData(domain: string, timeout = 5000, debug = false): Promise<ParsedWhoisResult | null> {
+async function getWhoisData(
+  domain: string,
+  timeout = 5000,
+  debug = false,
+  cache?: ICache
+): Promise<ParsedWhoisResult | null> {
   const log = debug ? console.debug : (..._args: unknown[]) => {};
   const cacheKey = `whois:${domain}`;
-  const cache = whoisCacheStore();
+  const cacheStore = getCacheStore<ParsedWhoisResult>(cache, 'whois');
 
   log(`[whois] getting WHOIS data for ${domain}`);
 
-  const cached = await cache.get(cacheKey);
+  const cached = await cacheStore.get(cacheKey);
   if (cached !== null && cached !== undefined) {
     log(`[whois] using cached data for ${domain}`);
     return cached as ParsedWhoisResult;
@@ -126,13 +132,13 @@ async function getWhoisData(domain: string, timeout = 5000, debug = false): Prom
         log(`[whois] IANA referred to ${referredServer} for ${domain}`);
         const whoisResponse = await queryWhoisServer(domain, referredServer, timeout, debug);
         const whoisData = parseWhoisData({ rawData: whoisResponse, domain });
-        await cache.set(cacheKey, whoisData);
+        await cacheStore.set(cacheKey, whoisData);
         log(`[whois] successfully retrieved and cached WHOIS data from referred server for ${domain}`);
         return whoisData;
       }
 
       const whoisData = parseWhoisData({ rawData: ianaResponse, domain });
-      await cache.set(cacheKey, whoisData);
+      await cacheStore.set(cacheKey, whoisData);
       log(`[whois] successfully retrieved and cached WHOIS data from IANA for ${domain}`);
       return whoisData;
     }
@@ -140,7 +146,7 @@ async function getWhoisData(domain: string, timeout = 5000, debug = false): Prom
     log(`[whois] using WHOIS server ${whoisServer} for TLD ${tld}`);
     const whoisResponse = await queryWhoisServer(domain, whoisServer, timeout, debug);
     const whoisData = parseWhoisData({ rawData: whoisResponse, domain });
-    await cache.set(cacheKey, whoisData);
+    await cacheStore.set(cacheKey, whoisData);
     log(`[whois] successfully retrieved and cached WHOIS data for ${domain}`);
     return whoisData;
   } catch (_error) {
@@ -151,7 +157,12 @@ async function getWhoisData(domain: string, timeout = 5000, debug = false): Prom
   }
 }
 
-export async function getDomainAge(domain: string, timeout = 5000, debug = false): Promise<DomainAgeInfo | null> {
+export async function getDomainAge(
+  domain: string,
+  timeout = 5000,
+  debug = false,
+  cache?: ICache
+): Promise<DomainAgeInfo | null> {
   const log = debug ? console.debug : (..._args: unknown[]) => {};
 
   try {
@@ -173,7 +184,7 @@ export async function getDomainAge(domain: string, timeout = 5000, debug = false
       return null;
     }
 
-    const whoisData = await getWhoisData(cleanDomain, timeout, debug);
+    const whoisData = await getWhoisData(cleanDomain, timeout, debug, cache);
     if (!whoisData || !whoisData.creationDate) {
       log(`[whois] no creation date found for ${cleanDomain}`);
       return null;
@@ -206,7 +217,8 @@ export async function getDomainAge(domain: string, timeout = 5000, debug = false
 export async function getDomainRegistrationStatus(
   domain: string,
   timeout = 5000,
-  debug = false
+  debug = false,
+  cache?: ICache
 ): Promise<DomainRegistrationInfo | null> {
   const log = debug ? console.debug : (..._args: unknown[]) => {};
 
@@ -229,7 +241,7 @@ export async function getDomainRegistrationStatus(
       return null;
     }
 
-    const whoisData = await getWhoisData(cleanDomain, timeout, debug);
+    const whoisData = await getWhoisData(cleanDomain, timeout, debug, cache);
 
     if (!whoisData || whoisData.isAvailable) {
       log(`[whois] domain ${cleanDomain} is available or not registered`);

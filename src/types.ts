@@ -150,6 +150,7 @@ export interface ISuggestDomainParams {
   domain: string;
   customMethod?: DomainSuggestionMethod;
   commonDomains?: string[];
+  cache?: ICache;
 }
 
 /**

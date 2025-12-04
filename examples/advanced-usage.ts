@@ -1,6 +1,5 @@
 import {
-  clearAllCaches,
-  type VerificationResult,
+  clearDefaultCache,
   isDisposableEmail,
   isFreeEmail,
   VerificationErrorCode,
@@ -77,17 +76,16 @@ async function batchVerification() {
   console.log('  Processing time:', result.summary.processingTime, 'ms');
 
   console.log('\nDetailed results:');
-  for (const [email, verification] of result.results) {
-    const detailed = verification as DetailedVerificationResult;
+  result.results.forEach((verification, email) => {
     console.log(`  ${email}:`);
-    console.log(`    Valid: ${detailed.valid}`);
-    if (detailed.disposable) {
+    console.log(`    Valid: ${verification.validFormat && verification.validMx}`);
+    if (verification.isDisposable) {
       console.log(`    ⚠️  Disposable email`);
     }
-    if (detailed.freeProvider) {
+    if (verification.isFree) {
       console.log(`    ℹ️  Free email provider`);
     }
-  }
+  });
 }
 
 async function checkEmailProviders() {
@@ -129,7 +127,7 @@ async function demonstrateCache() {
 
   // Clear cache
   console.log('Clearing cache...');
-  clearAllCaches();
+  clearDefaultCache();
 
   // Third verification - cache cleared, will hit DNS again
   console.log('Third verification (cache cleared):');

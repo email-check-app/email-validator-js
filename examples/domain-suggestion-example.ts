@@ -4,8 +4,8 @@ import {
   getDomainSimilarity,
   isCommonDomain,
   suggestEmailDomain,
-  verifyEmailBatch,
   verifyEmail,
+  verifyEmailBatch,
 } from '../src';
 
 // Example 1: Basic domain suggestion
@@ -80,7 +80,7 @@ async function verifyWithSuggestions() {
   });
 
   console.log(`\nEmail: ${result.email}`);
-  console.log(`Valid Format: ${result.format.valid}`);
+  console.log(`Valid Format: ${result.validFormat}`);
 
   if (result.domainSuggestion) {
     console.log(`Domain Typo Detected!`);
@@ -106,7 +106,7 @@ async function verifyWithSuggestions() {
 
   batchResult.results.forEach((result, email) => {
     console.log(`\n${email}:`);
-    console.log(`  Valid: ${result.valid}`);
+    console.log(`  Valid: ${result.validFormat && result.validMx}`);
 
     if ('domainSuggestion' in result && result.domainSuggestion) {
       console.log(`  Suggestion: ${result.domainSuggestion.suggested}`);

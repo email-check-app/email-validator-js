@@ -4,18 +4,21 @@
  */
 
 import { verifyEmail } from '../src';
-import { setCustomCache } from '../src/cache';
 import { RedisAdapter } from '../src/adapters/redis-adapter';
+import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
 import type { ICache } from '../src/cache-interface';
-import { DEFAULT_CACHE_TTL } from '../src/cache-interface';
 
 // Example Redis client (you would use your actual Redis client here)
 // This example assumes you have a Redis client that implements the IRedisClient interface
 interface SimpleRedisClient {
   get(key: string): Promise<string | null>;
+
   set(key: string, value: string, mode?: string, duration?: number): Promise<string | null>;
+
   del(key: string): Promise<number>;
+
   exists(key: string): Promise<number>;
+
   flushdb(): Promise<string>;
 }
 
@@ -46,124 +49,128 @@ const mockRedisClient: SimpleRedisClient = {
   },
 };
 
-async function setupRedisCache() {
+function createRedisCache(): ICache {
   // Create Redis cache with custom configuration
   const redisCache: ICache = {
-    mx: new RedisAdapter(mockRedisClient, {
-      keyPrefix: 'email_validator:mx:',
-      defaultTtlMs: 7200000, // 2 hours for MX records (default is 1 hour)
-      jsonSerializer: {
-        stringify: (value) => JSON.stringify(value),
-        parse: (value) => JSON.parse(value),
-      },
-    }),
+    // SMTP cache: shorter TTL for SMTP verification results
     smtp: new RedisAdapter(mockRedisClient, {
-      keyPrefix: 'email_validator:smtp:',
-      defaultTtlMs: 3600000, // 1 hour for SMTP verification (default is 30 minutes)
-      jsonSerializer: {
-        stringify: (value) => JSON.stringify(value),
-        parse: (value) => JSON.parse(value),
-      },
+      keyPrefix: 'email:smtp:',
+      defaultTtlMs: DEFAULT_CACHE_OPTIONS.ttl.smtp,
     }),
+    // MX cache: medium TTL for MX records
+    mx: new RedisAdapter(mockRedisClient, {
+      keyPrefix: 'email:mx:',
+      defaultTtlMs: DEFAULT_CACHE_OPTIONS.ttl.mx,
+    }),
+    // Disposable email cache: longer TTL
     disposable: new RedisAdapter(mockRedisClient, {
-      keyPrefix: 'email_validator:disposable:',
-      defaultTtlMs: 172800000, // 48 hours for disposable list (default is 24 hours)
-      jsonSerializer: {
-        stringify: (value) => JSON.stringify(value),
-        parse: (value) => JSON.parse(value),
-      },
+      keyPrefix: 'email:disposable:',
+      defaultTtlMs: DEFAULT_CACHE_OPTIONS.ttl.disposable,
     }),
+    // Free email cache: longer TTL
     free: new RedisAdapter(mockRedisClient, {
-      keyPrefix: 'email_validator:free:',
-      defaultTtlMs: DEFAULT_CACHE_TTL.free,
-      jsonSerializer: {
-        stringify: (value) => JSON.stringify(value),
-        parse: (value) => JSON.parse(value),
-      },
+      keyPrefix: 'email:free:',
+      defaultTtlMs: DEFAULT_CACHE_OPTIONS.ttl.free,
     }),
+    // Domain validation cache: longer TTL
     domainValid: new RedisAdapter(mockRedisClient, {
-      keyPrefix: 'email_validator:domain_valid:',
-      defaultTtlMs: DEFAULT_CACHE_TTL.domainValid,
-      jsonSerializer: {
-        stringify: (value) => JSON.stringify(value),
-        parse: (value) => JSON.parse(value),
-      },
+      keyPrefix: 'email:domain:',
+      defaultTtlMs: DEFAULT_CACHE_OPTIONS.ttl.domainValid,
     }),
+    // Domain suggestion cache: longer TTL
     domainSuggestion: new RedisAdapter(mockRedisClient, {
-      keyPrefix: 'email_validator:domain_suggestion:',
-      defaultTtlMs: DEFAULT_CACHE_TTL.domainSuggestion,
-      jsonSerializer: {
-        stringify: (value) => JSON.stringify(value),
-        parse: (value) => JSON.parse(value),
-      },
+      keyPrefix: 'email:suggest:',
+      defaultTtlMs: DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion,
     }),
+    // WHOIS cache: shorter TTL for WHOIS data
     whois: new RedisAdapter(mockRedisClient, {
-      keyPrefix: 'email_validator:whois:',
-      defaultTtlMs: DEFAULT_CACHE_TTL.whois,
-      jsonSerializer: {
-        stringify: (value) => JSON.stringify(value),
-        parse: (value) => JSON.parse(value),
-      },
+      keyPrefix: 'email:whois:',
+      defaultTtlMs: DEFAULT_CACHE_OPTIONS.ttl.whois,
     }),
   };
 
-  // Set the custom cache globally
-  setCustomCache(redisCache);
-
-  console.log('✅ Redis cache configured and set globally');
+  return redisCache;
 }
 
-async function demonstrateCacheUsage() {
+async function demonstrateDefaultCache() {
   const testEmails = [
-    'test@gmail.com',
-    'user@yahoo.com',
-    'admin@disposable-temp-email.com',
-    'test@gmail.com', // This should hit the cache
+    'user@gmail.com',
+    'test@yahoo.com',
+    'user@gmail.com', // Duplicate to test cache hit
   ];
 
-  console.log('\n🔍 Verifying emails with Redis cache...\n');
+  console.log('\n📧 Testing email verification with default cache...\n');
 
+  // Verify emails with default cache (no cache parameter needed)
   for (const email of testEmails) {
-    console.log(`\n📧 Verifying: ${email}`);
-    const result = await verifyEmail({
-      emailAddress: email,
-      verifyMx: true,
-      verifySmtp: false, // Set to false for this example
-      checkDisposable: true,
-      checkFree: true,
-      debug: true,
-    });
+    try {
+      console.log(`Verifying: ${email}`);
+      const result = await verifyEmail({
+        emailAddress: email,
+        verifySmtp: false, // Skip SMTP for faster demo
+        debug: true,
+      });
 
-    console.log(`Result:`, {
-      valid: result.validFormat && result.validMx,
-      disposable: result.isDisposable,
-      freeProvider: result.isFree,
-      cached: result.metadata?.cached,
-    });
+      console.log(`  Valid format: ${result.validFormat}`);
+      console.log(`  Valid MX: ${result.validMx}`);
+      console.log(`  Is disposable: ${result.isDisposable}`);
+      console.log(`  Is free: ${result.isFree}`);
+      console.log('');
+    } catch (error) {
+      console.error(`  ✗ Error: ${error}\n`);
+    }
   }
 }
 
-async function main() {
-  try {
-    console.log('🚀 Setting up Redis cache for email validation...\n');
-    await setupRedisCache();
+async function demonstrateRedisCache() {
+  const testEmails = ['admin@outlook.com', 'info@nonexistent-domain.xyz'];
 
-    console.log('\n📊 Demonstrating cache usage...\n');
-    await demonstrateCacheUsage();
+  console.log('\n📧 Testing email verification with Redis cache...\n');
 
-    console.log('\n✨ Example completed successfully!');
-    console.log('\n📝 Key points:');
-    console.log('  • Redis adapter automatically handles JSON serialization');
-    console.log('  • Cache keys are prefixed to avoid conflicts');
-    console.log('  • TTL values are configurable per cache type');
-    console.log('  • All cache operations are async and non-blocking');
-    console.log("  • Cache errors are logged but don't break validation");
-  } catch (error) {
-    console.error('❌ Error:', error);
+  // Create Redis cache
+  const redisCache = createRedisCache();
+
+  // Verify emails with Redis cache
+  for (const email of testEmails) {
+    try {
+      console.log(`Verifying: ${email}`);
+      const result = await verifyEmail({
+        emailAddress: email,
+        verifySmtp: false, // Skip SMTP for faster demo
+        cache: redisCache, // Pass cache directly
+        debug: true,
+      });
+
+      console.log(`  Valid format: ${result.validFormat}`);
+      console.log(`  Valid MX: ${result.validMx}`);
+      console.log(`  Is disposable: ${result.isDisposable}`);
+      console.log(`  Is free: ${result.isFree}`);
+      console.log('');
+    } catch (error) {
+      console.error(`  ✗ Error: ${error}\n`);
+    }
   }
+
+  // Demonstrate cache management
+  console.log('\n🔧 Demonstrating cache management...\n');
+
+  // Clear specific cache type
+  console.log('Clearing disposable email cache...');
+  await redisCache.disposable.clear();
+  console.log('Disposable cache cleared.\n');
+
+  // Check cache size (note: Redis returns undefined for size)
+  console.log('Cache sizes:');
+  console.log(`  SMTP: ${redisCache.smtp.size?.() || 'N/A (Redis)'}`);
+  console.log(`  MX: ${redisCache.mx.size?.() || 'N/A (Redis)'}`);
+  console.log(`  Disposable: ${redisCache.disposable.size?.() || 'N/A (Redis)'}`);
+  console.log(`  Free: ${redisCache.free.size?.() || 'N/A (Redis)'}`);
 }
 
-// Run the example
-if (require.main === module) {
-  main();
+// Run the demonstrations
+async function runAll() {
+  await demonstrateDefaultCache();
+  await demonstrateRedisCache();
 }
+
+runAll().catch(console.error);

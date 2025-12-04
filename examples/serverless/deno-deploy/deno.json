@@ -11,7 +11,9 @@
     "@std/http": "https://deno.land/std@0.208.0/http/mod.ts"
   },
   "compilerOptions": {
-    "lib": ["deno.window"],
+    "lib": [
+      "deno.window"
+    ],
     "strict": true
   }
 }

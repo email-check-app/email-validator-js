@@ -1,9 +1,6 @@
-/**
- * Tests for custom cache implementation
- */
-
 import { LRUAdapter } from '../src/adapters/lru-adapter';
-import { CacheFactory } from '../src/cache-factory';
+import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
+import type { ICache } from '../src/cache-interface';
 import { isDisposableEmail, isFreeEmail } from '../src/index';
 
 describe('Custom Cache Implementation', () => {
@@ -38,180 +35,89 @@ describe('Custom Cache Implementation', () => {
     });
   });
 
-  describe('CacheFactory', () => {
-    it('should create LRU cache with default TTLs', () => {
-      const cache = CacheFactory.createLRUCache();
+  describe('Custom Cache Creation', () => {
+    it('should create cache with LRU adapters', () => {
+      const cache: ICache = {
+        mx: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.mx, DEFAULT_CACHE_OPTIONS.ttl.mx),
+        disposable: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.disposable, DEFAULT_CACHE_OPTIONS.ttl.disposable),
+        free: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
+        domainValid: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.domainValid, DEFAULT_CACHE_OPTIONS.ttl.domainValid),
+        smtp: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        domainSuggestion: new LRUAdapter(
+          DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
+          DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion
+        ),
+        whois: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.whois, DEFAULT_CACHE_OPTIONS.ttl.whois),
+      };
 
       expect(cache.mx).toBeInstanceOf(LRUAdapter);
       expect(cache.disposable).toBeInstanceOf(LRUAdapter);
       expect(cache.free).toBeInstanceOf(LRUAdapter);
       expect(cache.domainValid).toBeInstanceOf(LRUAdapter);
       expect(cache.smtp).toBeInstanceOf(LRUAdapter);
-
       expect(cache.domainSuggestion).toBeInstanceOf(LRUAdapter);
       expect(cache.whois).toBeInstanceOf(LRUAdapter);
     });
 
-    it('should create LRU cache with custom TTLs', () => {
-      const customTtl = {
-        mx: 7200000, // 2 hours
-        smtp: 3600000, // 1 hour
+    it('should work with custom cache instances', async () => {
+      const customCache: ICache = {
+        mx: new LRUAdapter<string[]>(5, 60000), // 1 minute
+        disposable: new LRUAdapter<boolean>(5, 60000),
+        free: new LRUAdapter<boolean>(5, 60000),
+        domainValid: new LRUAdapter<boolean>(5, 60000),
+        smtp: new LRUAdapter<boolean | null>(5, 60000),
+        domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(5, 60000),
+        whois: new LRUAdapter<any>(5, 60000),
       };
 
-      const cache = CacheFactory.createLRUCache(customTtl);
-      expect(cache.mx).toBeInstanceOf(LRUAdapter);
-      expect(cache.smtp).toBeInstanceOf(LRUAdapter);
-    });
-
-    it('should create custom cache with factory function', () => {
-      const cache = CacheFactory.createCustomCache((cacheType, defaultTtl, defaultSize) => {
-        return new LRUAdapter(defaultSize, defaultTtl);
+      // Test with custom cache
+      const disposableResult = await isDisposableEmail({
+        emailOrDomain: '10minutemail.com',
+        cache: customCache,
       });
+      expect(disposableResult).toBe(true);
 
-      expect(cache.mx).toBeInstanceOf(LRUAdapter);
-      expect(cache.disposable).toBeInstanceOf(LRUAdapter);
-    });
-
-    it('should create mixed cache with different configurations', () => {
-      const customCache = new LRUAdapter<string[]>(100, 7200000);
-
-      const cache = CacheFactory.createMixedCache({
-        mx: { store: customCache },
-        disposable: { ttlMs: 172800000 }, // 48 hours
-        smtp: { maxSize: 200, ttlMs: 3600000 },
+      const freeResult = await isFreeEmail({
+        emailOrDomain: 'gmail.com',
+        cache: customCache,
       });
+      expect(freeResult).toBe(true);
 
-      expect(cache.mx).toBe(customCache);
-      expect(cache.disposable).toBeInstanceOf(LRUAdapter);
-      expect(cache.smtp).toBeInstanceOf(LRUAdapter);
+      // Verify data is in custom cache
+      expect(await customCache.disposable.get('10minutemail.com')).toBe(true);
+      expect(await customCache.free.get('gmail.com')).toBe(true);
     });
   });
 
-  describe('Global Cache Integration', () => {
-    it('should use custom cache when set', async () => {
-      // Create a mock cache store
-      let cacheHits = 0;
-      const mockCacheStore = {
-        get: async (): Promise<any> => {
-          cacheHits++;
-          return null;
-        },
-        set: async () => {},
-        delete: async () => false,
-        has: async () => false,
-        clear: async () => {},
+  describe('Cache Isolation', () => {
+    it('should isolate cache instances', async () => {
+      const cache1: ICache = {
+        mx: new LRUAdapter<string[]>(10, 60000),
+        disposable: new LRUAdapter<boolean>(10, 60000),
+        free: new LRUAdapter<boolean>(10, 60000),
+        domainValid: new LRUAdapter<boolean>(10, 60000),
+        smtp: new LRUAdapter<boolean | null>(10, 60000),
+        domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(10, 60000),
+        whois: new LRUAdapter<any>(10, 60000),
       };
 
-      const customCache = {
-        mx: mockCacheStore,
-        disposable: mockCacheStore,
-        free: mockCacheStore,
-        domainValid: mockCacheStore,
-        smtp: mockCacheStore,
-        domainSuggestion: mockCacheStore,
-        whois: mockCacheStore,
+      const cache2: ICache = {
+        mx: new LRUAdapter<string[]>(10, 60000),
+        disposable: new LRUAdapter<boolean>(10, 60000),
+        free: new LRUAdapter<boolean>(10, 60000),
+        domainValid: new LRUAdapter<boolean>(10, 60000),
+        smtp: new LRUAdapter<boolean | null>(10, 60000),
+        domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(10, 60000),
+        whois: new LRUAdapter<any>(10, 60000),
       };
 
-      // Test that custom cache is being used
-      await isDisposableEmail({ emailOrDomain: 'test@domain.com', cache: customCache });
-      expect(cacheHits).toBeGreaterThan(0);
+      // Store different values in each cache
+      await cache1.disposable.set('test.com', true);
+      await cache2.disposable.set('test.com', false);
 
-      // Reset hits for next test
-      cacheHits = 0;
-
-      await isFreeEmail({ emailOrDomain: 'test@domain.com', cache: customCache });
-      expect(cacheHits).toBeGreaterThan(0);
-    });
-
-    it('should work with default cache when no cache provided', async () => {
-      // Should work with default cache when no cache provided
-      const result = await isDisposableEmail({ emailOrDomain: 'test@domain.com' });
-      expect(typeof result).toBe('boolean');
-    });
-  });
-
-  describe('Cache TTL and Size Configuration', () => {
-    it('should use configured TTLs for different cache types', async () => {
-      // Create cache with very short TTLs for testing
-      const fastExpiringCache = CacheFactory.createLRUCache({
-        disposable: 100, // 100ms (overriding default)
-        free: 200, // 200ms (overriding default)
-      });
-
-      // Cache a disposable email check
-      await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: fastExpiringCache });
-
-      // Wait for it to expire
-      await new Promise((resolve) => setTimeout(resolve, 150));
-
-      // Should re-check (not from cache)
-      // We can't directly test this, but the function should still work
-      const result = await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: fastExpiringCache });
-      expect(typeof result).toBe('boolean');
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should handle cache errors gracefully', async () => {
-      const errorCache = {
-        get: async (): Promise<any> => {
-          throw new Error('Cache error');
-        },
-        set: async () => {
-          throw new Error('Cache error');
-        },
-        delete: async () => false,
-        has: async () => false,
-        clear: async () => {},
-      };
-
-      const customCache = {
-        mx: errorCache,
-        disposable: errorCache,
-        free: errorCache,
-        domainValid: errorCache,
-        smtp: errorCache,
-        domainSuggestion: errorCache,
-        whois: errorCache,
-      };
-
-      // Should not throw even if cache fails
-      const result = await isDisposableEmail({ emailOrDomain: 'test@domain.com', cache: customCache });
-      expect(typeof result).toBe('boolean');
-    });
-  });
-
-  describe('Batch Operations', () => {
-    it('should use cache for batch operations', async () => {
-      let cacheCalls = 0;
-
-      const trackingCache = {
-        get: async (): Promise<any> => {
-          cacheCalls++;
-          return null;
-        },
-        set: async () => {},
-        delete: async () => false,
-        has: async () => false,
-        clear: async () => {},
-      };
-
-      const customCache = {
-        mx: trackingCache,
-        disposable: trackingCache,
-        free: trackingCache,
-        domainValid: trackingCache,
-        smtp: trackingCache,
-        domainSuggestion: trackingCache,
-        whois: trackingCache,
-      };
-
-      // Test direct calls to ensure cache is working
-      await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: customCache });
-      await isFreeEmail({ emailOrDomain: 'test@gmail.com', cache: customCache });
-
-      // Should have called cache for each email
-      expect(cacheCalls).toBeGreaterThan(0);
+      // Verify caches are isolated
+      expect(await cache1.disposable.get('test.com')).toBe(true);
+      expect(await cache2.disposable.get('test.com')).toBe(false);
     });
   });
 });

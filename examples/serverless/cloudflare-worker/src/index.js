@@ -7,10 +7,11 @@
 
 // For local development, use the built files:
 import cloudflareAdapter from '../../../../dist/serverless/adapters/cloudflare.js';
-const { workerHandler, EmailValidatorDO } = cloudflareAdapter;
+
+const {workerHandler, EmailValidatorDO} = cloudflareAdapter;
 
 // Export Durable Object class
-export { EmailValidatorDO };
+export {EmailValidatorDO};
 
 // Main worker handler
 export default {
@@ -59,12 +60,12 @@ async function handleRateLimit(request, env) {
   const count = current ? parseInt(current) : 0;
 
   if (count >= limit) {
-    return new Response('Rate limit exceeded', { status: 429 });
+    return new Response('Rate limit exceeded', {status: 429});
   }
 
-  await env.EMAIL_CACHE.put(key, String(count + 1), { expirationTtl: 60 });
+  await env.EMAIL_CACHE.put(key, String(count + 1), {expirationTtl: 60});
   return null;
 }
 
 // Export for testing
-export { handleRateLimit };
+export {handleRateLimit};

@@ -7,7 +7,7 @@
 // import { apiGatewayHandler, lambdaHandler, cacheHandler } from '@emailcheck/email-validator-js/serverless/aws';
 
 // For local development, use the built files:
-const { apiGatewayHandler, lambdaHandler, cacheHandler } = require('../../../dist/serverless/adapters/aws-lambda.js').default;
+const {apiGatewayHandler, lambdaHandler, cacheHandler} = require('../../../dist/serverless/adapters/aws-lambda.js').default;
 
 // API Gateway HTTP endpoint
 export const validateEmailHTTP = apiGatewayHandler;
@@ -26,8 +26,8 @@ export const customValidator = async (event, context) => {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return {
         statusCode: 401,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Unauthorized' }),
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({error: 'Unauthorized'}),
       };
     }
 
@@ -43,8 +43,8 @@ export const customValidator = async (event, context) => {
     if (!email) {
       return {
         statusCode: 400,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Email is required' }),
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({error: 'Email is required'}),
       };
     }
 
@@ -78,7 +78,7 @@ export const customValidator = async (event, context) => {
     console.error('Validation error:', error);
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         error: 'Internal server error',
         message: error.message
