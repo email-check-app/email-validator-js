@@ -1,5 +1,6 @@
 import { verifyEmail } from './index';
-import type { BatchVerificationResult, DetailedVerificationResult, IBatchVerifyParams } from './types';
+import type { BatchVerificationResult, IBatchVerifyParams, VerificationResult } from './types';
+import { VerificationErrorCode } from './types';
 
 /**
  * Verify multiple email addresses in parallel with concurrency control
@@ -22,7 +23,7 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
   } = params;
 
   const startTime = Date.now();
-  const results = new Map<string, DetailedVerificationResult>();
+  const results = new Map<string, VerificationResult>();
 
   // Process emails in batches
   const batches = [];
@@ -52,7 +53,7 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
           cache,
         });
 
-        if (result.valid) {
+        if (result.validFormat) {
           totalValid++;
         } else {
           totalInvalid++;
@@ -63,7 +64,7 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
         totalErrors++;
         return {
           email,
-          result: createErrorDetailedResult(email, error),
+          result: createErrorResult(email, error),
         };
       }
     });
@@ -86,18 +87,18 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
   };
 }
 
-function createErrorDetailedResult(email: string, _error: unknown): DetailedVerificationResult {
+function createErrorResult(email: string, _error: unknown): VerificationResult {
   return {
-    valid: false,
     email,
-    format: { valid: false },
-    domain: { valid: null },
-    smtp: { valid: null },
-    disposable: false,
-    freeProvider: false,
+    validFormat: false,
+    validMx: null,
+    validSmtp: null,
+    isDisposable: false,
+    isFree: false,
     metadata: {
       verificationTime: 0,
       cached: false,
+      error: VerificationErrorCode.SMTP_CONNECTION_FAILED,
     },
   };
 }

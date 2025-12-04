@@ -10,7 +10,7 @@ describe('Integrated Name Detection', () => {
         detectName: true,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.detectedName).toBeTruthy();
       expect(result.detectedName?.firstName).toBe('John');
       expect(result.detectedName?.lastName).toBe('Doe');
@@ -23,7 +23,7 @@ describe('Integrated Name Detection', () => {
         detectName: false,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.detectedName).toBeUndefined();
     });
 
@@ -32,7 +32,7 @@ describe('Integrated Name Detection', () => {
         emailAddress: 'john.doe@example.com',
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.detectedName).toBeUndefined();
     });
 
@@ -51,7 +51,7 @@ describe('Integrated Name Detection', () => {
         nameDetectionMethod: customMethod,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.detectedName).toBeTruthy();
       expect(result.detectedName?.firstName).toBe('Custom');
       expect(result.detectedName?.lastName).toBe('Name');
@@ -64,12 +64,12 @@ describe('Integrated Name Detection', () => {
         detectName: true,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.detectedName).toBeNull();
     });
   });
 
-  describe('verifyEmail with name detection', () => {
+  describe('verifyEmail with name detection and additional options', () => {
     it('should include detected name when detectName is true', async () => {
       const result = await verifyEmail({
         emailAddress: 'jane.smith@example.com',
@@ -78,7 +78,7 @@ describe('Integrated Name Detection', () => {
         verifySmtp: false,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.detectedName).toBeTruthy();
       expect(result.detectedName?.firstName).toBe('Jane');
       expect(result.detectedName?.lastName).toBe('Smith');
@@ -93,7 +93,7 @@ describe('Integrated Name Detection', () => {
         verifySmtp: false,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.detectedName).toBeUndefined();
     });
 
@@ -105,7 +105,7 @@ describe('Integrated Name Detection', () => {
         verifySmtp: false,
       });
 
-      expect(result.format.valid).toBe(false);
+      expect(result.validFormat).toBe(false);
       expect(result.detectedName).toBeUndefined(); // No detection attempted for invalid emails
     });
 
@@ -118,8 +118,8 @@ describe('Integrated Name Detection', () => {
         checkDisposable: true,
       });
 
-      expect(result.format.valid).toBe(true);
-      expect(result.disposable).toBe(true);
+      expect(result.validFormat).toBe(true);
+      expect(result.isDisposable).toBe(true);
       expect(result.detectedName).toBeTruthy();
       expect(result.detectedName?.firstName).toBe('John');
       expect(result.detectedName?.lastName).toBe('Doe');

@@ -129,17 +129,16 @@ const result = await verifyEmail({
   timeout: 3000
 });
 
-console.log(result.valid);     // Overall validity
-console.log(result.format.valid); // true
-console.log(result.domain.valid); // true or false
-console.log(result.smtp.valid);   // true or false
+console.log(result.validFormat);  // true
+console.log(result.validMx);      // true or false
+console.log(result.validSmtp);    // true or false
 ```
 
 ## API Reference
 
 ### Core Functions
 
-#### `verifyEmail(params: IVerifyEmailParams): Promise<DetailedVerificationResult>`
+#### `verifyEmail(params: IVerifyEmailParams): Promise<VerificationResult>`
 
 Comprehensive email verification with detailed results and error codes.
 
@@ -161,33 +160,26 @@ Comprehensive email verification with detailed results and error codes.
 - `checkDomainAge` (boolean): Check domain age (default: false)
 - `checkDomainRegistration` (boolean): Check domain registration status (default: false)
 - `whoisTimeout` (number): WHOIS lookup timeout (default: 5000)
+- `debug` (boolean): Enable debug logging including WHOIS lookups (default: false)
 - `cache` (ICache): Optional custom cache instance
 
 **Returns:**
 ```typescript
 {
-  valid: boolean;
   email: string;
-  format: {
-    valid: boolean;
-    error?: VerificationErrorCode;
-  };
-  domain: {
-    valid: boolean | null;
-    mxRecords?: string[];
-    error?: VerificationErrorCode;
-  };
-  smtp: {
-    valid: boolean | null;
-    error?: VerificationErrorCode;
-  };
-  disposable: boolean;
-  freeProvider: boolean;
+  validFormat: boolean;
+  validMx: boolean | null;
+  validSmtp: boolean | null;
+  isDisposable: boolean;
+  isFree: boolean;
   detectedName?: DetectedName | null;
+  domainAge?: DomainAgeInfo | null;
+  domainRegistration?: DomainRegistrationInfo | null;
   domainSuggestion?: DomainSuggestion | null;
   metadata?: {
     verificationTime: number;
     cached: boolean;
+    error?: VerificationErrorCode;
   };
 }
 ```
@@ -199,7 +191,6 @@ Verify multiple emails in parallel with concurrency control.
 **Parameters:**
 - `emailAddresses` (string[], required): Array of emails to verify
 - `concurrency` (number): Parallel processing limit (default: 5)
-- `detailed` (boolean): Return detailed results (default: false)
 - `detectName` (boolean): Detect names from email addresses
 - `suggestDomain` (boolean): Enable domain typo suggestions
 - Other parameters from `verifyEmail`
@@ -207,7 +198,7 @@ Verify multiple emails in parallel with concurrency control.
 **Returns:**
 ```typescript
 {
-  results: Map<string, DetailedVerificationResult | IVerifyEmailResult>;
+  results: Map<string, VerificationResult>;
   summary: {
     total: number;
     valid: number;
@@ -583,10 +574,9 @@ const result = await verifyEmail({
   verifySmtp: true,
   timeout: 3000
 });
-console.log(result.valid);       // true
-console.log(result.format.valid); // true
-console.log(result.domain.valid); // true
-console.log(result.smtp.valid);   // true
+console.log(result.validFormat);  // true
+console.log(result.validMx);      // true
+console.log(result.validSmtp);    // true
 ```
 
 ### Detailed Verification (NEW)
@@ -600,10 +590,11 @@ const result = await verifyEmail({
   checkDisposable: true,
   checkFree: true
 });
-// result.valid: true
-// result.disposable: false
-// result.freeProvider: false
-// result.domain.mxRecords: ['mx1.email.com', 'mx2.email.com']
+// result.validFormat: true
+// result.validMx: true
+// result.validSmtp: true
+// result.isDisposable: false
+// result.isFree: false
 // result.metadata.verificationTime: 125
 ```
 
@@ -617,7 +608,8 @@ const result = await verifyEmailBatch({
   emailAddresses: emails,
   concurrency: 5,
   verifyMx: true,
-  detailed: true
+  checkDisposable: true,
+  checkFree: true
 });
 // result.summary.valid: 2
 // result.summary.invalid: 1
@@ -697,16 +689,15 @@ const result = await verifyEmail({
   verifyMx: true,
   verifySmtp: true
 });
-// result.valid: false (domain or SMTP failed)
-// result.format.valid: true
-// result.domain.valid: false
-// result.smtp.valid: null (couldn't be performed)
+// result.validFormat: true (format is valid)
+// result.validMx: false (no MX records)
+// result.validSmtp: null (couldn't be performed)
 ```
 
 ### Using Detailed Verification for Better Insights
 
 ```typescript
-const detailed = await verifyEmail({
+const result = await verifyEmail({
   emailAddress: 'user@suspicious-domain.com',
   verifyMx: true,
   verifySmtp: true,
@@ -714,8 +705,14 @@ const detailed = await verifyEmail({
   checkFree: true
 });
 
-if (!detailed.valid) {
-  switch (detailed.domain.error) {
+if (!result.validFormat) {
+  console.log('Invalid email format');
+} else if (!result.validMx) {
+  console.log('Invalid domain - no MX records');
+} else if (result.isDisposable) {
+  console.log('Disposable email detected');
+} else if (result.metadata?.error) {
+  switch (result.metadata.error) {
     case VerificationErrorCode.DISPOSABLE_EMAIL:
       console.log('Rejected: Disposable email');
       break;
@@ -755,7 +752,7 @@ console.log(`Time: ${batch.summary.processingTime}ms`);
 // Filter out invalid emails
 const validEmails = [];
 for (const [email, result] of batch.results) {
-  if (result.valid) {
+  if (result.validFormat) {
     validEmails.push(email);
   }
 }
@@ -1046,7 +1043,7 @@ process.on('SIGTERM', async () => {
 });
 ```
 
-**Note:** Yahoo, Hotmail, and some providers always return `result.smtp.valid: true` as they don't allow mailbox verification.
+**Note:** Yahoo, Hotmail, and some providers always return `result.validSmtp: true` as they don't allow mailbox verification.
 
 ## 🌐 Serverless Deployment
 

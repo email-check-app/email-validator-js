@@ -53,41 +53,56 @@ const WHOIS_SERVERS: Record<string, string> = {
   cl: 'whois.nic.cl',
 };
 
-function queryWhoisServer(domain: string, server: string, timeout = 5000): Promise<string> {
+function queryWhoisServer(domain: string, server: string, timeout = 5000, debug = false): Promise<string> {
+  const log = debug ? console.debug : (..._args: unknown[]) => {};
+
   return new Promise((resolve, reject) => {
     const client = new net.Socket();
     let data = '';
 
+    log(`[whois] querying ${server} for domain ${domain}`);
+
     const timer = setTimeout(() => {
+      log(`[whois] timeout after ${timeout}ms for ${domain} at ${server}`);
       client.destroy();
       reject(new Error('WHOIS query timeout'));
     }, timeout);
 
     client.connect(43, server, () => {
+      log(`[whois] connected to ${server}, sending query for ${domain}`);
       client.write(`${domain}\r\n`);
     });
 
     client.on('data', (chunk) => {
-      data += chunk.toString();
+      const chunkStr = chunk.toString();
+      data += chunkStr;
+      log(`[whois] received ${chunkStr.length} bytes from ${server}`);
     });
 
     client.on('close', () => {
       clearTimeout(timer);
+      log(`[whois] connection closed, received total ${data.length} bytes from ${server}`);
       resolve(data);
     });
 
     client.on('error', (err) => {
       clearTimeout(timer);
+      log(`[whois] error querying ${server}: ${err.message}`);
       reject(err);
     });
   });
 }
 
-async function getWhoisData(domain: string, timeout = 5000): Promise<ParsedWhoisResult | null> {
+async function getWhoisData(domain: string, timeout = 5000, debug = false): Promise<ParsedWhoisResult | null> {
+  const log = debug ? console.debug : (..._args: unknown[]) => {};
   const cacheKey = `whois:${domain}`;
   const cache = whoisCacheStore();
+
+  log(`[whois] getting WHOIS data for ${domain}`);
+
   const cached = await cache.get(cacheKey);
   if (cached !== null && cached !== undefined) {
+    log(`[whois] using cached data for ${domain}`);
     return cached as ParsedWhoisResult;
   }
 
@@ -97,35 +112,48 @@ async function getWhoisData(domain: string, timeout = 5000): Promise<ParsedWhois
       throw new Error('Invalid domain');
     }
 
+    log(`[whois] extracted TLD: ${tld} for domain: ${domain}`);
+
     const whoisServer = WHOIS_SERVERS[tld];
     if (!whoisServer) {
+      log(`[whois] no specific server for TLD ${tld}, trying IANA`);
       const defaultServer = 'whois.iana.org';
-      const ianaResponse = await queryWhoisServer(domain, defaultServer, timeout);
+      const ianaResponse = await queryWhoisServer(domain, defaultServer, timeout, debug);
 
       const referMatch = ianaResponse.match(/refer:\s+(\S+)/i);
       if (referMatch?.[1]) {
         const referredServer = referMatch[1];
-        const whoisResponse = await queryWhoisServer(domain, referredServer, timeout);
+        log(`[whois] IANA referred to ${referredServer} for ${domain}`);
+        const whoisResponse = await queryWhoisServer(domain, referredServer, timeout, debug);
         const whoisData = parseWhoisData({ rawData: whoisResponse, domain });
         await cache.set(cacheKey, whoisData);
+        log(`[whois] successfully retrieved and cached WHOIS data from referred server for ${domain}`);
         return whoisData;
       }
 
       const whoisData = parseWhoisData({ rawData: ianaResponse, domain });
       await cache.set(cacheKey, whoisData);
+      log(`[whois] successfully retrieved and cached WHOIS data from IANA for ${domain}`);
       return whoisData;
     }
 
-    const whoisResponse = await queryWhoisServer(domain, whoisServer, timeout);
+    log(`[whois] using WHOIS server ${whoisServer} for TLD ${tld}`);
+    const whoisResponse = await queryWhoisServer(domain, whoisServer, timeout, debug);
     const whoisData = parseWhoisData({ rawData: whoisResponse, domain });
     await cache.set(cacheKey, whoisData);
+    log(`[whois] successfully retrieved and cached WHOIS data for ${domain}`);
     return whoisData;
   } catch (_error) {
+    log(
+      `[whois] failed to get WHOIS data for ${domain}: ${_error instanceof Error ? _error.message : 'Unknown error'}`
+    );
     return null;
   }
 }
 
-export async function getDomainAge(domain: string, timeout = 5000): Promise<DomainAgeInfo | null> {
+export async function getDomainAge(domain: string, timeout = 5000, debug = false): Promise<DomainAgeInfo | null> {
+  const log = debug ? console.debug : (..._args: unknown[]) => {};
+
   try {
     const cleanDomain = domain
       .replace(/^https?:\/\//, '')
@@ -133,16 +161,21 @@ export async function getDomainAge(domain: string, timeout = 5000): Promise<Doma
       .split('@')
       .pop();
     if (!cleanDomain) {
+      log(`[whois] invalid domain format: ${domain}`);
       return null;
     }
+
+    log(`[whois] checking domain age for ${cleanDomain}`);
 
     // Use psl isValid to check if domain is valid
     if (!isValid(cleanDomain)) {
+      log(`[whois] domain validation failed: ${cleanDomain}`);
       return null;
     }
 
-    const whoisData = await getWhoisData(cleanDomain, timeout);
+    const whoisData = await getWhoisData(cleanDomain, timeout, debug);
     if (!whoisData || !whoisData.creationDate) {
+      log(`[whois] no creation date found for ${cleanDomain}`);
       return null;
     }
 
@@ -151,6 +184,8 @@ export async function getDomainAge(domain: string, timeout = 5000): Promise<Doma
     const ageInMilliseconds = now.getTime() - creationDate.getTime();
     const ageInDays = Math.floor(ageInMilliseconds / (1000 * 60 * 60 * 24));
     const ageInYears = ageInDays / 365.25;
+
+    log(`[whois] calculated age for ${cleanDomain}: ${ageInDays} days (${ageInYears.toFixed(2)} years)`);
 
     return {
       domain: cleanDomain,
@@ -161,14 +196,20 @@ export async function getDomainAge(domain: string, timeout = 5000): Promise<Doma
       updatedDate: whoisData.updatedDate ? new Date(whoisData.updatedDate) : null,
     };
   } catch (_error) {
+    log(
+      `[whois] error getting domain age for ${domain}: ${_error instanceof Error ? _error.message : 'Unknown error'}`
+    );
     return null;
   }
 }
 
 export async function getDomainRegistrationStatus(
   domain: string,
-  timeout = 5000
+  timeout = 5000,
+  debug = false
 ): Promise<DomainRegistrationInfo | null> {
+  const log = debug ? console.debug : (..._args: unknown[]) => {};
+
   try {
     const cleanDomain = domain
       .replace(/^https?:\/\//, '')
@@ -176,17 +217,22 @@ export async function getDomainRegistrationStatus(
       .split('@')
       .pop();
     if (!cleanDomain) {
+      log(`[whois] invalid domain format: ${domain}`);
       return null;
     }
+
+    log(`[whois] checking domain registration status for ${cleanDomain}`);
 
     // Use psl isValid to check if domain is valid
     if (!isValid(cleanDomain)) {
+      log(`[whois] domain validation failed: ${cleanDomain}`);
       return null;
     }
 
-    const whoisData = await getWhoisData(cleanDomain, timeout);
+    const whoisData = await getWhoisData(cleanDomain, timeout, debug);
 
     if (!whoisData || whoisData.isAvailable) {
+      log(`[whois] domain ${cleanDomain} is available or not registered`);
       return {
         domain: cleanDomain,
         isRegistered: false,
@@ -217,6 +263,7 @@ export async function getDomainRegistrationStatus(
       if (!isExpired) {
         daysUntilExpiration = Math.floor((expirationTime - currentTime) / (1000 * 60 * 60 * 24));
       }
+      log(`[whois] domain ${cleanDomain} expires in ${daysUntilExpiration} days`);
     }
 
     const statusList = whoisData.status || [];
@@ -234,6 +281,10 @@ export async function getDomainRegistrationStatus(
         s.toLowerCase().includes('clienttransferprohibited') || s.toLowerCase().includes('servertransferprohibited')
     );
 
+    log(
+      `[whois] domain ${cleanDomain} - registered: ${isRegistered}, expired: ${isExpired}, locked: ${isLocked}, pending delete: ${isPendingDelete}`
+    );
+
     return {
       domain: cleanDomain,
       isRegistered,
@@ -248,6 +299,9 @@ export async function getDomainRegistrationStatus(
       isLocked,
     };
   } catch (_error) {
+    log(
+      `[whois] error getting domain registration status for ${domain}: ${_error instanceof Error ? _error.message : 'Unknown error'}`
+    );
     return null;
   }
 }

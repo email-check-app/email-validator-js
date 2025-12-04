@@ -2,7 +2,7 @@ import { promises as dnsPromises } from 'node:dns';
 import net, { Socket } from 'node:net';
 import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';
-import { clearAllCaches, type DetailedVerificationResult, verifyEmailBatch } from '../src';
+import { clearAllCaches, type VerificationResult, verifyEmailBatch } from '../src';
 
 describe('Batch Email Verification', () => {
   let sandbox: SinonSandbox;
@@ -111,16 +111,16 @@ describe('Batch Email Verification', () => {
         checkFree: true,
       });
 
-      const detailedResult = result.results.get('user1@testdomain.com') as DetailedVerificationResult;
-      expect(detailedResult).toHaveProperty('format');
-      expect(detailedResult).toHaveProperty('domain');
-      expect(detailedResult).toHaveProperty('smtp');
-      expect(detailedResult).toHaveProperty('disposable');
-      expect(detailedResult).toHaveProperty('freeProvider');
+      const detailedResult = result.results.get('user1@testdomain.com') as VerificationResult;
+      expect(detailedResult).toHaveProperty('validFormat');
+      expect(detailedResult).toHaveProperty('validMx');
+      expect(detailedResult).toHaveProperty('validSmtp');
+      expect(detailedResult).toHaveProperty('isDisposable');
+      expect(detailedResult).toHaveProperty('isFree');
       expect(detailedResult).toHaveProperty('metadata');
 
-      const disposableResult = result.results.get('user2@yopmail.com') as DetailedVerificationResult;
-      expect(disposableResult.disposable).toBe(true);
+      const disposableResult = result.results.get('user2@yopmail.com') as VerificationResult;
+      expect(disposableResult.isDisposable).toBe(true);
     });
 
     it('should track processing time', async () => {

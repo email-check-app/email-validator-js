@@ -10,7 +10,7 @@ describe('Integrated Domain Suggestion', () => {
         suggestDomain: true,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.domainSuggestion).toBeTruthy();
       expect(result.domainSuggestion?.suggested).toBe('john@gmail.com');
       expect(result.domainSuggestion?.confidence).toBeGreaterThanOrEqual(0.7);
@@ -22,7 +22,7 @@ describe('Integrated Domain Suggestion', () => {
         suggestDomain: false,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.domainSuggestion).toBeUndefined();
     });
 
@@ -32,7 +32,7 @@ describe('Integrated Domain Suggestion', () => {
         suggestDomain: true,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.domainSuggestion).toBeNull();
     });
 
@@ -54,7 +54,7 @@ describe('Integrated Domain Suggestion', () => {
         domainSuggestionMethod: customMethod,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.domainSuggestion?.suggested).toBe('company.com');
       expect(result.domainSuggestion?.confidence).toBe(0.95);
     });
@@ -65,7 +65,7 @@ describe('Integrated Domain Suggestion', () => {
         suggestDomain: true,
       });
 
-      expect(result.format.valid).toBe(false);
+      expect(result.validFormat).toBe(false);
       // Domain suggestion not attempted for invalid formats
       expect(result.domainSuggestion).toBeUndefined();
     });
@@ -79,7 +79,7 @@ describe('Integrated Domain Suggestion', () => {
         commonDomains: customDomains,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.domainSuggestion?.suggested).toBe('user@mycompany.com');
     });
   });
@@ -92,7 +92,7 @@ describe('Integrated Domain Suggestion', () => {
         verifySmtp: false,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.domainSuggestion).toBeTruthy();
       expect(result.domainSuggestion?.suggested).toBe('jane@yahoo.com');
     });
@@ -105,7 +105,7 @@ describe('Integrated Domain Suggestion', () => {
         verifySmtp: false,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.domainSuggestion).toBeUndefined(); // undefined when disabled
     });
 
@@ -116,7 +116,7 @@ describe('Integrated Domain Suggestion', () => {
         verifySmtp: false,
       });
 
-      expect(result.format.valid).toBe(false);
+      expect(result.validFormat).toBe(false);
       expect(result.domainSuggestion).toBeUndefined();
     });
 
@@ -129,7 +129,7 @@ describe('Integrated Domain Suggestion', () => {
         verifySmtp: false,
       });
 
-      expect(result.format.valid).toBe(true);
+      expect(result.validFormat).toBe(true);
       expect(result.detectedName?.firstName).toBe('John');
       expect(result.detectedName?.lastName).toBe('Doe');
       expect(result.domainSuggestion?.suggested).toBe('john.doe@gmail.com');

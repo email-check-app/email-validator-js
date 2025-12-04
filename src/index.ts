@@ -5,7 +5,8 @@ import { resolveMxRecords } from './dns';
 import { suggestEmailDomain } from './domain-suggester';
 import { detectNameFromEmail } from './name-detector';
 import { verifyMailboxSMTP } from './smtp';
-import { type DetailedVerificationResult, type IVerifyEmailParams, VerificationErrorCode } from './types';
+import { type IVerifyEmailParams, VerificationErrorCode, type VerificationResult } from './types';
+
 import { isValidEmail, isValidEmailDomain } from './validator';
 import { getDomainAge, getDomainRegistrationStatus } from './whois';
 
@@ -103,7 +104,7 @@ export const domainPorts: Record<string, number> = {
 /**
  * Verify email address
  */
-export async function verifyEmail(params: IVerifyEmailParams): Promise<DetailedVerificationResult> {
+export async function verifyEmail(params: IVerifyEmailParams): Promise<VerificationResult> {
   const {
     emailAddress,
     timeout = 4000,
@@ -125,14 +126,14 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<DetailedV
   const startTime = Date.now();
   const log = debug ? console.debug : (..._args: unknown[]) => {};
 
-  const result: DetailedVerificationResult = {
-    valid: false,
+  // Initialize result with flat structure
+  const result: VerificationResult = {
     email: emailAddress,
-    format: { valid: false },
-    domain: { valid: null },
-    smtp: { valid: null },
-    disposable: false,
-    freeProvider: false,
+    validFormat: false,
+    validMx: null,
+    validSmtp: null,
+    isDisposable: false,
+    isFree: false,
     metadata: {
       verificationTime: 0,
       cached: false,
@@ -141,13 +142,13 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<DetailedV
 
   // Format validation
   if (!isValidEmail(emailAddress)) {
-    result.format.error = VerificationErrorCode.INVALID_FORMAT;
     if (result.metadata) {
       result.metadata.verificationTime = Date.now() - startTime;
+      result.metadata.error = VerificationErrorCode.INVALID_FORMAT;
     }
     return result;
   }
-  result.format.valid = true;
+  result.validFormat = true;
 
   // Detect name if requested
   if (detectName) {
@@ -161,50 +162,54 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<DetailedV
   if (suggestDomain) {
     const [, emailDomain] = emailAddress.split('@');
     if (emailDomain) {
-      result.domainSuggestion = domainSuggestionMethod
+      const suggestion = domainSuggestionMethod
         ? domainSuggestionMethod(emailDomain)
         : await suggestEmailDomain(emailAddress, commonDomains);
+      if (suggestion) {
+        result.domainSuggestion = suggestion;
+      } else {
+        result.domainSuggestion = null;
+      }
     }
   }
 
   const [local, domain] = emailAddress.split('@');
   if (!domain || !local) {
-    result.format.error = VerificationErrorCode.INVALID_FORMAT;
     if (result.metadata) {
       result.metadata.verificationTime = Date.now() - startTime;
+      result.metadata.error = VerificationErrorCode.INVALID_FORMAT;
     }
     return result;
   }
 
   // Domain validation
   if (!(await isValidEmailDomain(domain, params.cache))) {
-    result.domain.error = VerificationErrorCode.INVALID_DOMAIN;
     if (result.metadata) {
       result.metadata.verificationTime = Date.now() - startTime;
+      result.metadata.error = VerificationErrorCode.INVALID_DOMAIN;
     }
     return result;
   }
 
   // Check disposable
   if (checkDisposable) {
-    result.disposable = await isDisposableEmail(emailAddress, params.cache);
-    if (result.disposable) {
-      result.valid = false;
-      result.domain.error = VerificationErrorCode.DISPOSABLE_EMAIL;
+    result.isDisposable = await isDisposableEmail(emailAddress, params.cache);
+    if (result.isDisposable && result.metadata) {
+      result.metadata.error = VerificationErrorCode.DISPOSABLE_EMAIL;
     }
   }
 
   // Check free provider
   if (checkFree) {
-    result.freeProvider = await isFreeEmail(emailAddress, params.cache);
+    result.isFree = await isFreeEmail(emailAddress, params.cache);
   }
 
   // Check domain age if requested
   if (checkDomainAge) {
     try {
-      result.domainAge = await getDomainAge(domain, whoisTimeout);
+      result.domainAge = await getDomainAge(domain, whoisTimeout, debug);
     } catch (err) {
-      log('[verifyEmailDetailed] Failed to get domain age', err);
+      log('[verifyEmail] Failed to get domain age', err);
       result.domainAge = null;
     }
   }
@@ -212,9 +217,9 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<DetailedV
   // Check domain registration if requested
   if (checkDomainRegistration) {
     try {
-      result.domainRegistration = await getDomainRegistrationStatus(domain, whoisTimeout);
+      result.domainRegistration = await getDomainRegistrationStatus(domain, whoisTimeout, debug);
     } catch (err) {
-      log('[verifyEmailDetailed] Failed to get domain registration status', err);
+      log('[verifyEmail] Failed to get domain registration status', err);
       result.domainRegistration = null;
     }
   }
@@ -223,11 +228,10 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<DetailedV
   if (verifyMx || verifySmtp) {
     try {
       const mxRecords = await resolveMxRecords(domain, params.cache);
-      result.domain.mxRecords = mxRecords;
-      result.domain.valid = mxRecords.length > 0;
+      result.validMx = mxRecords.length > 0;
 
-      if (!result.domain.valid) {
-        result.domain.error = VerificationErrorCode.NO_MX_RECORDS;
+      if (!result.validMx && result.metadata) {
+        result.metadata.error = VerificationErrorCode.NO_MX_RECORDS;
       }
 
       // SMTP verification
@@ -237,7 +241,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<DetailedV
         const cachedSmtp = await smtpCacheInstance.get(cacheKey);
 
         if (cachedSmtp !== null && cachedSmtp !== undefined) {
-          result.smtp.valid = cachedSmtp;
+          result.validSmtp = cachedSmtp;
           if (result.metadata) {
             result.metadata.cached = true;
           }
@@ -268,28 +272,27 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<DetailedV
           });
 
           await smtpCacheInstance.set(cacheKey, smtpResult);
-          result.smtp.valid = smtpResult;
+          result.validSmtp = smtpResult;
         }
 
-        if (result.smtp.valid === false) {
-          result.smtp.error = VerificationErrorCode.MAILBOX_NOT_FOUND;
-        } else if (result.smtp.valid === null) {
-          result.smtp.error = VerificationErrorCode.SMTP_CONNECTION_FAILED;
+        if (result.validSmtp === false && result.metadata) {
+          result.metadata.error = VerificationErrorCode.MAILBOX_NOT_FOUND;
+        } else if (result.validSmtp === null && result.metadata) {
+          result.metadata.error = VerificationErrorCode.SMTP_CONNECTION_FAILED;
         }
       }
     } catch (err) {
-      log('[verifyEmailDetailed] Failed to resolve MX records', err);
-      result.domain.valid = false;
-      result.domain.error = VerificationErrorCode.NO_MX_RECORDS;
+      log('[verifyEmail] Failed to resolve MX records', err);
+      result.validMx = false;
+      if (result.metadata) {
+        result.metadata.error = VerificationErrorCode.NO_MX_RECORDS;
+      }
     }
   }
-
-  // Determine overall validity
-  result.valid =
-    result.format.valid && result.domain.valid !== false && result.smtp.valid !== false && !result.disposable;
 
   if (result.metadata) {
     result.metadata.verificationTime = Date.now() - startTime;
   }
+
   return result;
 }

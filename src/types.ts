@@ -17,35 +17,23 @@ export enum VerificationErrorCode {
 }
 
 /**
- * Detailed result for email verification
+ * Main verification result interface (flat structure)
  */
-export interface DetailedVerificationResult {
-  valid: boolean;
+export interface VerificationResult {
   email: string;
-  format: {
-    valid: boolean;
-    error?: VerificationErrorCode;
-  };
-  domain: {
-    valid: boolean | null;
-    mxRecords?: string[];
-    error?: VerificationErrorCode;
-  };
-  smtp: {
-    valid: boolean | null;
-    error?: VerificationErrorCode;
-    responseCode?: number;
-  };
-  disposable: boolean;
-  freeProvider: boolean;
-  suggestion?: string;
-  domainSuggestion?: DomainSuggestion | null;
+  validFormat: boolean;
+  validMx: boolean | null;
+  validSmtp: boolean | null;
+  isDisposable: boolean;
+  isFree: boolean;
   detectedName?: DetectedName | null;
   domainAge?: DomainAgeInfo | null;
   domainRegistration?: DomainRegistrationInfo | null;
+  domainSuggestion?: DomainSuggestion | null;
   metadata?: {
     verificationTime: number;
     cached: boolean;
+    error?: VerificationErrorCode;
   };
 }
 
@@ -96,7 +84,7 @@ export interface IBatchVerifyParams {
  * Result for batch verification
  */
 export interface BatchVerificationResult {
-  results: Map<string, DetailedVerificationResult>;
+  results: Map<string, VerificationResult>;
   summary: {
     total: number;
     valid: number;

@@ -23,7 +23,7 @@ describe('Cache Integration', () => {
 
       (trackingCache as any).get = (key: string): Promise<boolean | null> => {
         cacheHits++;
-        return Promise.resolve(originalGet(key));
+        return Promise.resolve(originalGet(key) ?? null);
       };
       trackingCache.set = async (key, value, ttl) => {
         cacheSets++;
@@ -226,7 +226,7 @@ describe('Cache Integration', () => {
       });
 
       expect(result).toBeDefined();
-      expect(typeof result.disposable).toBe('boolean');
+      expect(typeof result.isDisposable).toBe('boolean');
     });
   });
 
@@ -248,7 +248,7 @@ describe('Cache Integration', () => {
       const originalSet = trackingCache.set.bind(trackingCache);
       (trackingCache as any).get = (key: string): Promise<boolean | null> => {
         totalCacheGets++;
-        return Promise.resolve(originalGet(key));
+        return Promise.resolve(originalGet(key) ?? null);
       };
       (trackingCache as any).set = async (key: string, value: boolean, ttl?: number) => {
         return originalSet(key, value, ttl);

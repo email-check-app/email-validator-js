@@ -8,9 +8,9 @@ describe('verifyEmailRealTest', () => {
       verifyMx: true,
       verifySmtp: true,
     });
-    expect(result.format.valid).toBe(true);
-    expect(result.domain.valid).toBe(true);
-    expect(result.smtp.valid).toBe(true);
+    expect(result.validFormat).toBe(true);
+    expect(result.validMx).toBe(true);
+    expect(result.validSmtp).toBe(true);
   });
 
   it('should success on invalid email hello.com', async () => {
@@ -19,9 +19,9 @@ describe('verifyEmailRealTest', () => {
       verifyMx: true,
       verifySmtp: true,
     });
-    expect(result.format.valid).toBe(true);
-    expect(result.domain.valid).toBe(true);
-    expect(result.smtp.valid).toBe(false);
+    expect(result.validFormat).toBe(true);
+    expect(result.validMx).toBe(true);
+    expect(result.validSmtp).toBe(false);
   });
 
   it('should fail on invalid domain', async () => {
@@ -30,16 +30,16 @@ describe('verifyEmailRealTest', () => {
       verifyMx: true,
       verifySmtp: true,
     });
-    expect(result.format.valid).toBe(true);
-    expect(result.domain.valid).toBe(false);
-    expect(result.smtp.valid).toBe(null); // SMTP returns null when MX records are invalid
+    expect(result.validFormat).toBe(true);
+    expect(result.validMx).toBe(false);
+    expect(result.validSmtp).toBe(null); // SMTP returns null when MX records are invalid
   });
 
   it('returns immediately if email is malformed invalid', async () => {
     const result = await verifyEmail({ emailAddress: 'bar.com' });
-    expect(result.format.valid).toBe(false);
-    expect(result.domain.valid).toBe(null);
-    expect(result.smtp.valid).toBe(null);
+    expect(result.validFormat).toBe(false);
+    expect(result.validMx).toBe(null);
+    expect(result.validSmtp).toBe(null);
   });
   it('should use custom port with mapped domain: ova.ca', async () => {
     const result = await verifyEmail({
@@ -48,9 +48,9 @@ describe('verifyEmailRealTest', () => {
       verifySmtp: true,
       verifyMx: true,
     });
-    expect(result.format.valid).toBe(true);
-    expect(result.domain.valid).toBe(true);
-    expect(result.smtp.valid).toBe(null);
+    expect(result.validFormat).toBe(true);
+    expect(result.validMx).toBe(true);
+    expect(result.validSmtp).toBe(null);
   });
   it('should use custom port with mapped domain: qq.com', async () => {
     const result = await verifyEmail({
@@ -59,8 +59,8 @@ describe('verifyEmailRealTest', () => {
       verifySmtp: true,
       verifyMx: true,
     });
-    expect(result.format.valid).toBe(true);
-    expect(result.domain.valid).toBe(true);
-    expect(result.smtp.valid).toBe(null);
+    expect(result.validFormat).toBe(true);
+    expect(result.validMx).toBe(true);
+    expect(result.validSmtp).toBe(null);
   });
 });

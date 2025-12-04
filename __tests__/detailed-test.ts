@@ -25,9 +25,8 @@ describe('Detailed Email Verification', () => {
         verifySmtp: false,
       });
 
-      expect(result.valid).toBe(false);
-      expect(result.format.valid).toBe(false);
-      expect(result.format.error).toBe(VerificationErrorCode.INVALID_FORMAT);
+      expect(result.validFormat).toBe(false);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.INVALID_FORMAT);
       expect(result.metadata?.verificationTime).toBeGreaterThanOrEqual(0);
     });
 
@@ -40,9 +39,9 @@ describe('Detailed Email Verification', () => {
         verifyMx: true,
       });
 
-      expect(result.valid).toBe(false);
-      expect(result.disposable).toBe(true);
-      expect(result.domain.error).toBe(VerificationErrorCode.DISPOSABLE_EMAIL);
+      expect(result.validFormat).toBe(true);
+      expect(result.isDisposable).toBe(true);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.DISPOSABLE_EMAIL);
     });
 
     it('should detect free email providers', async () => {
@@ -54,8 +53,8 @@ describe('Detailed Email Verification', () => {
         verifyMx: true,
       });
 
-      expect(result.freeProvider).toBe(true);
-      expect(result.format.valid).toBe(true);
+      expect(result.isFree).toBe(true);
+      expect(result.validFormat).toBe(true);
     });
 
     it('should provide MX records in result', async () => {
@@ -70,8 +69,7 @@ describe('Detailed Email Verification', () => {
         verifyMx: true,
       });
 
-      expect(result.domain.mxRecords).toEqual(['mx1.example.com', 'mx2.example.com']);
-      expect(result.domain.valid).toBe(true);
+      expect(result.validMx).toBe(true);
     });
 
     it('should handle no MX records', async () => {
@@ -82,9 +80,8 @@ describe('Detailed Email Verification', () => {
         verifyMx: true,
       });
 
-      expect(result.domain.valid).toBe(false);
-      expect(result.domain.error).toBe(VerificationErrorCode.NO_MX_RECORDS);
-      expect(result.domain.mxRecords).toEqual([]);
+      expect(result.validMx).toBe(false);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.NO_MX_RECORDS);
     });
 
     it('should handle SMTP verification failure', async () => {
@@ -107,8 +104,8 @@ describe('Detailed Email Verification', () => {
         verifySmtp: true,
       });
 
-      expect(result.smtp.valid).toBe(false);
-      expect(result.smtp.error).toBe(VerificationErrorCode.MAILBOX_NOT_FOUND);
+      expect(result.validSmtp).toBe(false);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.MAILBOX_NOT_FOUND);
     });
 
     it('should handle SMTP connection failure', async () => {
@@ -134,8 +131,8 @@ describe('Detailed Email Verification', () => {
         verifySmtp: true,
       });
 
-      expect(result.smtp.valid).toBe(null);
-      expect(result.smtp.error).toBe(VerificationErrorCode.SMTP_CONNECTION_FAILED);
+      expect(result.validSmtp).toBe(null);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.SMTP_CONNECTION_FAILED);
     });
 
     it('should indicate when results are cached', async () => {
@@ -180,13 +177,13 @@ describe('Detailed Email Verification', () => {
       const result1 = await verifyEmail({
         emailAddress: `${longLocal}@example.com`,
       });
-      expect(result1.format.valid).toBe(false);
+      expect(result1.validFormat).toBe(false);
 
       const longDomain = 'a'.repeat(254);
       const result2 = await verifyEmail({
         emailAddress: `test@${longDomain}.com`,
       });
-      expect(result2.format.valid).toBe(false);
+      expect(result2.validFormat).toBe(false);
     });
 
     it('should detect invalid patterns', async () => {
@@ -202,8 +199,8 @@ describe('Detailed Email Verification', () => {
         const result = await verifyEmail({
           emailAddress: email,
         });
-        expect(result.format.valid).toBe(false);
-        expect(result.format.error).toBe(VerificationErrorCode.INVALID_FORMAT);
+        expect(result.validFormat).toBe(false);
+        expect(result.metadata?.error).toBe(VerificationErrorCode.INVALID_FORMAT);
       }
     });
   });

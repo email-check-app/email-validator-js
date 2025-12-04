@@ -3,7 +3,8 @@
   "compilerOptions": {
     "strict": false,
     "noImplicitThis": false,
-    "strictNullChecks": false
+    "strictNullChecks": false,
+    "strictPropertyInitialization": false,
   },
   "include": [
     "__tests__/**/*",

@@ -78,7 +78,8 @@
     "release": "semantic-release",
     "release:dry": "semantic-release --dry-run",
     "test": "jest",
-    "test-ci": "jest"
+    "test-ci": "jest",
+    "typecheck": "tsc --pretty --skipLibCheck --noEmit && tsc --project tsconfig.test.json --pretty --skipLibCheck --noEmit"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [
