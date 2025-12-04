@@ -29,7 +29,13 @@ export { getDomainAge, getDomainRegistrationStatus } from './whois';
 let disposableEmailProviders: Set<string>;
 let freeEmailProviders: Set<string>;
 
-export async function isDisposableEmail(emailOrDomain: string, cache?: ICache | null): Promise<boolean> {
+export async function isDisposableEmail(
+  emailOrDomain: string,
+  cache?: ICache | null,
+  logger?: (...args: unknown[]) => void
+): Promise<boolean> {
+  const log = logger || (() => {});
+
   const parts = emailOrDomain.split('@');
   const emailDomain = parts.length > 1 ? parts[1] : parts[0];
   if (!emailDomain) {
@@ -46,6 +52,7 @@ export async function isDisposableEmail(emailOrDomain: string, cache?: ICache | 
     cached = null;
   }
   if (cached !== null && cached !== undefined) {
+    log(`[isDisposableEmail] Cache hit for ${emailDomain}: ${cached}`);
     return cached;
   }
 
@@ -56,13 +63,22 @@ export async function isDisposableEmail(emailOrDomain: string, cache?: ICache | 
   const result = disposableEmailProviders.has(emailDomain);
   try {
     await cacheStore.set(emailDomain, result);
+    log(`[isDisposableEmail] Cached result for ${emailDomain}: ${result}`);
   } catch (_error) {
     // Cache error, ignore it
+    log(`[isDisposableEmail] Cache write error for ${emailDomain}`);
   }
+  log(`[isDisposableEmail] Check result for ${emailDomain}: ${result}`);
   return result;
 }
 
-export async function isFreeEmail(emailOrDomain: string, cache?: ICache | null): Promise<boolean> {
+export async function isFreeEmail(
+  emailOrDomain: string,
+  cache?: ICache | null,
+  logger?: (...args: unknown[]) => void
+): Promise<boolean> {
+  const log = logger || (() => {});
+
   const parts = emailOrDomain.split('@');
   const emailDomain = parts.length > 1 ? parts[1] : parts[0];
   if (!emailDomain) {
@@ -79,6 +95,7 @@ export async function isFreeEmail(emailOrDomain: string, cache?: ICache | null):
     cached = null;
   }
   if (cached !== null && cached !== undefined) {
+    log(`[isFreeEmail] Cache hit for ${emailDomain}: ${cached}`);
     return cached;
   }
 
@@ -89,9 +106,12 @@ export async function isFreeEmail(emailOrDomain: string, cache?: ICache | null):
   const result = freeEmailProviders.has(emailDomain);
   try {
     await cacheStore.set(emailDomain, result);
+    log(`[isFreeEmail] Cached result for ${emailDomain}: ${result}`);
   } catch (_error) {
     // Cache error, ignore it
+    log(`[isFreeEmail] Cache write error for ${emailDomain}`);
   }
+  log(`[isFreeEmail] Check result for ${emailDomain}: ${result}`);
   return result;
 }
 
@@ -195,7 +215,9 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
 
   // Check disposable first (to potentially skip expensive operations)
   if (checkDisposable) {
-    result.isDisposable = await isDisposableEmail(emailAddress, params.cache);
+    log(`[verifyEmail] Checking if ${emailAddress} is disposable email`);
+    result.isDisposable = await isDisposableEmail(emailAddress, params.cache, log);
+    log(`[verifyEmail] Disposable check result: ${result.isDisposable}`);
     if (result.isDisposable && result.metadata) {
       result.metadata.error = VerificationErrorCode.DISPOSABLE_EMAIL;
     }
@@ -203,38 +225,62 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
 
   // Check free provider
   if (checkFree) {
-    result.isFree = await isFreeEmail(emailAddress, params.cache);
+    log(`[verifyEmail] Checking if ${emailAddress} is free email provider`);
+    result.isFree = await isFreeEmail(emailAddress, params.cache, log);
+    log(`[verifyEmail] Free email check result: ${result.isFree}`);
   }
 
   // Skip MX and WHOIS checks if disposable and skip options are enabled
   const shouldSkipMx = skipMxForDisposable && result.isDisposable;
   const shouldSkipDomainWhois = skipDomainWhoisForDisposable && result.isDisposable;
 
+  if (shouldSkipMx) {
+    log(`[verifyEmail] Skipping MX record check for disposable email: ${emailAddress}`);
+  }
+  if (shouldSkipDomainWhois) {
+    log(`[verifyEmail] Skipping domain WHOIS checks for disposable email: ${emailAddress}`);
+  }
+
   // Check domain age if requested (skip if disposable email and option is enabled)
   if (checkDomainAge && !shouldSkipDomainWhois) {
+    log(`[verifyEmail] Checking domain age for ${domain}`);
     try {
       result.domainAge = await getDomainAge(domain, whoisTimeout, debug);
+      log(`[verifyEmail] Domain age result:`, result.domainAge ? `${result.domainAge.ageInDays} days` : 'null');
     } catch (err) {
       log('[verifyEmail] Failed to get domain age', err);
       result.domainAge = null;
     }
+  } else if (checkDomainAge && shouldSkipDomainWhois) {
+    log(`[verifyEmail] Domain age check skipped due to disposable email and skipDomainWhoisForDisposable=true`);
   }
 
   // Check domain registration if requested (skip if disposable email and option is enabled)
   if (checkDomainRegistration && !shouldSkipDomainWhois) {
+    log(`[verifyEmail] Checking domain registration status for ${domain}`);
     try {
       result.domainRegistration = await getDomainRegistrationStatus(domain, whoisTimeout, debug);
+      log(
+        `[verifyEmail] Domain registration result:`,
+        result.domainRegistration?.isRegistered ? 'registered' : 'not registered'
+      );
     } catch (err) {
       log('[verifyEmail] Failed to get domain registration status', err);
       result.domainRegistration = null;
     }
+  } else if (checkDomainRegistration && shouldSkipDomainWhois) {
+    log(
+      `[verifyEmail] Domain registration check skipped due to disposable email and skipDomainWhoisForDisposable=true`
+    );
   }
 
   // MX Records verification (skip if disposable email and option is enabled)
   if ((verifyMx || verifySmtp) && !shouldSkipMx) {
+    log(`[verifyEmail] Checking MX records for ${domain}`);
     try {
-      const mxRecords = await resolveMxRecords(domain, params.cache);
+      const mxRecords = await resolveMxRecords(domain, params.cache, log);
       result.validMx = mxRecords.length > 0;
+      log(`[verifyEmail] MX records found: ${mxRecords.length}, valid: ${result.validMx}`);
 
       if (!result.validMx && result.metadata) {
         result.metadata.error = VerificationErrorCode.NO_MX_RECORDS;
@@ -248,6 +294,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
 
         if (cachedSmtp !== null && cachedSmtp !== undefined) {
           result.validSmtp = cachedSmtp;
+          log(`[verifyEmail] SMTP result from cache: ${result.validSmtp} for ${emailAddress}`);
           if (result.metadata) {
             result.metadata.cached = true;
           }
@@ -259,6 +306,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
             });
           }
         } else {
+          log(`[verifyEmail] Performing SMTP verification for ${emailAddress}`);
           let domainPort = params.smtpPort;
           if (!domainPort) {
             const mxDomain = parse(mxRecords[0]);
@@ -279,6 +327,9 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
 
           await smtpCacheInstance.set(cacheKey, smtpResult);
           result.validSmtp = smtpResult;
+          log(
+            `[verifyEmail] SMTP verification result: ${result.validSmtp} for ${emailAddress} (cached for future use)`
+          );
         }
 
         if (result.validSmtp === false && result.metadata) {
@@ -294,6 +345,8 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
         result.metadata.error = VerificationErrorCode.NO_MX_RECORDS;
       }
     }
+  } else if ((verifyMx || verifySmtp) && shouldSkipMx) {
+    log(`[verifyEmail] MX/SMTP checks skipped due to disposable email and skipMxForDisposable=true`);
   }
 
   if (result.metadata) {

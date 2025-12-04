@@ -2,14 +2,22 @@ import { promises as dnsPromises } from 'node:dns';
 import { mxCacheStore } from './cache';
 import type { ICache } from './cache-interface';
 
-export async function resolveMxRecords(domain: string, cache?: ICache | null): Promise<string[]> {
+export async function resolveMxRecords(
+  domain: string,
+  cache?: ICache | null,
+  logger?: (...args: unknown[]) => void
+): Promise<string[]> {
+  const log = logger || (() => {});
+
   // Check cache first
   const cacheStore = mxCacheStore(cache);
   const cached = await cacheStore.get(domain);
   if (cached !== null && cached !== undefined) {
+    log(`[resolveMxRecords] Cache hit for ${domain}: ${cached.length} MX records`);
     return cached;
   }
 
+  log(`[resolveMxRecords] Performing DNS MX lookup for ${domain}`);
   try {
     const records: { exchange: string; priority: number }[] = await dnsPromises.resolveMx(domain);
     records.sort((a, b) => {
@@ -23,12 +31,15 @@ export async function resolveMxRecords(domain: string, cache?: ICache | null): P
     });
 
     const exchanges = records.map((record) => record.exchange);
+    log(`[resolveMxRecords] Found ${exchanges.length} MX records for ${domain}: [${exchanges.join(', ')}]`);
 
     // Cache the result
     await cacheStore.set(domain, exchanges);
+    log(`[resolveMxRecords] Cached ${exchanges.length} MX records for ${domain}`);
 
     return exchanges;
   } catch (error) {
+    log(`[resolveMxRecords] MX lookup failed for ${domain}, caching empty result`);
     // Cache negative results for shorter time
     await cacheStore.set(domain, []);
     throw error;
