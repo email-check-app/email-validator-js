@@ -104,7 +104,6 @@ async function verifyWithIntegratedNameDetection() {
     // nameDetectionMethod: customMethod, // Removed - use default method
     verifyMx: false,
     verifySmtp: false,
-    detailed: true,
   });
 
   batchResult.results.forEach((result, email) => {

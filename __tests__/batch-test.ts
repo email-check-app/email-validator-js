@@ -28,11 +28,11 @@ describe('Batch Email Verification', () => {
 
     it('should verify multiple emails in parallel', async () => {
       const emails = [
-        'user1@example.com',
-        'user2@example.com',
-        'user3@example.com',
+        'user1@testdomain.com',
+        'user2@testdomain.com',
+        'user3@testdomain.com',
         'invalid-email',
-        'user4@example.com',
+        'user4@testdomain.com',
       ];
 
       const result = await verifyEmailBatch({
@@ -40,7 +40,6 @@ describe('Batch Email Verification', () => {
         concurrency: 2,
         verifyMx: true,
         verifySmtp: false,
-        detailed: false,
       });
 
       expect(result.summary.total).toBe(5);
@@ -50,7 +49,7 @@ describe('Batch Email Verification', () => {
     });
 
     it('should respect concurrency limit', async () => {
-      const emails = Array.from({ length: 10 }, (_, i) => `user${i}@example.com`);
+      const emails = Array.from({ length: 10 }, (_, i) => `user${i}@testdomain.com`);
       let maxConcurrent = 0;
       let currentConcurrent = 0;
 
@@ -91,30 +90,28 @@ describe('Batch Email Verification', () => {
         return [{ exchange: 'mx1.example.com', priority: 10 }];
       });
 
-      const emails = ['user1@example.com', 'user2@error.com', 'user3@example.com'];
+      const emails = ['user1@testdomain.com', 'user2@error.com', 'user3@testdomain.com'];
 
       const result = await verifyEmailBatch({
         emailAddresses: emails,
         verifyMx: true,
-        detailed: false,
       });
 
       expect(result.summary.total).toBe(3);
       expect(result.results.get('user2@error.com')).toBeTruthy();
     });
 
-    it('should return detailed results when requested', async () => {
-      const emails = ['user1@example.com', 'user2@yopmail.com'];
+    it('should return detailed results', async () => {
+      const emails = ['user1@testdomain.com', 'user2@yopmail.com'];
 
       const result = await verifyEmailBatch({
         emailAddresses: emails,
         verifyMx: true,
-        detailed: true,
         checkDisposable: true,
         checkFree: true,
       });
 
-      const detailedResult = result.results.get('user1@example.com') as DetailedVerificationResult;
+      const detailedResult = result.results.get('user1@testdomain.com') as DetailedVerificationResult;
       expect(detailedResult).toHaveProperty('format');
       expect(detailedResult).toHaveProperty('domain');
       expect(detailedResult).toHaveProperty('smtp');
@@ -127,7 +124,7 @@ describe('Batch Email Verification', () => {
     });
 
     it('should track processing time', async () => {
-      const emails = ['user1@example.com', 'user2@example.com'];
+      const emails = ['user1@testdomain.com', 'user2@testdomain.com'];
 
       const result = await verifyEmailBatch({
         emailAddresses: emails,

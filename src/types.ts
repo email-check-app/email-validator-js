@@ -98,7 +98,6 @@ export interface IBatchVerifyParams {
   verifySmtp?: boolean;
   checkDisposable?: boolean;
   checkFree?: boolean;
-  detailed?: boolean;
   detectName?: boolean;
   nameDetectionMethod?: NameDetectionMethod;
   suggestDomain?: boolean;
@@ -111,7 +110,7 @@ export interface IBatchVerifyParams {
  * Result for batch verification
  */
 export interface BatchVerificationResult {
-  results: Map<string, DetailedVerificationResult | IVerifyEmailResult>;
+  results: Map<string, DetailedVerificationResult>;
   summary: {
     total: number;
     valid: number;

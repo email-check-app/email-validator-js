@@ -123,7 +123,7 @@ import { verifyEmail } from '@emailcheck/email-validator-js';
 
 // Basic usage
 const result = await verifyEmail({
-  emailAddress: 'user@example.com',
+  emailAddress: 'user@mydomain.com',
   verifyMx: true,
   verifySmtp: true,
   timeout: 3000
@@ -238,7 +238,7 @@ Verify multiple emails in parallel with concurrency control.
 Detect first and last name from email address.
 
 ```typescript
-const name = detectName('john.doe@example.com');
+const name = detectName('john.doe@mydomain.com');
 // Returns: { firstName: 'John', lastName: 'Doe', confidence: 0.9 }
 ```
 
@@ -271,7 +271,7 @@ const customMethod = (email: string) => {
 };
 
 const name = detectNameFromEmail({
-  email: 'user@example.com',
+  email: 'user@mydomain.com',
   customMethod: customMethod
 });
 ```
@@ -350,10 +350,10 @@ getDomainSimilarity('gmail.com', 'yahoo.com'); // 0.3
 Get domain age information via WHOIS lookup.
 
 ```typescript
-const ageInfo = await getDomainAge('example.com');
+const ageInfo = await getDomainAge('mydomain.com');
 // Returns:
 // {
-//   domain: 'example.com',
+//   domain: 'mydomain.com',
 //   creationDate: Date,
 //   ageInDays: 7890,
 //   ageInYears: 21.6,
@@ -362,8 +362,8 @@ const ageInfo = await getDomainAge('example.com');
 // }
 
 // Works with email addresses and URLs too
-await getDomainAge('user@example.com');
-await getDomainAge('https://example.com/path');
+await getDomainAge('user@mydomain.com');
+await getDomainAge('https://mydomain.com/path');
 ```
 
 **Parameters:**
@@ -376,15 +376,15 @@ await getDomainAge('https://example.com/path');
 Get detailed domain registration status via WHOIS.
 
 ```typescript
-const status = await getDomainRegistrationStatus('example.com');
+const status = await getDomainRegistrationStatus('mydomain.com');
 // Returns:
 // {
-//   domain: 'example.com',
+//   domain: 'mydomain.com',
 //   isRegistered: true,
 //   isAvailable: false,
 //   status: ['clientTransferProhibited'],
 //   registrar: 'Example Registrar',
-//   nameServers: ['ns1.example.com', 'ns2.example.com'],
+//   nameServers: ['ns1.mydomain.com', 'ns2.mydomain.com'],
 //   expirationDate: Date,
 //   isExpired: false,
 //   daysUntilExpiration: 365,
@@ -431,7 +431,7 @@ isFreeEmail('corporate.com'); // false
 Validate email format (RFC 5321 compliant).
 
 ```typescript
-isValidEmail('user@example.com'); // true
+isValidEmail('user@mydomain.com'); // true
 isValidEmail('invalid.email'); // false
 ```
 
@@ -447,7 +447,7 @@ isValidEmail('invalid.email'); // false
 Validate if a domain has a valid TLD.
 
 ```typescript
-isValidEmailDomain('example.com'); // true
+isValidEmailDomain('mydomain.com'); // true
 isValidEmailDomain('example.invalid'); // false
 ```
 
@@ -624,7 +624,7 @@ const result = await verifyEmailDetailed({
 ```typescript
 import { verifyEmailBatch } from '@emailcheck/email-validator-js';
 
-const emails = ['user1@gmail.com', 'user2@example.com', 'invalid@fake.com'];
+const emails = ['user1@gmail.com', 'user2@mydomain.com', 'invalid@fake.com'];
 
 const result = await verifyEmailBatch({
   emailAddresses: emails,
@@ -642,23 +642,23 @@ const result = await verifyEmailBatch({
 import { detectName, verifyEmailDetailed } from '@emailcheck/email-validator-js';
 
 // Standalone name detection - now with composite name support
-const name = detectName('john.doe@example.com');
+const name = detectName('john.doe@mydomain.com');
 // name: { firstName: 'John', lastName: 'Doe', confidence: 0.9 }
 
 // Handle alphanumeric composite names
-const composite = detectName('mo1.test2@example.com');
+const composite = detectName('mo1.test2@mydomain.com');
 // composite: { firstName: 'Mo1', lastName: 'Test2', confidence: 0.6 }
 
 // Smart handling of numbers and suffixes
-const withNumbers = detectName('john.doe123@example.com');
+const withNumbers = detectName('john.doe123@mydomain.com');
 // withNumbers: { firstName: 'John', lastName: 'Doe', confidence: 0.8 }
 
-const withSuffix = detectName('jane.smith.dev@example.com');
+const withSuffix = detectName('jane.smith.dev@mydomain.com');
 // withSuffix: { firstName: 'Jane', lastName: 'Smith', confidence: 0.7 }
 
 // Integrated with email verification
 const result = await verifyEmailDetailed({
-  emailAddress: 'jane_smith@example.com',
+  emailAddress: 'jane_smith@mydomain.com',
   detectName: true
 });
 // result.detectedName: { firstName: 'Jane', lastName: 'Smith', confidence: 0.8 }
@@ -670,7 +670,7 @@ const customMethod = (email: string) => {
 };
 
 const resultCustom = await verifyEmail({
-  emailAddress: 'user@example.com',
+  emailAddress: 'user@mydomain.com',
   detectName: true,
   nameDetectionMethod: customMethod
 });
@@ -778,14 +778,14 @@ for (const [email, result] of batch.results) {
 ```typescript
 // First verification - hits DNS and SMTP
 const first = await verifyEmail({
-  emailAddress: 'cached@example.com',
+  emailAddress: 'cached@mydomain.com',
   verifyMx: true
 });
 // Takes ~500ms
 
 // Second verification - uses cache
 const second = await verifyEmail({
-  emailAddress: 'cached@example.com',
+  emailAddress: 'cached@mydomain.com',
   verifyMx: true
 });
 // Takes ~1ms (cached)
@@ -814,7 +814,7 @@ const lruCache = CacheFactory.createLRUCache({
 
 // Use with email verification
 const result = await verifyEmail({
-  emailAddress: 'user@example.com',
+  emailAddress: 'user@mydomain.com',
   verifyMx: true,
   verifySmtp: true,
   cache: lruCache  // Pass the cache instance
@@ -844,7 +844,7 @@ const redisCache = CacheFactory.createRedisCache(redis, {
 
 // Use with batch verification
 const batchResult = await verifyEmailBatch({
-  emailAddresses: ['user1@example.com', 'user2@example.com'],
+  emailAddresses: ['user1@mydomain.com', 'user2@mydomain.com'],
   verifyMx: true,
   verifySmtp: true,
   cache: redisCache,
@@ -908,7 +908,7 @@ const customCache = CacheFactory.createCustomCache(
 
 // Use with verification
 const result = await verifyEmailDetailed({
-  emailAddress: 'user@example.com',
+  emailAddress: 'user@mydomain.com',
   verifyMx: true,
   verifySmtp: true,
   checkDisposable: true,
@@ -965,7 +965,7 @@ await verifyEmail({
 2. **Handle Cache Errors Gracefully**:
 ```typescript
 const result = await verifyEmail({
-  emailAddress: 'user@example.com',
+  emailAddress: 'user@mydomain.com',
   cache: unreliableCache, // Cache might fail
   verifyMx: true,
   verifySmtp: true
@@ -1008,11 +1008,11 @@ console.log(`Cache hit rate: ${(hits / (hits + misses) * 100).toFixed(1)}%`);
 
 The library uses the following cache key patterns:
 
-- **MX Records**: Domain name (e.g., `example.com`)
-- **SMTP Verification**: Full email with `:smtp` suffix (e.g., `user@example.com:smtp`)
+- **MX Records**: Domain name (e.g., `mydomain.com`)
+- **SMTP Verification**: Full email with `:smtp` suffix (e.g., `user@mydomain.com:smtp`)
 - **Disposable Check**: Domain name (e.g., `tempmail.com`)
 - **Free Provider Check**: Domain name (e.g., `gmail.com`)
-- **Domain Validation**: Domain name (e.g., `example.com`)
+- **Domain Validation**: Domain name (e.g., `mydomain.com`)
 
 ### Redis Production Setup
 

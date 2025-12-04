@@ -68,7 +68,6 @@ async function batchVerification() {
     verifySmtp: false,
     checkDisposable: true,
     checkFree: true,
-    detailed: true,
     timeout: 5000,
   });
 

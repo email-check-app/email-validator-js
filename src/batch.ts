@@ -1,10 +1,5 @@
-import { verifyEmail, verifyEmailDetailed } from './index';
-import type {
-  BatchVerificationResult,
-  DetailedVerificationResult,
-  IBatchVerifyParams,
-  IVerifyEmailResult,
-} from './types';
+import { verifyEmailDetailed } from './index';
+import type { BatchVerificationResult, DetailedVerificationResult, IBatchVerifyParams } from './types';
 
 /**
  * Verify multiple email addresses in parallel with concurrency control
@@ -18,7 +13,6 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
     verifySmtp = false,
     checkDisposable = true,
     checkFree = true,
-    detailed = false,
     detectName = false,
     nameDetectionMethod,
     suggestDomain = false,
@@ -28,7 +22,7 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
   } = params;
 
   const startTime = Date.now();
-  const results = new Map<string, DetailedVerificationResult | IVerifyEmailResult>();
+  const results = new Map<string, DetailedVerificationResult>();
 
   // Process emails in batches
   const batches = [];
@@ -43,48 +37,25 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
   for (const batch of batches) {
     const batchPromises = batch.map(async (email) => {
       try {
-        const result = detailed
-          ? await verifyEmailDetailed({
-              emailAddress: email,
-              timeout,
-              verifyMx,
-              verifySmtp,
-              checkDisposable,
-              checkFree,
-              detectName,
-              nameDetectionMethod,
-              suggestDomain,
-              domainSuggestionMethod,
-              commonDomains,
-              cache,
-            })
-          : await verifyEmail({
-              emailAddress: email,
-              timeout,
-              verifyMx,
-              verifySmtp,
-              detectName,
-              nameDetectionMethod,
-              suggestDomain,
-              domainSuggestionMethod,
-              commonDomains,
-              cache,
-            });
+        const result = await verifyEmailDetailed({
+          emailAddress: email,
+          timeout,
+          verifyMx,
+          verifySmtp,
+          checkDisposable,
+          checkFree,
+          detectName,
+          nameDetectionMethod,
+          suggestDomain,
+          domainSuggestionMethod,
+          commonDomains,
+          cache,
+        });
 
-        if (detailed) {
-          const detailedResult = result as DetailedVerificationResult;
-          if (detailedResult.valid) {
-            totalValid++;
-          } else {
-            totalInvalid++;
-          }
+        if (result.valid) {
+          totalValid++;
         } else {
-          const basicResult = result as IVerifyEmailResult;
-          if (basicResult.validFormat && basicResult.validMx !== false) {
-            totalValid++;
-          } else {
-            totalInvalid++;
-          }
+          totalInvalid++;
         }
 
         return { email, result };
@@ -92,9 +63,7 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
         totalErrors++;
         return {
           email,
-          result: detailed
-            ? createErrorDetailedResult(email, error)
-            : { validFormat: false, validMx: null, validSmtp: null, detectedName: null, domainSuggestion: null },
+          result: createErrorDetailedResult(email, error),
         };
       }
     });

@@ -23,8 +23,8 @@ const typoEmails = [
   'user@gmail.com', // valid - no suggestion
 ];
 
-typoEmails.forEach((email) => {
-  const suggestion = suggestEmailDomain(email);
+typoEmails.forEach(async (email) => {
+  const suggestion = await suggestEmailDomain(email);
   if (suggestion) {
     console.log(`${email}:`);
     console.log(`  Suggested: ${suggestion.suggested}`);
@@ -102,7 +102,6 @@ async function verifyWithSuggestions() {
     detectName: true,
     verifyMx: false,
     verifySmtp: false,
-    detailed: true,
   });
 
   batchResult.results.forEach((result, email) => {
@@ -148,16 +147,17 @@ domainPairs.forEach(([domain1, domain2]) => {
 // Example 6: Custom common domains list
 console.log('\nUsing Custom Common Domains List:');
 console.log('==================================');
+(async () => {
+  const customDomains = ['company.com', 'enterprise.org', 'startup.io'];
+  const testEmail = 'user@compny.com';
 
-const customDomains = ['company.com', 'enterprise.org', 'startup.io'];
-const testEmail = 'user@compny.com';
-
-const suggestionWithCustomList = suggestEmailDomain(testEmail, customDomains);
-if (suggestionWithCustomList) {
-  console.log(`${testEmail}:`);
-  console.log(`  Suggested: ${suggestionWithCustomList.suggested}`);
-  console.log(`  Using custom domain list`);
-}
+  const suggestionWithCustomList = await suggestEmailDomain(testEmail, customDomains);
+  if (suggestionWithCustomList) {
+    console.log(`${testEmail}:`);
+    console.log(`  Suggested: ${suggestionWithCustomList.suggested}`);
+    console.log(`  Using custom domain list`);
+  }
+})();
 
 // Run async examples
 (async () => {
