@@ -386,22 +386,36 @@ const status = await getDomainRegistrationStatus('mydomain.com');
 
 ### Utility Functions
 
-#### `isDisposableEmail(emailOrDomain: string): boolean`
+#### `isDisposableEmail(emailOrDomain: string, cache?: ICache, options?: { skipMxCheck?: boolean; skipDomain?: boolean }): boolean`
 Check if email uses a disposable provider.
 
 ```typescript
+// Basic usage
 isDisposableEmail('user@tempmail.com'); // true
 isDisposableEmail('tempmail.com'); // true
 isDisposableEmail('gmail.com'); // false
+
+// With options
+isDisposableEmail('user@tempmail.com', null, {
+  skipMxCheck: true,     // Skip MX record validation
+  skipDomain: true       // Skip domain validation
+}); // true
 ```
 
-#### `isFreeEmail(emailOrDomain: string): boolean`
+#### `isFreeEmail(emailOrDomain: string, cache?: ICache, options?: { skipMxCheck?: boolean; skipDomain?: boolean }): boolean`
 Check if email uses a free provider.
 
 ```typescript
+// Basic usage
 isFreeEmail('user@gmail.com'); // true
 isFreeEmail('yahoo.com'); // true
 isFreeEmail('corporate.com'); // false
+
+// With options
+isFreeEmail('user@gmail.com', null, {
+  skipMxCheck: true,     // Skip MX record validation
+  skipDomain: true       // Skip domain validation
+}); // true
 ```
 
 #### `isValidEmail(emailAddress: string): boolean`

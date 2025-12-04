@@ -19,6 +19,8 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
     suggestDomain = false,
     domainSuggestionMethod,
     commonDomains,
+    skipMxForDisposable = false,
+    skipDomainWhoisForDisposable = false,
     cache,
   } = params;
 
@@ -50,6 +52,8 @@ export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<Batc
           suggestDomain,
           domainSuggestionMethod,
           commonDomains,
+          skipMxForDisposable,
+          skipDomainWhoisForDisposable,
           cache,
         });
 

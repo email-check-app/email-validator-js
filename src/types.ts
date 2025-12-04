@@ -58,6 +58,8 @@ export interface IVerifyEmailParams {
   checkDomainAge?: boolean;
   checkDomainRegistration?: boolean;
   whoisTimeout?: number;
+  skipMxForDisposable?: boolean; // Skip MX check if disposable email detected
+  skipDomainWhoisForDisposable?: boolean; // Skip domain age/registration if disposable email detected
   cache?: ICache; // Optional custom cache instance
 }
 
@@ -77,6 +79,8 @@ export interface IBatchVerifyParams {
   suggestDomain?: boolean;
   domainSuggestionMethod?: DomainSuggestionMethod;
   commonDomains?: string[];
+  skipMxForDisposable?: boolean; // Skip MX check if disposable email detected
+  skipDomainWhoisForDisposable?: boolean; // Skip domain age/registration if disposable email detected
   cache?: ICache; // Optional custom cache instance
 }
 

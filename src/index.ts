@@ -121,6 +121,8 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
     checkDomainAge = false,
     checkDomainRegistration = false,
     whoisTimeout = 5000,
+    skipMxForDisposable = false,
+    skipDomainWhoisForDisposable = false,
   } = params;
 
   const startTime = Date.now();
@@ -191,7 +193,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
     return result;
   }
 
-  // Check disposable
+  // Check disposable first (to potentially skip expensive operations)
   if (checkDisposable) {
     result.isDisposable = await isDisposableEmail(emailAddress, params.cache);
     if (result.isDisposable && result.metadata) {
@@ -204,8 +206,12 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
     result.isFree = await isFreeEmail(emailAddress, params.cache);
   }
 
-  // Check domain age if requested
-  if (checkDomainAge) {
+  // Skip MX and WHOIS checks if disposable and skip options are enabled
+  const shouldSkipMx = skipMxForDisposable && result.isDisposable;
+  const shouldSkipDomainWhois = skipDomainWhoisForDisposable && result.isDisposable;
+
+  // Check domain age if requested (skip if disposable email and option is enabled)
+  if (checkDomainAge && !shouldSkipDomainWhois) {
     try {
       result.domainAge = await getDomainAge(domain, whoisTimeout, debug);
     } catch (err) {
@@ -214,8 +220,8 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
     }
   }
 
-  // Check domain registration if requested
-  if (checkDomainRegistration) {
+  // Check domain registration if requested (skip if disposable email and option is enabled)
+  if (checkDomainRegistration && !shouldSkipDomainWhois) {
     try {
       result.domainRegistration = await getDomainRegistrationStatus(domain, whoisTimeout, debug);
     } catch (err) {
@@ -224,8 +230,8 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
     }
   }
 
-  // MX Records verification
-  if (verifyMx || verifySmtp) {
+  // MX Records verification (skip if disposable email and option is enabled)
+  if ((verifyMx || verifySmtp) && !shouldSkipMx) {
     try {
       const mxRecords = await resolveMxRecords(domain, params.cache);
       result.validMx = mxRecords.length > 0;
