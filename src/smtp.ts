@@ -42,30 +42,29 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
     return false;
   }
 
-  // Try multiple MX records if first fails
-  for (let mxIndex = 0; mxIndex < Math.min(mxRecords.length, 3); mxIndex++) {
-    const mxRecord = mxRecords[mxIndex];
+  // Only try the first MX record
+  const mxIndex = 0;
+  const mxRecord = mxRecords[mxIndex];
 
-    // Retry logic for each MX record
-    for (let attempt = 0; attempt < retryAttempts; attempt++) {
-      const result = await attemptVerification({
-        mxRecord,
-        local,
-        domain,
-        port,
-        timeout,
-        log,
-        attempt,
-      });
+  // Retry logic for the MX record
+  for (let attempt = 0; attempt < retryAttempts; attempt++) {
+    const result = await attemptVerification({
+      mxRecord,
+      local,
+      domain,
+      port,
+      timeout,
+      log,
+      attempt,
+    });
 
-      if (result !== null) {
-        return result;
-      }
+    if (result !== null) {
+      return result;
+    }
 
-      // Wait before retry
-      if (attempt < retryAttempts - 1) {
-        await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * (attempt + 1), 3000)));
-      }
+    // Wait before retry
+    if (attempt < retryAttempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * (attempt + 1), 3000)));
     }
   }
 
