@@ -29,7 +29,8 @@
         "noDebugger": "error",
         "noConsole": "off",
         "noVar": "error",
-        "useIterableCallbackReturn": "off"
+        "useIterableCallbackReturn": "off",
+        "noAssignInExpressions": "off"
       },
       "complexity": {
         "noBannedTypes": "warn",
