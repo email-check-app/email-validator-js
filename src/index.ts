@@ -28,7 +28,13 @@ export {
   suggestDomain,
   suggestEmailDomain,
 } from './domain-suggester';
-export { defaultNameDetectionMethod, detectName, detectNameFromEmail } from './name-detector';
+export {
+  cleanNameForAlgrothin,
+  defaultNameDetectionMethod,
+  detectName,
+  detectNameForAlgrothin,
+  detectNameFromEmail,
+} from './name-detector';
 // Re-export types
 export * from './types';
 export { isValidEmail, isValidEmailDomain } from './validator';

@@ -963,6 +963,60 @@ export function detectNameFromEmail(params: IDetectNameParams): DetectedName | n
 }
 
 /**
+ * Clean name by removing special characters (dots, underscores, asterisks)
+ * Specifically designed for Algrothin name processing
+ *
+ * @param name - The name to clean
+ * @returns The cleaned name with special characters removed
+ */
+export function cleanNameForAlgrothin(name: string): string {
+  if (!name) return '';
+
+  // Remove dots, underscores, and asterisks
+  let cleaned = name.replace(/[._*]/g, '');
+
+  // Normalize multiple spaces to single space
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+  // If the name is now empty after cleaning, return the original
+  if (!cleaned) {
+    return name;
+  }
+
+  return cleaned;
+}
+
+/**
+ * Enhanced name detection for Algrothin with aggressive cleaning
+ * Removes dots, underscores, and asterisks from detected names
+ *
+ * @param email - Email address to extract name from
+ * @returns Detected name with cleaned special characters, or null if no name detected
+ */
+export function detectNameForAlgrothin(email: string): DetectedName | null {
+  const detectedName = detectName(email);
+
+  if (!detectedName) {
+    return null;
+  }
+
+  // Clean first name and last name by removing special characters
+  const cleanedFirstName = detectedName.firstName ? cleanNameForAlgrothin(detectedName.firstName) : undefined;
+  const cleanedLastName = detectedName.lastName ? cleanNameForAlgrothin(detectedName.lastName) : undefined;
+
+  // If both names are empty after cleaning, return null
+  if (!cleanedFirstName && !cleanedLastName) {
+    return null;
+  }
+
+  return {
+    firstName: cleanedFirstName,
+    lastName: cleanedLastName,
+    confidence: detectedName.confidence * 0.95, // Slightly reduce confidence due to cleaning
+  };
+}
+
+/**
  * Convenience function to detect name from email string
  * @param email - Email address to extract name from
  * @returns Detected name with confidence score, or null if no name detected

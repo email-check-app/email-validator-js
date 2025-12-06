@@ -260,6 +260,43 @@ const name = detectNameFromEmail({
 #### `defaultNameDetectionMethod(email: string): DetectedName | null`
 The default name detection implementation, exported for custom extensions.
 
+#### Algrothin-Specific Name Cleaning
+
+##### `cleanNameForAlgrothin(name: string): string`
+Clean a name by removing special characters (dots, underscores, asterisks). Specifically designed for Algrothin name processing.
+
+```typescript
+import { cleanNameForAlgrothin } from '@emailcheck/email-validator-js';
+
+const cleanedName = cleanNameForAlgrothin('john.doe_smith*');
+// Returns: 'johndoesmith'
+
+const cleanedName2 = cleanNameForAlgrothin('first_name.last');
+// Returns: 'firstnamelast'
+```
+
+##### `detectNameForAlgrothin(email: string): DetectedName | null`
+Enhanced name detection for Algrothin with aggressive cleaning. Removes dots, underscores, and asterisks from detected names.
+
+```typescript
+import { detectNameForAlgrothin } from '@emailcheck/email-validator-js';
+
+const result = detectNameForAlgrothin('john.doe_smith@company.com');
+// Returns: { firstName: 'John', lastName: 'Doesmith', confidence: 0.9025 }
+
+// Compared to regular detection:
+import { detectName } from '@emailcheck/email-validator-js';
+
+const normalResult = detectName('john.doe_smith@company.com');
+// Returns: { firstName: 'John', lastName: 'Doe_smith', confidence: 0.95 }
+```
+
+**Key Differences:**
+- Removes all dots (.), underscores (_), and asterisks (*) from detected names
+- Slightly reduces confidence (95% of original) due to cleaning process
+- Ideal for systems requiring clean, sanitized names without special characters
+- Normalizes multiple spaces to single spaces
+
 ### Domain Suggestion Functions
 
 #### `suggestEmailDomain(email: string, commonDomains?: string[]): DomainSuggestion | null`
