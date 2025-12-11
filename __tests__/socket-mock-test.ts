@@ -23,12 +23,40 @@ function stubResolveMx(self: SelfMockType, domain = 'foo.com') {
 
 function stubSocket(self: SelfMockType) {
   self.socket = new Socket({});
-  self.sandbox.stub(self.socket, 'write').callsFake(function (data) {
-    if (!data.toString().includes('QUIT')) this.emit('data', '250 Foo');
-    return true;
+  let greetingSent = false;
+
+  // Mock the connect function to emit the socket immediately with a greeting
+  self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+    // Emit the socket with a small delay
+    setTimeout(() => {
+      if (callback) callback();
+      // Emit greeting after connection
+      setTimeout(() => {
+        self.socket.emit('data', '220 test.example.com ESMTP\r\n');
+        greetingSent = true;
+      }, 10);
+    }, 5);
+    return self.socket;
   });
 
-  self.connectStub = self.sandbox.stub(net, 'connect').returns(self.socket);
+  self.sandbox.stub(self.socket, 'write').callsFake(function (data) {
+    const command = data.toString().trim();
+    if (!command.includes('QUIT') && greetingSent) {
+      // Respond to SMTP commands
+      setTimeout(() => {
+        if (command.includes('EHLO') || command.includes('HELO')) {
+          this.emit('data', '250-test.example.com Hello\r\n250 VRFY\r\n250 8BITMIME\r\n250 OK\r\n');
+        } else if (command.includes('MAIL FROM')) {
+          this.emit('data', '250 Mail OK\r\n');
+        } else if (command.includes('RCPT TO')) {
+          this.emit('data', '250 Recipient OK\r\n');
+        } else {
+          this.emit('data', '250 Foo');
+        }
+      }, 10);
+    }
+    return true;
+  });
 }
 
 const self: SelfMockType = {};
@@ -50,8 +78,7 @@ describe('verifyEmailMockTest', () => {
       stubSocket(self);
     });
 
-    it.only('should perform all tests', async () => {
-      setTimeout(() => self.socket.write('250 Foo'), 25);
+    it('should perform all tests', async () => {
       const result = await verifyEmail({
         emailAddress: 'foo@bar.com',
         verifyMx: true,
@@ -75,7 +102,6 @@ describe('verifyEmailMockTest', () => {
 
     describe('mailbox verification', () => {
       it('returns true when mailbox exists', async () => {
-        setTimeout(() => self.socket.write('250 Foo'), 10);
         const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
         expect(result.validSmtp).toBe(true);
       });
@@ -84,27 +110,43 @@ describe('verifyEmailMockTest', () => {
         self.resolveMxStub.restore();
         stubResolveMx(self, 'yahoo.com');
 
-        setTimeout(() => self.socket.write('250 Foo'), 10);
-
         const result = await verifyEmail({ emailAddress: 'bar@yahoo.com', verifySmtp: true, verifyMx: true });
 
         expect(result.validSmtp).toBe(true);
       });
 
       it('returns false on over quota check', async () => {
+        self.connectStub.restore(); // Restore previous stub
         const msg = '452-4.2.2 The email account that you tried to reach is over quota. Please direct';
         const socket = new Socket({});
+        let greetingSent = false;
 
-        self.sandbox.stub(socket, 'write').callsFake(function (data) {
-          if (!data.toString().includes('QUIT')) this.emit('data', msg);
-          return true;
+        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+          setTimeout(() => {
+            if (callback) callback();
+            setTimeout(() => {
+              socket.emit('data', '220 test.example.com ESMTP\r\n');
+              greetingSent = true;
+            }, 10);
+          }, 5);
+          return socket;
         });
 
-        self.connectStub.returns(socket);
-
-        setTimeout(() => {
-          socket.write('250 Foo');
-        }, 10);
+        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+          const command = data.toString().trim();
+          if (!command.includes('QUIT') && greetingSent) {
+            setTimeout(() => {
+              if (command.includes('EHLO') || command.includes('HELO')) {
+                this.emit('data', '250 Hello\r\n');
+              } else if (command.includes('MAIL FROM')) {
+                this.emit('data', '250 Mail OK\r\n');
+              } else if (command.includes('RCPT TO')) {
+                this.emit('data', msg + '\r\n');
+              }
+            }, 10);
+          }
+          return true;
+        });
 
         const result = await verifyEmail({
           emailAddress: 'bar@foo.com',
@@ -118,18 +160,19 @@ describe('verifyEmailMockTest', () => {
       });
 
       it('should return null on socket error', async () => {
-        const socket = {
-          on: (event: string, callback: (arg0: Error) => any) => {
-            if (event === 'error') return callback(new Error());
-          },
-          write: () => {},
-          end: () => {},
-          destroyed: false,
-          removeAllListeners: () => {},
-          destroy: () => {},
-        };
+        self.connectStub.restore(); // Restore previous stub
+        const socket = new Socket({});
 
-        self.connectStub = self.connectStub.returns(socket as unknown as Socket);
+        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+          setTimeout(() => {
+            if (callback) callback();
+            // Emit error immediately without greeting
+            socket.emit('error', new Error('Connection failed'));
+          }, 5);
+          return socket;
+        });
+
+        self.sandbox.stub(socket, 'write').callsFake(() => true);
 
         const result = await verifyEmail({
           emailAddress: 'bar@foo.com',
@@ -142,28 +185,40 @@ describe('verifyEmailMockTest', () => {
       });
 
       it('dodges multiline spam detecting greetings', async () => {
+        self.connectStub.restore(); // Restore previous stub
         const socket = new Socket({});
         let greeted = false;
 
-        self.sandbox.stub(socket, 'write').callsFake(function (data) {
-          if (!data.toString().includes('QUIT')) {
-            if (!greeted) return this.emit('data', '550 5.5.1 Protocol Error');
-            this.emit('data', '250 Foo');
-          }
+        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+          setTimeout(() => {
+            if (callback) callback();
+            // the "-" indicates a multi line greeting
+            socket.emit('data', '220-hohoho\r\n');
+
+            // wait a bit and send the rest
+            setTimeout(() => {
+              greeted = true;
+              socket.emit('data', '220 ho ho ho\r\n');
+            }, 50);
+          }, 10);
+          return socket;
         });
 
-        self.connectStub.returns(socket);
-
-        setTimeout(() => {
-          // the "-" indicates a multi line greeting
-          socket.emit('data', '220-hohoho');
-
-          // wait a bit and send the rest
-          setTimeout(() => {
-            greeted = true;
-            socket.emit('data', '220 ho ho ho');
-          }, 1000);
-        }, 10);
+        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+          const command = data.toString().trim();
+          if (!command.includes('QUIT')) {
+            setTimeout(() => {
+              if (command.includes('EHLO') || command.includes('HELO')) {
+                this.emit('data', '250 Hello\r\n');
+              } else if (command.includes('MAIL FROM')) {
+                this.emit('data', '250 Mail OK\r\n');
+              } else if (command.includes('RCPT TO')) {
+                this.emit('data', '250 OK\r\n');
+              }
+            }, 10);
+          }
+          return true;
+        });
 
         const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
         expect(result.validSmtp).toBe(true);
@@ -199,32 +254,72 @@ describe('verifyEmailMockTest', () => {
       });
 
       it('should return null on unknown SMTP errors', async () => {
+        self.connectStub.restore(); // Restore previous stub
         const socket = new Socket({});
+        let greetingSent = false;
 
-        self.sandbox.stub(socket, 'write').callsFake(function (data) {
-          if (!data.toString().includes('QUIT')) this.emit('data', '500 Foo');
-          return true;
+        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+          setTimeout(() => {
+            if (callback) callback();
+            setTimeout(() => {
+              socket.emit('data', '220 test.example.com ESMTP\r\n');
+              greetingSent = true;
+            }, 10);
+          }, 5);
+          return socket;
         });
 
-        self.connectStub.returns(socket);
-
-        setTimeout(() => socket.emit('data', '220 Welcome'), 10);
+        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+          const command = data.toString().trim();
+          if (!command.includes('QUIT') && greetingSent) {
+            setTimeout(() => {
+              if (command.includes('EHLO') || command.includes('HELO')) {
+                this.emit('data', '250 Hello\r\n');
+              } else if (command.includes('MAIL FROM')) {
+                this.emit('data', '250 Mail OK\r\n');
+              } else if (command.includes('RCPT TO')) {
+                this.emit('data', '500 Unknown Error\r\n');
+              }
+            }, 10);
+          }
+          return true;
+        });
 
         const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
         expect(result.validSmtp).toBe(null);
       });
 
       it('returns false on bad mailbox errors', async () => {
+        self.connectStub.restore(); // Restore previous stub
         const socket = new Socket({});
+        let greetingSent = false;
 
-        self.sandbox.stub(socket, 'write').callsFake(function (data) {
-          if (!data.toString().includes('QUIT')) this.emit('data', '550 Foo');
-          return true;
+        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+          setTimeout(() => {
+            if (callback) callback();
+            setTimeout(() => {
+              socket.emit('data', '220 test.example.com ESMTP\r\n');
+              greetingSent = true;
+            }, 10);
+          }, 5);
+          return socket;
         });
 
-        self.connectStub.returns(socket);
-
-        setTimeout(() => socket.emit('data', '220 Welcome'), 10);
+        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+          const command = data.toString().trim();
+          if (!command.includes('QUIT') && greetingSent) {
+            setTimeout(() => {
+              if (command.includes('EHLO') || command.includes('HELO')) {
+                this.emit('data', '250 Hello\r\n');
+              } else if (command.includes('MAIL FROM')) {
+                this.emit('data', '250 Mail OK\r\n');
+              } else if (command.includes('RCPT TO')) {
+                this.emit('data', '550 User unknown\r\n');
+              }
+            }, 10);
+          }
+          return true;
+        });
 
         const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
         expect(result.validSmtp).toBe(false);

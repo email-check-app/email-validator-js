@@ -23,9 +23,40 @@ function isIPAddress(host: string): boolean {
   return ipv6Regex.test(host);
 }
 
+/**
+ * @param  {String} smtpReply A message from the SMTP server.
+ * @return {Boolean} True if over quota.
+ */
+function isOverQuota(smtpReply: string): boolean {
+  return Boolean(smtpReply && /(over quota)/gi.test(smtpReply));
+}
+
+/**
+ * @see https://support.google.com/a/answer/3221692?hl=en
+ * @see http://www.greenend.org.uk/rjk/tech/smtpreplies.html
+ * @param {String} smtpReply A response from the SMTP server.
+ * @return {boolean} True if the error is recognized as a mailbox missing error.
+ */
+function isInvalidMailboxError(smtpReply: string): boolean {
+  return Boolean(
+    smtpReply &&
+      /^(510|511|513|550|551|553)/.test(smtpReply) &&
+      !/(junk|spam|openspf|spoofing|host|rbl.+blocked)/gi.test(smtpReply)
+  );
+}
+
+/**
+ * @see https://www.ietf.org/mail-archive/web/ietf-smtp/current/msg06344.html
+ * @param {String} smtpReply A message from the SMTP server.
+ * @return {Boolean} True if this is a multiline greet.
+ */
+function isMultilineGreet(smtpReply: string): boolean {
+  return Boolean(smtpReply && /^(250|220)-/.test(smtpReply));
+}
+
 // Default configuration
 const DEFAULT_PORTS = [25, 587, 465]; // Standard SMTP -> STARTTLS -> SMTPS
-const DEFAULT_TIMEOUT = 2000;
+const DEFAULT_TIMEOUT = 3000;
 const DEFAULT_MAX_RETRIES = 1;
 
 // Port configurations
@@ -69,18 +100,21 @@ export async function verifyMailboxSMTP(
     let cachedResult: boolean | null | undefined;
     try {
       cachedResult = await smtpCacheStore.get(`${mxHost}:${local}@${domain}`);
-      log(`Using cached SMTP result: ${cachedResult}`);
-      return {
-        result: typeof cachedResult === 'boolean' ? cachedResult : null,
-        cached: true,
-        port: 0,
-        portCached: false,
-      };
+      if (cachedResult !== undefined) {
+        log(`Using cached SMTP result: ${cachedResult}`);
+        return {
+          result: typeof cachedResult === 'boolean' ? cachedResult : null,
+          cached: true,
+          port: 0,
+          portCached: false,
+        };
+      }
     } catch (_error) {
       // Cache error, continue with processing
-      cachedResult = null;
+      cachedResult = undefined;
     }
   }
+
   const smtpPortCacheStore = cache ? getCacheStore<number>(cache, 'smtpPort') : null;
 
   // Check cache first - use mxHost as key to cache per host
@@ -107,6 +141,17 @@ export async function verifyMailboxSMTP(
         sequence,
         log,
       });
+
+      // Cache the SMTP result (cache even null results)
+      if (smtpCacheStore && result !== undefined) {
+        try {
+          await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, result);
+          log(`Cached SMTP result ${result} for ${local}@${domain} via ${mxHost}`);
+        } catch (_error) {
+          // Cache error, ignore it
+        }
+      }
+
       return { result, cached: false, port: cachedPort, portCached: true };
     }
   }
@@ -117,7 +162,7 @@ export async function verifyMailboxSMTP(
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       if (attempt > 0) {
-        const delay = Math.min(500 * 2 ** (attempt - 1), 3000);
+        const delay = Math.min(1000 * 2 ** (attempt - 1), 5000);
         log(`Retry ${attempt + 1}, waiting ${delay}ms`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
@@ -135,7 +180,8 @@ export async function verifyMailboxSMTP(
         log,
       });
 
-      if (smtpCacheStore) {
+      // Cache the SMTP result (cache even null results)
+      if (smtpCacheStore && result !== undefined) {
         try {
           await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, result);
           log(`Cached SMTP result ${result} for ${local}@${domain} via ${mxHost}`);
@@ -187,7 +233,8 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
     steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
   };
   const activeSequence = sequence || defaultSequence;
-  // if port 25 replace any EHLO with HELO
+
+  // For port 25, use HELO instead of EHLO (original behavior)
   if (port === 25) {
     activeSequence.steps = activeSequence.steps.map((step) => (step === SMTPStep.EHLO ? SMTPStep.HELO : step));
   }
@@ -250,7 +297,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
           sendCommand(`EHLO ${hostname}`);
           break;
         case SMTPStep.HELO:
-          sendCommand(`HELO ${hostname}`);
+          sendCommand(`HELO ${domain}`);
           break;
         case SMTPStep.GREETING:
           // No command to send, wait for server greeting
@@ -284,7 +331,23 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
       const isMultiline = response.length > 3 && response[3] === '-';
       log(`← ${response}`);
 
-      // Skip multiline continuation
+      // Handle multiline greetings properly (original behavior)
+      if (isMultilineGreet(response)) {
+        return;
+      }
+
+      // Apply original logic for over quota and invalid mailbox errors (check before multiline handling)
+      if (isOverQuota(response)) {
+        finish(false, 'over_quota');
+        return;
+      }
+
+      if (isInvalidMailboxError(response)) {
+        finish(false, 'not_found');
+        return;
+      }
+
+      // Skip multiline continuation for EHLO responses
       if (isMultiline) {
         const currentStep = activeSequence.steps[currentStepIndex];
         if (currentStep === SMTPStep.EHLO && code === '250') {
@@ -296,6 +359,17 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
           const upper = response.toUpperCase();
           if (upper.includes('VRFY')) supportsVRFY = true;
         }
+        return;
+      }
+
+      // Check for recognized responses
+      if (
+        !response.includes('220') &&
+        !response.includes('250') &&
+        !response.includes('550') &&
+        !response.includes('552')
+      ) {
+        finish(null, 'unrecognized_response');
         return;
       }
 
@@ -374,12 +448,6 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
         case SMTPStep.RCPT_TO:
           if (code.startsWith('250') || code.startsWith('251')) {
             finish(true, 'valid');
-          } else if (code.startsWith('550') || code.startsWith('551') || code.startsWith('553')) {
-            if (!response.match(/spam|policy|rbl|blocked/i)) {
-              finish(false, 'not_found');
-            } else {
-              finish(null, 'policy_rejection');
-            }
           } else if (code.startsWith('552') || code.startsWith('452')) {
             finish(false, 'over_quota');
           } else if (code.startsWith('4')) {
