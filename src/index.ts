@@ -327,10 +327,12 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
             local,
             domain,
             mxRecords,
-            timeout,
-            debug,
-            port: domainPort,
-            retryAttempts: params.retryAttempts,
+            options: {
+              ports: domainPort ? [domainPort] : undefined,
+              timeout,
+              debug,
+              maxRetries: params.retryAttempts,
+            },
           });
 
           await smtpCacheInstance.set(cacheKey, smtpResult);

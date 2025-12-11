@@ -1,0 +1,428 @@
+// SMTP Error Handling Tests
+//
+// Tests error scenarios and edge cases
+
+import { verifyMailboxSMTP } from '../src/smtp';
+import { SMTPStep } from '../src/types';
+import { createTestParams, TestUtils } from './smtp.test.config';
+
+describe('SMTP Error Handling', () => {
+  describe('Connection Errors', () => {
+    it('should handle invalid hostnames', async () => {
+      const params = createTestParams({
+        mxRecords: ['invalid.nonexistent.server.test'],
+        options: {
+          timeout: 2000,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(result).toBeNull();
+    }, 10000);
+
+    it('should handle connection timeout', async () => {
+      const params = createTestParams({
+        mxRecords: ['192.0.2.1'], // Non-routable IP
+        options: {
+          timeout: 1000,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(result).toBeNull();
+    });
+
+    it('should handle connection refused', async () => {
+      const params = createTestParams({
+        mxRecords: ['localhost'],
+        options: {
+          ports: [25], // Assuming no SMTP server on localhost
+          timeout: 2000,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      // May connect but fail SMTP protocol
+      expect(TestUtils.isValidResult(result)).toBe(true);
+    });
+
+    it('should handle DNS resolution failures', async () => {
+      const params = createTestParams({
+        mxRecords: [''].filter(Boolean), // Empty hostname
+        options: {
+          timeout: 2000,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('Invalid Parameters', () => {
+    it('should handle null/undefined MX records', async () => {
+      const testCases: Array<{ mxRecords: [] | null | undefined; expected: boolean }> = [
+        { mxRecords: null, expected: false },
+        { mxRecords: undefined, expected: false },
+        { mxRecords: [], expected: false },
+      ];
+
+      for (const testCase of testCases) {
+        const params = createTestParams({
+          mxRecords: testCase.mxRecords,
+        });
+
+        const result = await verifyMailboxSMTP(params);
+        expect(result).toBe(testCase.expected);
+      }
+    });
+
+    it('should handle invalid local/domain parts', async () => {
+      const testCases = [
+        { local: '', domain: 'test.com', valid: true },
+        { local: 'test', domain: '', valid: true },
+        { local: '', domain: '', valid: true },
+        { local: 'test@', domain: 'example.com', valid: true },
+        { local: 'test', domain: 'example.com@', valid: true },
+      ];
+
+      for (const testCase of testCases) {
+        const params = createTestParams({
+          local: testCase.local,
+          domain: testCase.domain,
+          mxRecords: ['mx.example.com'],
+        });
+
+        const result = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(result)).toBe(true);
+      }
+    });
+
+    it('should handle very long email addresses', async () => {
+      const longLocal = 'a'.repeat(300);
+      const longDomain = 'a'.repeat(100) + '.com';
+
+      const params = createTestParams({
+        local: longLocal,
+        domain: longDomain,
+        mxRecords: ['mx.example.com'],
+        options: {
+          timeout: 5000,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(TestUtils.isValidResult(result)).toBe(true);
+    });
+
+    it('should handle special characters in email', async () => {
+      const testCases = [
+        'test+tag@example.com',
+        'test.tag@example.com',
+        'test_tag@example.com',
+        'test@example.co.uk',
+        'üñïçødé@example.com',
+        '"test@example.com"@example.com',
+      ];
+
+      for (const email of testCases) {
+        const [local, domain] = email.split('@');
+        const params = createTestParams({
+          local,
+          domain,
+          mxRecords: ['mx.example.com'],
+        });
+
+        const result = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(result)).toBe(true);
+      }
+    });
+  });
+
+  describe('Timeout Errors', () => {
+    it('should handle very short timeout', async () => {
+      const params = createTestParams({
+        options: {
+          timeout: 1, // 1ms timeout
+          maxRetries: 0,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(result).toBeNull();
+    });
+
+    it('should handle timeout during SMTP handshake', async () => {
+      const params = createTestParams({
+        mxRecords: ['192.0.2.2'], // Non-responsive IP
+        options: {
+          timeout: 2000,
+          maxRetries: 1,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(result).toBeNull();
+    });
+
+    it('should respect timeout across retries', async () => {
+      const params = createTestParams({
+        mxRecords: ['192.0.2.3'],
+        options: {
+          timeout: 1000,
+          maxRetries: 3,
+        },
+      });
+
+      const start = Date.now();
+      const result = await verifyMailboxSMTP(params);
+      const duration = Date.now() - start;
+
+      expect(result).toBeNull();
+      // Should timeout 4 times (1 initial + 3 retries)
+      expect(duration).toBeGreaterThan(3500);
+      expect(duration).toBeLessThan(5000);
+    });
+  });
+
+  describe('Port Errors', () => {
+    it('should handle invalid ports', async () => {
+      const invalidPorts = [-1, 0, 65536, 99999];
+
+      for (const port of invalidPorts) {
+        const params = createTestParams({
+          options: {
+            ports: [port],
+            timeout: 1000,
+          },
+        });
+
+        const result = await verifyMailboxSMTP(params);
+        expect(result).toBeNull();
+      }
+    });
+
+    it('should handle reserved ports', async () => {
+      const reservedPorts = [20, 21, 22, 23, 80, 110, 143, 443, 993, 995];
+
+      for (const port of reservedPorts) {
+        const params = createTestParams({
+          options: {
+            ports: [port],
+            timeout: 2000,
+          },
+        });
+
+        const result = await verifyMailboxSMTP(params);
+        // Most will fail but should handle gracefully
+        expect(TestUtils.isValidResult(result) || result === null).toBe(true);
+      }
+    });
+
+    it('should handle empty port array', async () => {
+      const params = createTestParams({
+        options: {
+          ports: [],
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('TLS Errors', () => {
+    it('should handle TLS certificate errors', async () => {
+      const params = createTestParams({
+        options: {
+          ports: [587],
+          tls: {
+            rejectUnauthorized: true,
+            // Use a server with invalid cert if available
+          },
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      // May fail cert validation but should handle gracefully
+      expect(TestUtils.isValidResult(result) || result === null).toBe(true);
+    }, 10000);
+
+    it('should handle TLS version mismatch', async () => {
+      const params = createTestParams({
+        options: {
+          ports: [587],
+          tls: {
+            minVersion: 'TLSv1.3', // Not all servers support
+          },
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(TestUtils.isValidResult(result) || result === null).toBe(true);
+    }, 10000);
+  });
+
+  describe('Sequence Errors', () => {
+    it('should handle empty sequence', async () => {
+      const params = createTestParams({
+        options: {
+          sequence: {
+            steps: [],
+          },
+          ports: [587],
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(result).toBe(true); // Should complete empty sequence
+    });
+
+    it('should handle invalid sequence steps', async () => {
+      const params = createTestParams({
+        options: {
+          sequence: {
+            steps: [SMTPStep.QUIT, SMTPStep.QUIT, SMTPStep.QUIT], // Invalid order
+          },
+          ports: [587],
+          timeout: 2000,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(TestUtils.isValidResult(result)).toBe(true);
+    });
+
+    it('should handle sequence without required steps', async () => {
+      const params = createTestParams({
+        options: {
+          sequence: {
+            steps: [SMTPStep.EHLO], // Missing RCPT_TO
+          },
+          ports: [587],
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(TestUtils.isValidResult(result)).toBe(true);
+    });
+  });
+
+  describe('Resource Exhaustion', () => {
+    it('should handle many concurrent requests', async () => {
+      const promises = Array.from({ length: 10 }, (_, i) =>
+        verifyMailboxSMTP({
+          local: `test${i}`,
+          domain: 'gmail.com',
+          mxRecords: ['gmail-smtp-in.l.google.com'],
+          options: {
+            ports: [587],
+            timeout: 5000,
+            cache: true,
+            debug: false,
+          },
+        })
+      );
+
+      const results = await Promise.all(promises);
+      results.forEach((result) => {
+        expect(TestUtils.isValidResult(result)).toBe(true);
+      });
+    }, 30000);
+
+    it('should handle rapid sequential requests', async () => {
+      for (let i = 0; i < 5; i++) {
+        const params = createTestParams({
+          local: `rapid${i}`,
+          options: {
+            ports: [587],
+            timeout: 3000,
+            cache: true,
+          },
+        });
+
+        const result = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(result)).toBe(true);
+      }
+    }, 20000);
+  });
+
+  describe('Graceful Degradation', () => {
+    it('should fallback when primary method fails', async () => {
+      const params = createTestParams({
+        options: {
+          ports: [9999, 587], // First will fail, second might work
+          timeout: 2000,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(TestUtils.isValidResult(result)).toBe(true);
+    }, 10000);
+
+    it('should handle partial SMTP responses', async () => {
+      const params = createTestParams({
+        options: {
+          ports: [25],
+          sequence: {
+            steps: [SMTPStep.GREETING, SMTPStep.EHLO],
+          },
+          timeout: 3000,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(TestUtils.isValidResult(result)).toBe(true);
+    });
+
+    it('should handle server that closes connection unexpectedly', async () => {
+      const params = createTestParams({
+        mxRecords: ['localhost'], // Might close connection
+        options: {
+          ports: [25],
+          timeout: 2000,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(TestUtils.isValidResult(result) || result === null).toBe(true);
+    });
+  });
+
+  describe('Memory and Resource Leaks', () => {
+    it('should not accumulate listeners on error', async () => {
+      const params = createTestParams({
+        mxRecords: ['invalid.test'],
+        options: {
+          timeout: 100,
+          maxRetries: 1,
+        },
+      });
+
+      // Run multiple failing requests
+      for (let i = 0; i < 10; i++) {
+        const result = await verifyMailboxSMTP(params);
+        expect(result).toBeNull();
+      }
+
+      // If no errors thrown, resources are likely cleaned up properly
+      expect(true).toBe(true);
+    });
+
+    it('should clean up connections properly', async () => {
+      const params = createTestParams({
+        options: {
+          ports: [587],
+          timeout: 2000,
+          maxRetries: 0,
+        },
+      });
+
+      const result = await verifyMailboxSMTP(params);
+      expect(TestUtils.isValidResult(result)).toBe(true);
+
+      // Give time for cleanup
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+  });
+});

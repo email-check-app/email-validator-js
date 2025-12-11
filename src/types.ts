@@ -99,16 +99,67 @@ export interface BatchVerificationResult {
 }
 
 /**
+ * Port configuration for SMTP verification
+ */
+export interface SMTPPortConfig {
+  ports: number[];
+  timeout: number;
+  maxRetries: number;
+}
+
+/**
+ * TLS configuration options
+ */
+export interface SMTPTLSConfig {
+  rejectUnauthorized?: boolean;
+  minVersion?: 'TLSv1.2' | 'TLSv1.3';
+}
+
+/**
+ * SMTP protocol steps enum
+ */
+export enum SMTPStep {
+  GREETING = 'GREETING',
+  EHLO = 'EHLO',
+  STARTTLS = 'STARTTLS',
+  MAIL_FROM = 'MAIL_FROM',
+  RCPT_TO = 'RCPT_TO',
+  VRFY = 'VRFY',
+  QUIT = 'QUIT',
+}
+
+/**
+ * Custom SMTP sequence configuration
+ */
+export interface SMTPSequence {
+  steps: SMTPStep[];
+  from?: string;
+  vrfyTarget?: string;
+}
+
+/**
+ * SMTP verification options
+ */
+export interface SMTPVerifyOptions {
+  ports?: number[];
+  timeout?: number;
+  maxRetries?: number;
+  tls?: boolean | SMTPTLSConfig;
+  hostname?: string;
+  useVRFY?: boolean;
+  cache?: boolean;
+  debug?: boolean;
+  sequence?: SMTPSequence; // Custom step sequence
+}
+
+/**
  * SMTP verification parameters
  */
 export interface VerifyMailboxSMTPParams {
-  port?: number;
   local: string;
   domain: string;
   mxRecords: string[];
-  timeout: number;
-  debug: boolean;
-  retryAttempts?: number;
+  options?: SMTPVerifyOptions;
 }
 
 /**
