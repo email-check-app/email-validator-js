@@ -1,6 +1,6 @@
 {
   "name": "@emailcheck/email-validator-js",
-  "version": "2.14.0",
+  "version": "2.14.1",
   "private": false,
   "description": "Advanced email validation with MX records, SMTP verification, disposable email detection, batch processing, and caching. Production-ready with TypeScript support.",
   "keywords": [
