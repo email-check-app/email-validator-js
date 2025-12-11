@@ -2,6 +2,7 @@
 //
 // This demonstrates the new clean API without backward compatibility concerns
 
+import { getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
 
 // Example 1: Simple verification with defaults
@@ -48,7 +49,7 @@ async function secureVerify(email: string, mxRecords: string[]) {
         minVersion: 'TLSv1.3',
       },
       hostname: 'your-domain.com',
-      cache: true,
+      cache: getDefaultCache(),
     },
   });
 }
@@ -69,7 +70,7 @@ async function fastBulk(emails: string[], mxMap: Map<string, string[]>) {
         ports: [25, 587],
         timeout: 2000,
         maxRetries: 1,
-        cache: true,
+        cache: getDefaultCache(),
         debug: false,
       },
     });
@@ -92,7 +93,7 @@ async function debugVerify(email: string, mxRecords: string[]) {
       debug: true,
       timeout: 5000,
       useVRFY: true,
-      cache: false,
+      cache: null, // No caching
     },
   });
 }

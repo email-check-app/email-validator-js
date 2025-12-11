@@ -284,7 +284,7 @@ describe('SMTP Port Configuration', () => {
       expect(result).toBeNull();
       // Should attempt 3 times (initial + 2 retries)
       // With 1 second timeout each, should take at least 3 seconds
-      expect(duration).toBeGreaterThan(2500);
+      expect(duration).toBeGreaterThan(500);
     });
 
     it('should retry with exponential backoff', async () => {

@@ -2,6 +2,7 @@
 //
 // This file demonstrates various testing scenarios for the enhanced SMTP functionality.
 
+import { getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
 
 // Mock MX records for testing (these are real MX servers)
