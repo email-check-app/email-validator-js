@@ -21,7 +21,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
         console.log(`TLS enabled result: ${result}`);
       },
@@ -35,7 +35,7 @@ describe('SMTP TLS Configuration', () => {
           options: TEST_CONFIGS.TLS_DISABLED,
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
         console.log(`TLS disabled result: ${result}`);
       },
@@ -52,7 +52,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -68,7 +68,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -84,7 +84,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -104,7 +104,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -122,7 +122,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -140,7 +140,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         // May fail due to cert validation, but should handle gracefully
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
@@ -161,7 +161,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -179,7 +179,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -197,7 +197,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -212,7 +212,7 @@ describe('SMTP TLS Configuration', () => {
           options: TEST_CONFIGS.TLS_STRICT,
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
         console.log(`Strict TLS result: ${result}`);
       },
@@ -226,7 +226,7 @@ describe('SMTP TLS Configuration', () => {
           options: TEST_CONFIGS.TLS_LENIENT,
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
         console.log(`Lenient TLS result: ${result}`);
       },
@@ -246,7 +246,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -267,7 +267,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
 
         // Check for TLS upgrade logs
@@ -290,7 +290,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -306,7 +306,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -322,7 +322,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -352,7 +352,7 @@ describe('SMTP TLS Configuration', () => {
           });
 
           const start = Date.now();
-          const result = await verifyMailboxSMTP(params);
+          const { result } = await verifyMailboxSMTP(params);
           const duration = Date.now() - start;
 
           results[testCase.name] = { result, duration };
@@ -380,7 +380,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -398,7 +398,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -414,7 +414,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -430,7 +430,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         // Should either succeed with TLS or fall back to plain text
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
@@ -452,7 +452,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -471,7 +471,7 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')

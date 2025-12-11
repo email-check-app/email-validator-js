@@ -15,7 +15,10 @@ describe('SMTP Basic Verification', () => {
       'should verify with default settings',
       async () => {
         const params = createTestParams();
-        const { result, duration } = await measureTime(() => verifyMailboxSMTP(params));
+        const {
+          result: { result },
+          duration,
+        } = await measureTime(() => verifyMailboxSMTP(params));
 
         expect(TestUtils.isValidResult(result)).toBe(true);
         console.log(`Default verification completed in ${duration}ms`);
@@ -32,7 +35,7 @@ describe('SMTP Basic Verification', () => {
           mxRecords: TEST_DATA.MX_RECORDS.gmail,
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -43,7 +46,7 @@ describe('SMTP Basic Verification', () => {
         mxRecords: [],
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(result).toBe(false);
     });
 
@@ -52,7 +55,7 @@ describe('SMTP Basic Verification', () => {
         mxRecords: undefined as any,
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(result).toBe(false);
     });
   });
@@ -65,7 +68,7 @@ describe('SMTP Basic Verification', () => {
         mxRecords: TEST_DATA.MX_RECORDS.gmail,
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(TestUtils.isValidResult(result)).toBe(true);
     });
 
@@ -78,7 +81,7 @@ describe('SMTP Basic Verification', () => {
           mxRecords: TEST_DATA.MX_RECORDS.gmail,
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -92,7 +95,7 @@ describe('SMTP Basic Verification', () => {
           mxRecords: TEST_DATA.MX_RECORDS.gmail,
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -113,7 +116,7 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
         expect(consoleSpy).toHaveBeenCalled();
 
@@ -135,7 +138,7 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
         // Console should not be called when debug is false
         expect(consoleSpy).not.toHaveBeenCalled();
@@ -157,7 +160,7 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -173,7 +176,7 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -188,7 +191,7 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -209,11 +212,17 @@ describe('SMTP Basic Verification', () => {
         });
 
         // First call
-        const { result: result1, duration: duration1 } = await measureTime(() => verifyMailboxSMTP(params));
+        const {
+          result: { result: result1 },
+          duration: duration1,
+        } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(result1)).toBe(true);
 
         // Second call should use cache
-        const { result: result2, duration: duration2 } = await measureTime(() => verifyMailboxSMTP(params));
+        const {
+          result: { result: result2 },
+          duration: duration2,
+        } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(result2)).toBe(true);
 
         console.log(`First call: ${duration1}ms, Second call: ${duration2}ms`);
@@ -235,7 +244,7 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
@@ -261,7 +270,7 @@ describe('SMTP Basic Verification', () => {
             },
           });
 
-          const result = await verifyMailboxSMTP(params);
+          const { result } = await verifyMailboxSMTP(params);
           expect(TestUtils.isValidResult(result)).toBe(true);
           console.log(`${domain}: ${result}`);
         }

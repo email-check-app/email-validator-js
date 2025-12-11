@@ -56,7 +56,7 @@ export async function verifyMailboxSMTP(
 
   if (!mxRecords || mxRecords.length === 0) {
     log('No MX records found');
-    return { result: null, cached: false, port: 0, portCached: false };
+    return { result: false, cached: false, port: 0, portCached: false };
   }
 
   const mxHost = mxRecords[0]; // Use highest priority MX

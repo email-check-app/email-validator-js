@@ -20,7 +20,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(result).toBeNull();
     }, 10000);
 
@@ -32,7 +32,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(result).toBeNull();
     });
 
@@ -45,7 +45,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       // May connect but fail SMTP protocol
       expect(TestUtils.isValidResult(result)).toBe(true);
     });
@@ -58,7 +58,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(result).toBe(false); // Empty hostname should return false
     });
   });
@@ -76,7 +76,7 @@ describe('SMTP Error Handling', () => {
           mxRecords: testCase.mxRecords,
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(result).toBe(testCase.expected);
       }
     });
@@ -97,7 +97,7 @@ describe('SMTP Error Handling', () => {
           mxRecords: ['mx.example.com'],
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       }
     });
@@ -115,7 +115,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(TestUtils.isValidResult(result)).toBe(true);
     });
 
@@ -137,7 +137,7 @@ describe('SMTP Error Handling', () => {
           mxRecords: ['mx.example.com'],
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       }
     });
@@ -152,7 +152,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(result).toBeNull();
     });
 
@@ -165,7 +165,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(result).toBeNull();
     });
 
@@ -179,7 +179,7 @@ describe('SMTP Error Handling', () => {
       });
 
       const start = Date.now();
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       const duration = Date.now() - start;
 
       expect(result).toBeNull();
@@ -201,7 +201,7 @@ describe('SMTP Error Handling', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(result).toBeNull();
       }
     });
@@ -218,7 +218,7 @@ describe('SMTP Error Handling', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         // Should fail gracefully
         expect(result === null || TestUtils.isValidResult(result)).toBe(true);
       }
@@ -231,7 +231,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(result).toBeNull();
     });
   });
@@ -248,7 +248,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       // May fail cert validation but should handle gracefully
       expect(TestUtils.isValidResult(result) || result === null).toBe(true);
     }, 10000);
@@ -263,7 +263,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(TestUtils.isValidResult(result) || result === null).toBe(true);
     }, 10000);
   });
@@ -279,7 +279,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(result).toBe(true); // no steps means nothing to verify, should return true
     });
 
@@ -294,7 +294,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(TestUtils.isValidResult(result)).toBe(true);
     });
 
@@ -308,7 +308,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(TestUtils.isValidResult(result)).toBe(true);
     });
   });
@@ -330,7 +330,7 @@ describe('SMTP Error Handling', () => {
       );
 
       const results = await Promise.all(promises);
-      results.forEach((result) => {
+      results.forEach(({ result }) => {
         expect(TestUtils.isValidResult(result)).toBe(true);
       });
     }, 30000);
@@ -346,7 +346,7 @@ describe('SMTP Error Handling', () => {
           },
         });
 
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(result)).toBe(true);
       }
     }, 20000);
@@ -361,7 +361,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(TestUtils.isValidResult(result)).toBe(true);
     }, 10000);
 
@@ -376,7 +376,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(TestUtils.isValidResult(result)).toBe(true);
     });
 
@@ -389,7 +389,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(TestUtils.isValidResult(result) || result === null).toBe(true);
     });
   });
@@ -406,7 +406,7 @@ describe('SMTP Error Handling', () => {
 
       // Run multiple failing requests
       for (let i = 0; i < 10; i++) {
-        const result = await verifyMailboxSMTP(params);
+        const { result } = await verifyMailboxSMTP(params);
         expect(result).toBeNull();
       }
 
@@ -423,7 +423,7 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const result = await verifyMailboxSMTP(params);
+      const { result } = await verifyMailboxSMTP(params);
       expect(TestUtils.isValidResult(result)).toBe(true);
 
       // Give time for cleanup
