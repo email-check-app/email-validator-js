@@ -121,6 +121,7 @@ export interface SMTPTLSConfig {
 export enum SMTPStep {
   GREETING = 'GREETING',
   EHLO = 'EHLO',
+  HELO = 'HELO',
   STARTTLS = 'STARTTLS',
   MAIL_FROM = 'MAIL_FROM',
   RCPT_TO = 'RCPT_TO',
@@ -147,7 +148,7 @@ export interface SMTPVerifyOptions {
   tls?: boolean | SMTPTLSConfig;
   hostname?: string;
   useVRFY?: boolean;
-  cache?: boolean;
+  cache?: ICache | null; // Cache instance or null/undefined for no caching
   debug?: boolean;
   sequence?: SMTPSequence; // Custom step sequence
 }
@@ -343,3 +344,6 @@ export interface EmailValidationResult {
 export interface ValidatorResult {
   valid: boolean;
 }
+
+// Re-export cache interfaces
+export type { ICache, ICacheStore } from './cache-interface';

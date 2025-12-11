@@ -2,10 +2,14 @@
 //
 // Tests TLS/SSL configurations and security settings
 
+import { clearDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
 import { createTestParams, TEST_CONFIGS, TestUtils } from './smtp.test.config';
 
 describe('SMTP TLS Configuration', () => {
+  beforeEach(() => {
+    clearDefaultCache();
+  });
   describe('TLS Enable/Disable', () => {
     it(
       'should work with TLS enabled (default)',

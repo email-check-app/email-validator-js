@@ -2,11 +2,15 @@
 //
 // Tests custom SMTP step sequences and protocol control
 
+import { clearDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
 import { SMTPStep } from '../src/types';
-import { createTestParams, TEST_DATA, TEST_SEQUENCES, TestUtils } from './smtp.test.config';
+import { createTestParams, TEST_SEQUENCES, TestUtils } from './smtp.test.config';
 
 describe('SMTP Custom Sequences', () => {
+  beforeEach(() => {
+    clearDefaultCache();
+  });
   describe('Predefined Sequences', () => {
     it(
       'should execute minimal sequence',

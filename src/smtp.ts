@@ -1,16 +1,32 @@
 import * as net from 'node:net';
 import * as tls from 'node:tls';
-import type { SMTPSequence, SMTPTLSConfig, VerifyMailboxSMTPParams } from './types';
+import { getCacheStore } from './cache';
+import type { ICache, SMTPSequence, SMTPTLSConfig, VerifyMailboxSMTPParams } from './types';
 import { SMTPStep } from './types';
+
+/**
+ * Check if a string is an IP address
+ */
+function isIPAddress(host: string): boolean {
+  // IPv4 pattern
+  const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+  if (ipv4Regex.test(host)) {
+    // Check if all octets are <= 255
+    const octets = host.split('.');
+    return octets.every((octet) => parseInt(octet, 10) <= 255);
+  }
+
+  // IPv6 pattern (simplified)
+  const ipv6Regex =
+    /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,7}:$|^(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}$|^(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}$|^(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})$|^::1(?::(?::[0-9a-fA-F]{1,4}){1,7})|$|:(?:(?::[0-9a-fA-F]{1,4}){1,7}:)$/;
+
+  return ipv6Regex.test(host);
+}
 
 // Default configuration
 const DEFAULT_PORTS = [25, 587, 465]; // Standard SMTP -> STARTTLS -> SMTPS
-const DEFAULT_TIMEOUT = 3000;
+const DEFAULT_TIMEOUT = 2000;
 const DEFAULT_MAX_RETRIES = 1;
-const CACHE_TTL = 3600000; // 1 hour
-
-// Domain to successful port configuration cache
-const PORT_CACHE = new Map<string, { port: number; timestamp: number }>();
 
 // Port configurations
 const PORT_CONFIGS = {
@@ -29,14 +45,14 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
     tls: tlsConfig = true,
     hostname = 'localhost',
     useVRFY = true,
-    cache = true,
+    cache,
     debug = false,
     sequence,
   } = options;
 
   const log = debug ? (...args: any[]) => console.log('[SMTP]', ...args) : () => {};
 
-  if (mxRecords.length === 0) {
+  if (!mxRecords || mxRecords.length === 0) {
     log('No MX records found');
     return false;
   }
@@ -44,14 +60,24 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
   const mxHost = mxRecords[0]; // Use highest priority MX
   log(`Verifying ${local}@${domain} via ${mxHost}`);
 
-  // Check cache first
-  if (cache) {
-    const cached = PORT_CACHE.get(domain);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      log(`Using cached port: ${cached.port}`);
+  // Get cache store from cache parameter
+  const cacheStore = cache ? getCacheStore<number>(cache, 'smtpPort') : null;
+
+  // Check cache first - use mxHost as key to cache per host
+  if (cacheStore) {
+    let cachedPort: number | null | undefined;
+    try {
+      cachedPort = await cacheStore.get(mxHost);
+    } catch (_error) {
+      // Cache error, continue with processing
+      cachedPort = null;
+    }
+
+    if (cachedPort) {
+      log(`Using cached port: ${cachedPort}`);
       const result = await testSMTPConnection({
         mxHost,
-        port: cached.port,
+        port: cachedPort,
         local,
         domain,
         timeout,
@@ -71,7 +97,7 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       if (attempt > 0) {
-        const delay = Math.min(1000 * 2 ** (attempt - 1), 5000);
+        const delay = Math.min(500 * 2 ** (attempt - 1), 3000);
         log(`Retry ${attempt + 1}, waiting ${delay}ms`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
@@ -91,8 +117,13 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
 
       if (result !== null) {
         // Cache successful port
-        if (cache) {
-          PORT_CACHE.set(domain, { port, timestamp: Date.now() });
+        if (cacheStore) {
+          try {
+            await cacheStore.set(mxHost, port);
+            log(`Cached port ${port} for ${mxHost}`);
+          } catch (_error) {
+            // Cache error, ignore it
+          }
         }
         return result;
       }
@@ -128,10 +159,14 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
     steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
   };
   const activeSequence = sequence || defaultSequence;
+  // if port 25 replace any HELO with EHLO
+  if (port === 25) {
+    activeSequence.steps = activeSequence.steps.map((step) => (step === SMTPStep.HELO ? SMTPStep.EHLO : step));
+  }
 
   const tlsOptions: tls.ConnectionOptions = {
     host: mxHost,
-    servername: mxHost,
+    servername: isIPAddress(mxHost) ? undefined : mxHost, // Don't set servername for IP addresses
     rejectUnauthorized: false,
     minVersion: 'TLSv1.2',
     ...(typeof tlsConfig === 'object' ? tlsConfig : {}),
@@ -262,6 +297,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
               {
                 ...tlsOptions,
                 socket: plainSocket,
+                servername: isIPAddress(mxHost) ? undefined : mxHost,
               },
               () => {
                 isTLS = true;
@@ -341,9 +377,20 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
       }
     };
 
+    // Validate port
+    if (port < 0 || port > 65535 || !Number.isInteger(port)) {
+      finish(null, 'invalid_port');
+      return;
+    }
+
     // Create connection
     if (implicitTLS) {
-      socket = tls.connect({ ...tlsOptions, port }, () => {
+      const connectOptions = {
+        ...tlsOptions,
+        port,
+        servername: isIPAddress(mxHost) ? undefined : mxHost,
+      };
+      socket = tls.connect(connectOptions, () => {
         log(`Connected to ${mxHost}:${port} with TLS`);
         socket.on('data', handleData);
       });
@@ -355,6 +402,12 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
     }
 
     // Start with the first step
+    if (activeSequence.steps.length === 0) {
+      // Empty sequence - consider it complete
+      finish(true, 'sequence_complete');
+      return;
+    }
+
     const firstStep = activeSequence.steps[0];
     if (firstStep !== SMTPStep.GREETING) {
       // If sequence doesn't start with GREETING, start with the specified step

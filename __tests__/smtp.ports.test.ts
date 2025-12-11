@@ -2,10 +2,14 @@
 //
 // Tests different port configurations and behaviors
 
+import { clearDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
 import { createTestParams, measureTime, TEST_CONFIGS, TEST_DATA, TestUtils } from './smtp.test.config';
 
 describe('SMTP Port Configuration', () => {
+  beforeEach(() => {
+    clearDefaultCache();
+  });
   describe('Single Port Testing', () => {
     it(
       'should test port 25 only',
@@ -384,7 +388,7 @@ describe('SMTP Port Configuration', () => {
       });
 
       const result = await verifyMailboxSMTP(params);
-      expect(result).toBeNull();
+      expect(result).toBe(false);
     });
 
     it('should handle very high port numbers', async () => {
@@ -396,7 +400,7 @@ describe('SMTP Port Configuration', () => {
       });
 
       const result = await verifyMailboxSMTP(params);
-      expect(result).toBeNull();
+      expect(result).toBe(null);
     });
   });
 });

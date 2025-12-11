@@ -2,10 +2,14 @@
 //
 // Tests core SMTP verification functionality
 
+import { clearDefaultCache, getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
-import { createTestParams, measureTime, TEST_CONFIGS, TEST_DATA, TestUtils } from './smtp.test.config';
+import { createTestParams, measureTime, TEST_DATA, TestUtils } from './smtp.test.config';
 
 describe('SMTP Basic Verification', () => {
+  beforeEach(() => {
+    clearDefaultCache();
+  });
   describe('Default Configuration', () => {
     it(
       'should verify with default settings',
@@ -199,7 +203,7 @@ describe('SMTP Basic Verification', () => {
           domain: 'gmail.com',
           mxRecords: TEST_DATA.MX_RECORDS.gmail,
           options: {
-            cache: true,
+            cache: getDefaultCache(),
             debug: false,
           },
         });
