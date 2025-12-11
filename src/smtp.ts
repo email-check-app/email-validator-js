@@ -122,15 +122,24 @@ async function attemptVerification(params: {
       resolve(result);
     };
 
-    const messages = [`HELO ${domain}`, `MAIL FROM: <${local}@${domain}>`, `RCPT TO: <${local}@${domain}>`];
+    const messages = [`HELO ${domain}`, `MAIL FROM: <>`, `RCPT TO: <${local}@${domain}>`];
     log('[verifyMailboxSMTP] writing messages', messages);
     socket.on('data', (data: string) => {
       const dataString = String(data);
       log('[verifyMailboxSMTP] got data', dataString);
 
-      if (isInvalidMailboxError(dataString)) return ret(false);
-      if (isOverQuota(dataString)) return ret(false);
-      if (!dataString.includes('220') && !dataString.includes('250')) return ret(null);
+      if (isInvalidMailboxError(dataString)) {
+        log('[verifyMailboxSMTP] invalid mailbox error detected');
+        return ret(false);
+      }
+      if (isOverQuota(dataString)) {
+        log('[verifyMailboxSMTP] mailbox over quota');
+        return ret(false);
+      }
+      if (!dataString.includes('220') && !dataString.includes('250')) {
+        log('[verifyMailboxSMTP] unrecognized response, returning null');
+        return ret(null);
+      }
 
       if (isMultilineGreet(dataString)) return;
 
