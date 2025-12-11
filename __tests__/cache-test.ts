@@ -26,6 +26,7 @@ describe('Caching System', () => {
         DEFAULT_CACHE_OPTIONS.ttl.domainValid
       ),
       smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+      smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
       domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
         DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
         DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion

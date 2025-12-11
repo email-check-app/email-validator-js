@@ -40,6 +40,7 @@ describe('Cache Integration', () => {
           DEFAULT_CACHE_OPTIONS.ttl.domainValid
         ),
         smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
           DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
           DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion
@@ -86,6 +87,7 @@ describe('Cache Integration', () => {
           DEFAULT_CACHE_OPTIONS.ttl.domainValid
         ),
         smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
           DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
           DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion
@@ -137,6 +139,7 @@ describe('Cache Integration', () => {
           DEFAULT_CACHE_OPTIONS.ttl.domainValid
         ),
         smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
           DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
           DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion
@@ -188,6 +191,7 @@ describe('Cache Integration', () => {
           DEFAULT_CACHE_OPTIONS.ttl.domainValid
         ),
         smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
           DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
           DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion
@@ -220,6 +224,7 @@ describe('Cache Integration', () => {
         free: new LRUAdapter<boolean>(100, 86400000),
         domainValid: new LRUAdapter<boolean>(100, 86400000),
         smtp: new LRUAdapter<boolean | null>(100, 1800000),
+        smtpPort: new LRUAdapter<number>(100, 3600000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(100, 86400000),
         whois: new LRUAdapter<any>(100, 3600000),
       };
@@ -230,6 +235,7 @@ describe('Cache Integration', () => {
         free: new LRUAdapter<boolean>(100, 86400000),
         domainValid: new LRUAdapter<boolean>(100, 86400000),
         smtp: new LRUAdapter<boolean | null>(100, 1800000),
+        smtpPort: new LRUAdapter<number>(100, 3600000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(100, 86400000),
         whois: new LRUAdapter<any>(100, 3600000),
       };
@@ -296,6 +302,13 @@ describe('Cache Integration', () => {
           clear: () => Promise.reject(new Error('Cache clear error')),
         },
         smtp: {
+          get: () => Promise.reject(new Error('Cache read error')),
+          set: () => Promise.reject(new Error('Cache write error')),
+          delete: () => Promise.reject(new Error('Cache delete error')),
+          has: () => Promise.reject(new Error('Cache has error')),
+          clear: () => Promise.reject(new Error('Cache clear error')),
+        },
+        smtpPort: {
           get: () => Promise.reject(new Error('Cache read error')),
           set: () => Promise.reject(new Error('Cache write error')),
           delete: () => Promise.reject(new Error('Cache delete error')),

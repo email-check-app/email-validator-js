@@ -1,7 +1,7 @@
 import * as net from 'node:net';
 import * as tls from 'node:tls';
 import { getCacheStore } from './cache';
-import type { ICache, SMTPSequence, SMTPTLSConfig, VerifyMailboxSMTPParams } from './types';
+import type { SMTPSequence, SMTPTLSConfig, VerifyMailboxSMTPParams } from './types';
 import { SMTPStep } from './types';
 
 /**
@@ -35,7 +35,9 @@ const PORT_CONFIGS = {
   465: { tls: true, starttls: false },
 } as const;
 
-export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promise<boolean | null> {
+export async function verifyMailboxSMTP(
+  params: VerifyMailboxSMTPParams
+): Promise<{ result: boolean | null; cached: boolean; port: number; portCached: boolean }> {
   const { local, domain, mxRecords = [], options = {} } = params;
 
   const {
@@ -54,20 +56,38 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
 
   if (!mxRecords || mxRecords.length === 0) {
     log('No MX records found');
-    return false;
+    return { result: null, cached: false, port: 0, portCached: false };
   }
 
   const mxHost = mxRecords[0]; // Use highest priority MX
   log(`Verifying ${local}@${domain} via ${mxHost}`);
 
   // Get cache store from cache parameter
-  const cacheStore = cache ? getCacheStore<number>(cache, 'smtpPort') : null;
+  const smtpCacheStore = cache ? getCacheStore<boolean | null>(cache, 'smtp') : null;
+
+  if (smtpCacheStore) {
+    let cachedResult: boolean | null | undefined;
+    try {
+      cachedResult = await smtpCacheStore.get(`${mxHost}:${local}@${domain}`);
+      log(`Using cached SMTP result: ${cachedResult}`);
+      return {
+        result: typeof cachedResult === 'boolean' ? cachedResult : null,
+        cached: true,
+        port: 0,
+        portCached: false,
+      };
+    } catch (_error) {
+      // Cache error, continue with processing
+      cachedResult = null;
+    }
+  }
+  const smtpPortCacheStore = cache ? getCacheStore<number>(cache, 'smtpPort') : null;
 
   // Check cache first - use mxHost as key to cache per host
-  if (cacheStore) {
+  if (smtpPortCacheStore) {
     let cachedPort: number | null | undefined;
     try {
-      cachedPort = await cacheStore.get(mxHost);
+      cachedPort = await smtpPortCacheStore.get(mxHost);
     } catch (_error) {
       // Cache error, continue with processing
       cachedPort = null;
@@ -87,7 +107,7 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
         sequence,
         log,
       });
-      if (result !== null) return result;
+      return { result, cached: false, port: cachedPort, portCached: true };
     }
   }
 
@@ -115,23 +135,31 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
         log,
       });
 
+      if (smtpCacheStore) {
+        try {
+          await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, result);
+          log(`Cached SMTP result ${result} for ${local}@${domain} via ${mxHost}`);
+        } catch (_error) {
+          // Cache error, ignore it
+        }
+      }
+
       if (result !== null) {
-        // Cache successful port
-        if (cacheStore) {
+        if (smtpPortCacheStore) {
           try {
-            await cacheStore.set(mxHost, port);
+            await smtpPortCacheStore.set(mxHost, port);
             log(`Cached port ${port} for ${mxHost}`);
           } catch (_error) {
             // Cache error, ignore it
           }
         }
-        return result;
+        return { result, cached: false, port, portCached: false };
       }
     }
   }
 
   log('All ports failed');
-  return null;
+  return { result: null, cached: false, port: 0, portCached: false };
 }
 
 interface ConnectionTestParams {

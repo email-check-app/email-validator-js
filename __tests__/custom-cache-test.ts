@@ -43,6 +43,7 @@ describe('Custom Cache Implementation', () => {
         free: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
         domainValid: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.domainValid, DEFAULT_CACHE_OPTIONS.ttl.domainValid),
         smtp: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        smtpPort: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
         domainSuggestion: new LRUAdapter(
           DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
           DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion
@@ -66,6 +67,7 @@ describe('Custom Cache Implementation', () => {
         free: new LRUAdapter<boolean>(5, 60000),
         domainValid: new LRUAdapter<boolean>(5, 60000),
         smtp: new LRUAdapter<boolean | null>(5, 60000),
+        smtpPort: new LRUAdapter<number>(5, 60000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(5, 60000),
         whois: new LRUAdapter<any>(5, 60000),
       };
@@ -97,6 +99,7 @@ describe('Custom Cache Implementation', () => {
         free: new LRUAdapter<boolean>(10, 60000),
         domainValid: new LRUAdapter<boolean>(10, 60000),
         smtp: new LRUAdapter<boolean | null>(10, 60000),
+        smtpPort: new LRUAdapter<number>(10, 60000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(10, 60000),
         whois: new LRUAdapter<any>(10, 60000),
       };
@@ -107,6 +110,7 @@ describe('Custom Cache Implementation', () => {
         free: new LRUAdapter<boolean>(10, 60000),
         domainValid: new LRUAdapter<boolean>(10, 60000),
         smtp: new LRUAdapter<boolean | null>(10, 60000),
+        smtpPort: new LRUAdapter<number>(10, 60000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(10, 60000),
         whois: new LRUAdapter<any>(10, 60000),
       };

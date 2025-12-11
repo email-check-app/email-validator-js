@@ -323,11 +323,17 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
             }
           }
 
-          const smtpResult = await verifyMailboxSMTP({
+          const {
+            result: smtpResult,
+            cached,
+            portCached,
+            port,
+          } = await verifyMailboxSMTP({
             local,
             domain,
             mxRecords,
             options: {
+              cache: params.cache,
               ports: domainPort ? [domainPort] : undefined,
               timeout,
               debug,
@@ -337,6 +343,8 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
 
           await smtpCacheInstance.set(cacheKey, smtpResult);
           result.validSmtp = smtpResult;
+          if (result.metadata) result.metadata.cached = cached;
+
           log(
             `[verifyEmail] SMTP verification result: ${result.validSmtp} for ${emailAddress} (cached for future use)`
           );
