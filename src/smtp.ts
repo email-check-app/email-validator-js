@@ -187,9 +187,9 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
     steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
   };
   const activeSequence = sequence || defaultSequence;
-  // if port 25 replace any HELO with EHLO
+  // if port 25 replace any EHLO with HELO
   if (port === 25) {
-    activeSequence.steps = activeSequence.steps.map((step) => (step === SMTPStep.HELO ? SMTPStep.EHLO : step));
+    activeSequence.steps = activeSequence.steps.map((step) => (step === SMTPStep.EHLO ? SMTPStep.HELO : step));
   }
 
   const tlsOptions: tls.ConnectionOptions = {
@@ -249,6 +249,12 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
         case SMTPStep.EHLO:
           sendCommand(`EHLO ${hostname}`);
           break;
+        case SMTPStep.HELO:
+          sendCommand(`HELO ${hostname}`);
+          break;
+        case SMTPStep.GREETING:
+          // No command to send, wait for server greeting
+          break;
         case SMTPStep.STARTTLS:
           sendCommand('STARTTLS');
           break;
@@ -286,6 +292,10 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
           if (upper.includes('STARTTLS')) supportsSTARTTLS = true;
           if (upper.includes('VRFY')) supportsVRFY = true;
         }
+        if (currentStep === SMTPStep.HELO && code === '250') {
+          const upper = response.toUpperCase();
+          if (upper.includes('VRFY')) supportsVRFY = true;
+        }
         return;
       }
 
@@ -314,6 +324,14 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
             }
           } else {
             finish(null, 'ehlo_failed');
+          }
+          break;
+
+        case SMTPStep.HELO:
+          if (code.startsWith('250')) {
+            nextStep();
+          } else {
+            finish(null, 'helo_failed');
           }
           break;
 

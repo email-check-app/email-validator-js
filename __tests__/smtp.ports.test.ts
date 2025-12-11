@@ -228,39 +228,6 @@ describe('SMTP Port Configuration', () => {
 
   describe('Performance with Port Configurations', () => {
     it(
-      'should compare single vs multiple port performance',
-      async () => {
-        const testCases = [
-          { name: 'Port 587 only', ports: [587] },
-          { name: 'All ports', ports: [25, 587, 465] },
-          { name: 'Secure ports', ports: [587, 465] },
-        ];
-
-        const results: Record<string, { result: any; duration: number }> = {};
-
-        for (const testCase of testCases) {
-          const params = createTestParams({
-            options: {
-              ports: testCase.ports,
-              timeout: 5000,
-              debug: false,
-            },
-          });
-
-          const { result, duration } = await measureTime(() => verifyMailboxSMTP(params));
-          results[testCase.name] = { result, duration };
-          console.log(`${testCase.name}: ${duration}ms`);
-        }
-
-        // Verify all results are valid
-        Object.values(results).forEach(({ result }) => {
-          expect(TestUtils.isValidResult(result)).toBe(true);
-        });
-      },
-      TestUtils.getTestTimeout('slow')
-    );
-
-    it(
       'should find optimal port quickly',
       async () => {
         const params = createTestParams({

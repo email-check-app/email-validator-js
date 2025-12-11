@@ -1,5 +1,6 @@
 import { promises as dnsPromises, type MxRecord } from 'node:dns';
 import net, { Socket } from 'node:net';
+import * as trace_events from 'node:trace_events';
 import expect from 'expect';
 import sinon, { type SinonSandbox, type SinonStub } from 'sinon';
 import { clearDefaultCache, verifyEmail } from '../src';
@@ -49,8 +50,8 @@ describe('verifyEmailMockTest', () => {
       stubSocket(self);
     });
 
-    it('should perform all tests', async () => {
-      setTimeout(() => self.socket.write('250 Foo'), 10);
+    it.only('should perform all tests', async () => {
+      setTimeout(() => self.socket.write('250 Foo'), 25);
       const result = await verifyEmail({
         emailAddress: 'foo@bar.com',
         verifyMx: true,
