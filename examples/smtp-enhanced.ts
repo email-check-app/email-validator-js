@@ -4,6 +4,7 @@
 // including TLS support, multiple port testing, and advanced configuration options.
 
 import { resolveMx } from 'dns/promises';
+import { getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
 
 // Example 1: Basic usage with default settings (tests ports 25, 587, 465)
@@ -14,7 +15,7 @@ async function basicVerification(email: string) {
     const mxRecords = await resolveMx(domain);
     const mxHosts = mxRecords.map((mx) => mx.exchange);
 
-    const isValid = await verifyMailboxSMTP({
+    const { result: isValid } = await verifyMailboxSMTP({
       local,
       domain,
       mxRecords: mxHosts,
@@ -41,7 +42,7 @@ async function customPortVerification(email: string) {
     const mxHosts = mxRecords.map((mx) => mx.exchange);
 
     // Test only specific ports in custom order
-    const isValid = await verifyMailboxSMTP({
+    const { result: isValid } = await verifyMailboxSMTP({
       local,
       domain,
       mxRecords: mxHosts,
@@ -72,18 +73,14 @@ async function secureVerification(email: string) {
     const mxRecords = await resolveMx(domain);
     const mxHosts = mxRecords.map((mx) => mx.exchange);
 
-    const isValid = await verifyMailboxSMTP({
+    const { result: isValid } = await verifyMailboxSMTP({
       local,
       domain,
       mxRecords: mxHosts,
-      commands: {
-        useEHLO: true, // Use extended SMTP
+      options: {
+        cache: getDefaultCache(),
         hostname: 'your-domain.com', // Use your actual domain
         useVRFY: true, // Enable VRFY fallback
-        nullSender: true, // Use null sender for privacy
-      },
-      options: {
-        cache: true,
         timeout: 10000, // Longer timeout for secure connections
         maxRetries: 3, // More retries for reliability
         debug: true,
@@ -111,7 +108,7 @@ async function testSpecificPort(email: string, port: number) {
     const mxHosts = mxRecords.map((mx) => mx.exchange);
 
     // Test only port 465 (SMTPS)
-    const isValid = await verifyMailboxSMTP({
+    const { result: isValid } = await verifyMailboxSMTP({
       local,
       domain,
       mxRecords: mxHosts,
@@ -146,7 +143,7 @@ async function fastVerification(emails: string[]) {
       const mxHosts = mxRecords.map((mx) => mx.exchange);
 
       // Optimized for speed with aggressive caching
-      const isValid = await verifyMailboxSMTP({
+      const { result: isValid } = await verifyMailboxSMTP({
         local,
         domain,
         mxRecords: mxHosts,
@@ -154,7 +151,7 @@ async function fastVerification(emails: string[]) {
           timeout: 2000, // Short timeout
           maxRetries: 1, // Minimal retries
           debug: false, // No debug logging for speed
-          cache: true, // Enable caching
+          cache: getDefaultCache(), // Enable caching
           tls: {
             rejectUnauthorized: false, // Skip validation for speed
           },

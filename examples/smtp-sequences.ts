@@ -144,7 +144,7 @@ async function customPortsWithSequences() {
     },
   ];
 
-  const results = {};
+  const results: Record<string, any> = {};
 
   for (const config of portConfigs) {
     console.log(`Testing ${config.name} on port ${config.port}:`);
@@ -242,7 +242,7 @@ async function compareStrategies() {
     },
   ];
 
-  const results = {};
+  const results: Record<string, any> = {};
 
   for (const strategy of strategies) {
     console.log(`Testing: ${strategy.name}`);

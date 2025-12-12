@@ -2,6 +2,7 @@
 //
 // Tests for different configurations, ports, and custom sequences
 
+import { getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
 import { SMTPStep } from '../src/types';
 
@@ -38,7 +39,7 @@ async function testSinglePorts() {
   console.log('Testing each port individually\n');
 
   const ports = [25, 587, 465];
-  const results = {};
+  const results: Record<number, any> = {};
 
   for (const port of ports) {
     console.log(`Testing port ${port} only:`);
@@ -90,7 +91,7 @@ async function testTLSConfigs() {
     { name: 'TLS lenient', tls: { rejectUnauthorized: false, minVersion: 'TLSv1.2' as const } },
   ];
 
-  const results = {};
+  const results: Record<string, any> = {};
 
   for (const config of configs) {
     console.log(`Testing: ${config.name}`);
@@ -157,7 +158,7 @@ async function testCustomSequences() {
     },
   ];
 
-  const results = {};
+  const results: Record<string, any> = {};
 
   for (const test of sequences) {
     console.log(`Testing: ${test.name}`);
@@ -194,7 +195,7 @@ async function testRetryAndTimeout() {
     { name: 'Long timeout', maxRetries: 2, timeout: 10000 },
   ];
 
-  const results = {};
+  const results: Record<string, any> = {};
 
   for (const config of configs) {
     console.log(`Testing: ${config.name}`);
@@ -256,7 +257,7 @@ async function testCustomFromAndVRFY() {
     },
   ];
 
-  const results = {};
+  const results: Record<string, any> = {};
 
   for (const config of configs) {
     console.log(`Testing: ${config.name}`);
@@ -293,7 +294,7 @@ async function testCachePerformance() {
     domain: 'gmail.com',
     mxRecords: testMX.gmail,
     options: {
-      cache: true,
+      cache: getDefaultCache(),
       debug: false,
     },
   });
@@ -308,7 +309,7 @@ async function testCachePerformance() {
     domain: 'gmail.com',
     mxRecords: testMX.gmail,
     options: {
-      cache: true,
+      cache: getDefaultCache(),
       debug: false,
     },
   });
@@ -355,7 +356,7 @@ async function testErrorScenarios() {
     },
   ];
 
-  const results = {};
+  const results: Record<string, any> = {};
 
   for (const test of errorTests) {
     console.log(`Testing: ${test.name}`);

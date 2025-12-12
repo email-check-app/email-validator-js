@@ -23,17 +23,19 @@ async function testPortConnectivity() {
     for (const port of [25, 587, 465]) {
       console.log(`  Port ${port}:`);
 
-      const result = await verifyMailboxSMTP({
+      const { result } = await verifyMailboxSMTP({
         local: 'test',
         domain,
         mxRecords,
-        port, // Test single port
-        timeout: 5000,
-        retryAttempts: 2,
-        debug: true,
-        tls: {
-          enabled: true,
-          implicit: port === 465,
+        options: {
+          ports: [port], // Test single port
+          timeout: 5000,
+          maxRetries: 2,
+          debug: true,
+          tls: {
+            rejectUnauthorized: false,
+            minVersion: 'TLSv1.2',
+          },
         },
       });
 
@@ -57,181 +59,171 @@ async function testMultiPortWithCaching() {
     local: 'nonexistent',
     domain,
     mxRecords,
-    timeout: 3000,
-    debug: false,
-    caching: {
-      enabled: true,
-      ttlMs: 60000, // 1 minute for testing
+    options: {
+      timeout: 3000,
+      cache: getDefaultCache(),
+      debug: false,
     },
   });
-  const time1 = Date.now() - start1;
-  console.log(`  Result: ${result1}, Time: ${time1}ms\n`);
+  const duration1 = Date.now() - start1;
+  console.log(`  Result: ${result1.result}, Port: ${result1.port}, Duration: ${duration1}ms`);
 
   // Second run - should use cached port
   console.log('Second verification (warm cache):');
   const start2 = Date.now();
   const result2 = await verifyMailboxSMTP({
-    local: 'another',
+    local: 'nonexistent',
     domain,
     mxRecords,
-    timeout: 3000,
-    debug: false,
-    caching: {
-      enabled: true,
-      ttlMs: 60000,
+    options: {
+      timeout: 3000,
+      cache: getDefaultCache(),
+      debug: false,
     },
   });
-  const time2 = Date.now() - start2;
-  console.log(`  Result: ${result2}, Time: ${time2}ms`);
-  console.log(`  Speed improvement: ${Math.round(((time1 - time2) / time1) * 100)}%\n`);
+  const duration2 = Date.now() - start2;
+  console.log(`  Result: ${result2.result}, Port: ${result2.port}, Duration: ${duration2}ms`);
+
+  console.log(
+    `  Speed improvement: ${duration1 - duration2}ms (${Math.round(((duration1 - duration2) / duration1) * 100)}%)`
+  );
+  console.log();
 }
 
-// Test 3: TLS configuration testing
-async function testTLSConfigurations() {
-  console.log('=== Testing TLS Configurations ===\n');
+// Test 3: Timeout handling
+async function testTimeoutHandling() {
+  console.log('=== Testing Timeout Handling ===\n');
 
   const domain = 'gmail.com';
   const mxRecords = testDomains.gmail;
-
-  const configs = [
-    {
-      name: 'No TLS',
-      tls: { enabled: false },
-    },
-    {
-      name: 'STARTTLS only',
-      tls: { enabled: true, implicit: false },
-    },
-    {
-      name: 'Implicit TLS (port 465)',
-      tls: { enabled: true, implicit: true },
-    },
-    {
-      name: 'Strict TLS',
-      tls: { enabled: true, rejectUnauthorized: true, minVersion: 'TLSv1.2' },
-    },
-  ];
-
-  for (const config of configs) {
-    console.log(`Configuration: ${config.name}`);
-
-    const ports = config.tls?.implicit ? [465] : [587, 25];
-
-    const result = await verifyMailboxSMTP({
-      local: 'test',
-      domain,
-      mxRecords,
-      ports,
-      timeout: 5000,
-      debug: false,
-      tls: config.tls,
-    });
-
-    console.log(`  Result: ${result}\n`);
-  }
-}
-
-// Test 4: Command options testing
-async function testCommandOptions() {
-  console.log('=== Testing SMTP Command Options ===\n');
-
-  const domain = 'gmail.com';
-  const mxRecords = testDomains.gmail;
-
-  const configs = [
-    {
-      name: 'HELO (legacy)',
-      commands: { useEHLO: false, hostname: 'localhost' },
-    },
-    {
-      name: 'EHLO (modern)',
-      commands: { useEHLO: true, hostname: 'verifier.local' },
-    },
-    {
-      name: 'With VRFY fallback',
-      commands: { useEHLO: true, useVRFY: true, hostname: 'test.com' },
-    },
-    {
-      name: 'Null sender (privacy)',
-      commands: { useEHLO: true, nullSender: true, hostname: 'example.com' },
-    },
-  ];
-
-  for (const config of configs) {
-    console.log(`Command configuration: ${config.name}`);
-
-    const result = await verifyMailboxSMTP({
-      local: 'test',
-      domain,
-      mxRecords,
-      timeout: 5000,
-      debug: false,
-      commands: config.commands,
-    });
-
-    console.log(`  Result: ${result}\n`);
-  }
-}
-
-// Test 5: Error handling and edge cases
-async function testErrorHandling() {
-  console.log('=== Testing Error Handling ===\n');
-
-  // Test with invalid MX record
-  console.log('1. Invalid MX record:');
-  const result1 = await verifyMailboxSMTP({
-    local: 'test',
-    domain: 'example.com',
-    mxRecords: ['invalid.mx.server'],
-    timeout: 2000,
-    debug: false,
-  });
-  console.log(`   Result: ${result1}\n`);
-
-  // Test with empty MX records
-  console.log('2. Empty MX records:');
-  const result2 = await verifyMailboxSMTP({
-    local: 'test',
-    domain: 'example.com',
-    mxRecords: [],
-    timeout: 2000,
-    debug: false,
-  });
-  console.log(`   Result: ${result2}\n`);
 
   // Test with very short timeout
-  console.log('3. Very short timeout:');
-  const result3 = await verifyMailboxSMTP({
+  console.log('Testing with 1ms timeout (should fail quickly):');
+  const start = Date.now();
+  const result = await verifyMailboxSMTP({
     local: 'test',
-    domain: 'gmail.com',
-    mxRecords: testDomains.gmail,
-    timeout: 1, // 1ms timeout
-    debug: false,
+    domain,
+    mxRecords,
+    options: {
+      timeout: 1, // 1ms timeout
+      maxRetries: 0,
+      debug: false,
+    },
   });
-  console.log(`   Result: ${result3}\n`);
+  const duration = Date.now() - start;
+  console.log(`  Result: ${result.result}, Duration: ${duration}ms`);
+  console.log();
 }
 
-// Run all tests
+// Test 4: TLS configuration
+async function testTLSConfiguration() {
+  console.log('=== Testing TLS Configuration ===\n');
+
+  const domain = 'gmail.com';
+  const mxRecords = testDomains.gmail;
+
+  // Test with strict TLS
+  console.log('Testing with strict TLS (may fail with self-signed certs):');
+  const result1 = await verifyMailboxSMTP({
+    local: 'test',
+    domain,
+    mxRecords,
+    options: {
+      ports: [465], // Try implicit TLS first
+      timeout: 5000,
+      tls: {
+        rejectUnauthorized: true,
+        minVersion: 'TLSv1.3',
+      },
+      debug: false,
+    },
+  });
+  console.log(`  Strict TLS Result: ${result1.result}`);
+
+  // Test with lenient TLS
+  console.log('Testing with lenient TLS:');
+  const result2 = await verifyMailboxSMTP({
+    local: 'test',
+    domain,
+    mxRecords,
+    options: {
+      ports: [465],
+      timeout: 5000,
+      tls: {
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2',
+      },
+      debug: false,
+    },
+  });
+  console.log(`  Lenient TLS Result: ${result2.result}`);
+  console.log();
+}
+
+// Test 5: Custom SMTP sequences
+async function testCustomSequences() {
+  console.log('=== Testing Custom SMTP Sequences ===\n');
+
+  const domain = 'gmail.com';
+  const mxRecords = testDomains.gmail;
+
+  // Test with VRFY command
+  console.log('Testing with VRFY command:');
+  const result1 = await verifyMailboxSMTP({
+    local: 'test',
+    domain,
+    mxRecords,
+    options: {
+      timeout: 5000,
+      useVRFY: true,
+      debug: false,
+    },
+  });
+  console.log(`  With VRFY Result: ${result1.result}`);
+
+  // Test without VRFY command
+  console.log('Testing without VRFY command:');
+  const result2 = await verifyMailboxSMTP({
+    local: 'test',
+    domain,
+    mxRecords,
+    options: {
+      timeout: 5000,
+      useVRFY: false,
+      debug: false,
+    },
+  });
+  console.log(`  Without VRFY Result: ${result2.result}`);
+  console.log();
+}
+
+// Main test runner
 async function runAllTests() {
-  console.log('Enhanced SMTP Verification Test Suite\n');
-  console.log('=====================================\n');
+  console.log('SMTP Verification Test Suite');
+  console.log('============================\n');
 
   try {
     await testPortConnectivity();
     await testMultiPortWithCaching();
-    await testTLSConfigurations();
-    await testCommandOptions();
-    await testErrorHandling();
+    await testTimeoutHandling();
+    await testTLSConfiguration();
+    await testCustomSequences();
 
-    console.log('All tests completed!');
+    console.log('All tests completed successfully!');
   } catch (error) {
-    console.error('Test suite error:', error);
+    console.error('Test failed with error:', error);
   }
 }
 
-// Run if this file is executed directly
+// Run tests if this file is executed directly
 if (require.main === module) {
   runAllTests();
 }
 
-export { testPortConnectivity, testMultiPortWithCaching, testTLSConfigurations, testCommandOptions, testErrorHandling };
+export {
+  testPortConnectivity,
+  testMultiPortWithCaching,
+  testTimeoutHandling,
+  testTLSConfiguration,
+  testCustomSequences,
+};
