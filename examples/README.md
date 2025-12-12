@@ -46,10 +46,10 @@ yarn test
 
 ## 🔧 Running Examples
 
-### Individual Examples
+### Development with ts-node (Recommended)
 
 ```bash
-# Run basic SMTP usage example
+# Run with ts-node for full type checking during development
 npx ts-node examples/smtp-usage.ts
 
 # Run comprehensive tests
@@ -57,6 +57,25 @@ npx ts-node examples/smtp-test.ts
 
 # Run cache examples
 npx ts-node examples/custom-cache-memory.ts
+
+# Run enhanced SMTP examples
+npx ts-node examples/smtp-enhanced.ts
+npx ts-node examples/smtp-comprehensive-tests.ts
+npx ts-node examples/smtp-sequences.ts
+```
+
+**Note:** ts-node imports from `src/` for development with full type checking. This is the recommended way to run examples during development.
+
+### Direct TypeScript Execution (Future Feature)
+
+The enhanced SMTP features will be available in the next release (v2.14.0) with updated distribution exports. Once released, examples can be run directly:
+
+```bash
+# After v2.14.0 release:
+yarn build
+node --experimental-strip-types examples/smtp-usage.ts
+
+# Requires Node.js 20.10+ or Node.js 21.0+ for --experimental-strip-types support
 ```
 
 ### Testing Specific Features
@@ -72,6 +91,12 @@ testPortConnectivity();
 npx ts-node -e "
 import { testMultiPortWithCaching } from './examples/smtp-test';
 testMultiPortWithCaching();
+"
+
+# Or run directly with --experimental-strip-types
+node --experimental-strip-types -e "
+import { testPortConnectivity } from './examples/smtp-test';
+testPortConnectivity();
 "
 ```
 

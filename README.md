@@ -50,6 +50,14 @@
 
 ✅ **NEW:** RFC 5321 compliant validation
 
+✅ **NEW:** **Enhanced SMTP verification** with TLS/SSL support
+
+✅ **NEW:** **Multi-port testing** (25, 587, 465) with automatic port optimization
+
+✅ **NEW:** **Custom SMTP sequences** and command control (EHLO/HELO, VRFY, STARTTLS)
+
+✅ **NEW:** **Smart caching** for port performance and SMTP results
+
 ✅ **NEW:** Enhanced name detection from email addresses with composite name support
 
 ✅ **NEW:** Domain typo detection and suggestions with caching
@@ -673,6 +681,107 @@ const result = await verifyEmailBatch({
 // result.summary.invalid: 1
 // result.summary.processingTime: 234
 ```
+
+### Enhanced SMTP Verification (NEW)
+```typescript
+import { verifyMailboxSMTP } from '@emailcheck/email-validator-js';
+import { getDefaultCache } from '@emailcheck/email-validator-js';
+
+// Direct SMTP verification with enhanced features
+const { result, port, cached, portCached } = await verifyMailboxSMTP({
+  local: 'user',
+  domain: 'example.com',
+  mxRecords: ['mx.example.com'],
+  options: {
+    ports: [25, 587, 465], // Test multiple ports with TLS support
+    timeout: 5000,
+    cache: getDefaultCache(), // Smart caching for performance
+    debug: false,
+    tls: {
+      rejectUnauthorized: false, // Lenient TLS for compatibility
+      minVersion: 'TLSv1.2',
+    },
+    hostname: 'your-domain.com', // Custom EHLO hostname
+    useVRFY: true, // Enable VRFY command as fallback
+  },
+});
+
+// result: boolean - SMTP verification result
+// port: number - The successful port used
+// cached: boolean - If result was cached
+// portCached: boolean - If port was cached from previous successful attempts
+console.log(`SMTP result: ${result} via port ${port} (cached: ${cached || portCached})`);
+```
+
+### Advanced SMTP Configuration
+```typescript
+import { verifyMailboxSMTP, SMTPStep } from '@emailcheck/email-validator-js';
+
+// Custom SMTP command sequence
+const { result } = await verifyMailboxSMTP({
+  local: 'user',
+  domain: 'example.com',
+  mxRecords: ['mx.example.com'],
+  options: {
+    sequence: {
+      steps: [
+        SMTPStep.GREETING,
+        SMTPStep.EHLO,    // Extended SMTP
+        SMTPStep.STARTTLS, // Upgrade to TLS
+        SMTPStep.MAIL_FROM,
+        SMTPStep.RCPT_TO,
+        SMTPStep.VRFY,    // Additional verification
+      ],
+      from: '<noreply@yourdomain.com>', // Custom MAIL FROM
+    },
+    ports: [587, 465], // Try STARTTLS first, then implicit TLS
+    maxRetries: 2,
+  },
+});
+
+// Port-specific optimization
+const testPorts = async (email: string, mxHosts: string[]) => {
+  const [local, domain] = email.split('@');
+
+  const { result, port, portCached } = await verifyMailboxSMTP({
+    local,
+    domain,
+    mxRecords: mxHosts,
+    options: {
+      cache: getDefaultCache(),
+      // Port order matters: tests in sequence, stops at first success
+      ports: [587, 465, 25], // STARTTLS -> SMTPS -> SMTP
+    },
+  });
+
+  console.log(`Optimal port for ${domain}: ${port} (cached: ${portCached})`);
+  return { result, port };
+};
+```
+
+### Running Examples
+
+**Development (Recommended):**
+```bash
+# Run examples with ts-node for full type checking
+npx ts-node examples/smtp-usage.ts
+npx ts-node examples/smtp-test.ts
+npx ts-node examples/smtp-enhanced.ts
+npx ts-node examples/smtp-comprehensive-tests.ts
+npx ts-node examples/custom-cache-memory.ts
+npx ts-node examples/smtp-sequences.ts
+```
+
+**Direct TypeScript Execution (v2.14.0+):**
+```bash
+# After the next release (v2.14.0) with updated distribution exports:
+yarn build
+node --experimental-strip-types examples/smtp-usage.ts
+
+# Requires Node.js 20.10+ or Node.js 21.0+ for --experimental-strip-types support
+```
+
+**For current development, use `npx ts-node` which imports directly from source files with full type checking.**
 
 ### Name Detection (ENHANCED)
 ```typescript
