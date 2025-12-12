@@ -12,17 +12,19 @@ export const DEFAULT_CACHE_OPTIONS = {
     free: 86400000, // 24 hours
     domainValid: 86400000, // 24 hours
     smtp: 1800000, // 30 minutes
+    smtpPort: 86400000, // 1 hour
     domainSuggestion: 86400000, // 24 hours
     whois: 3600000, // 1 hour
   },
   maxSize: {
-    mx: 500,
-    disposable: 1000,
-    free: 1000,
-    domainValid: 1000,
-    smtp: 500,
-    domainSuggestion: 1000,
-    whois: 200,
+    mx: 10000,
+    disposable: 10000,
+    free: 10000,
+    domainValid: 10000,
+    smtp: 10000,
+    smtpPort: 10000,
+    domainSuggestion: 10000,
+    whois: 10000,
   },
 };
 
@@ -49,6 +51,7 @@ export function getDefaultCache(): ICache {
         DEFAULT_CACHE_OPTIONS.ttl.domainValid
       ),
       smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+      smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
       domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
         DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
         DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion
@@ -78,6 +81,7 @@ export function clearDefaultCache(): void {
     defaultCacheInstance.free.clear();
     defaultCacheInstance.domainValid.clear();
     defaultCacheInstance.smtp.clear();
+    defaultCacheInstance.smtpPort.clear();
     defaultCacheInstance.domainSuggestion.clear();
     defaultCacheInstance.whois.clear();
   }

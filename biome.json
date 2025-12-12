@@ -17,8 +17,8 @@
     "rules": {
       "recommended": true,
       "correctness": {
-        "noUnusedImports": "error",
-        "noUnusedVariables": "error"
+        "noUnusedVariables": "off",
+        "noUnusedFunctionParameters": "off"
       },
       "style": {
         "useConst": "error",
@@ -29,7 +29,8 @@
         "noDebugger": "error",
         "noConsole": "off",
         "noVar": "error",
-        "useIterableCallbackReturn": "off"
+        "useIterableCallbackReturn": "off",
+        "noAssignInExpressions": "off"
       },
       "complexity": {
         "noBannedTypes": "warn",

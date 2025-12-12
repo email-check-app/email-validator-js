@@ -122,6 +122,8 @@ function createCustomCache(): ICache {
   const customCache: ICache = {
     // SMTP cache: smaller size, shorter TTL
     smtp: new CustomMemoryCache(200, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+    // SMTP port cache: small size, longer TTL for port performance
+    smtpPort: new CustomMemoryCache(100, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
     // MX cache: medium size, medium TTL
     mx: new CustomMemoryCache(300, DEFAULT_CACHE_OPTIONS.ttl.mx),
     // Disposable cache: larger size, longer TTL

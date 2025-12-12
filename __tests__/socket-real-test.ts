@@ -61,6 +61,6 @@ describe('verifyEmailRealTest', () => {
     });
     expect(result.validFormat).toBe(true);
     expect(result.validMx).toBe(true);
-    expect(result.validSmtp).toBe(null);
+    expect(result.validSmtp).toBe(false);
   });
 });

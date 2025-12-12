@@ -55,6 +55,7 @@ export interface ICache {
   free: ICacheStore<boolean>;
   domainValid: ICacheStore<boolean>;
   smtp: ICacheStore<boolean | null>;
+  smtpPort: ICacheStore<number>; // Cache for storing successful port per host/domain
   domainSuggestion: ICacheStore<{ suggested: string; confidence: number } | null>;
   whois: ICacheStore<any>;
 }

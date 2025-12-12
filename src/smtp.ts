@@ -1,5 +1,27 @@
 import * as net from 'node:net';
-import type { VerifyMailboxSMTPParams } from './types';
+import * as tls from 'node:tls';
+import { getCacheStore } from './cache';
+import type { SMTPSequence, SMTPTLSConfig, VerifyMailboxSMTPParams } from './types';
+import { SMTPStep } from './types';
+
+/**
+ * Check if a string is an IP address
+ */
+function isIPAddress(host: string): boolean {
+  // IPv4 pattern
+  const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+  if (ipv4Regex.test(host)) {
+    // Check if all octets are <= 255
+    const octets = host.split('.');
+    return octets.every((octet) => parseInt(octet, 10) <= 255);
+  }
+
+  // IPv6 pattern (simplified)
+  const ipv6Regex =
+    /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,7}:$|^(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}$|^(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}$|^(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})$|^::1(?::(?::[0-9a-fA-F]{1,4}){1,7})|$|:(?:(?::[0-9a-fA-F]{1,4}){1,7}:)$/;
+
+  return ipv6Regex.test(host);
+}
 
 /**
  * @param  {String} smtpReply A message from the SMTP server.
@@ -32,149 +54,484 @@ function isMultilineGreet(smtpReply: string): boolean {
   return Boolean(smtpReply && /^(250|220)-/.test(smtpReply));
 }
 
-export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promise<boolean | null> {
-  // Port 587 → STARTTLS
-  // Port 465 → TLS
-  const { local, domain, mxRecords = [], timeout, debug, port = 25, retryAttempts = 1 } = params;
-  const log = debug ? console.debug : (..._args: unknown[]) => {};
+// Default configuration
+const DEFAULT_PORTS = [25, 587, 465]; // Standard SMTP -> STARTTLS -> SMTPS
+const DEFAULT_TIMEOUT = 3000;
+const DEFAULT_MAX_RETRIES = 1;
+
+// Port configurations
+const PORT_CONFIGS = {
+  25: { tls: false, starttls: true },
+  587: { tls: false, starttls: true },
+  465: { tls: true, starttls: false },
+} as const;
+
+export async function verifyMailboxSMTP(
+  params: VerifyMailboxSMTPParams
+): Promise<{ result: boolean | null; cached: boolean; port: number; portCached: boolean }> {
+  const { local, domain, mxRecords = [], options = {} } = params;
+
+  const {
+    ports = DEFAULT_PORTS,
+    timeout = DEFAULT_TIMEOUT,
+    maxRetries = DEFAULT_MAX_RETRIES,
+    tls: tlsConfig = true,
+    hostname = 'localhost',
+    useVRFY = true,
+    cache,
+    debug = false,
+    sequence,
+  } = options;
+
+  const log = debug ? (...args: any[]) => console.log('[SMTP]', ...args) : () => {};
 
   if (!mxRecords || mxRecords.length === 0) {
-    return false;
+    log('No MX records found');
+    return { result: false, cached: false, port: 0, portCached: false };
   }
 
-  // Only try the first MX record
-  const mxIndex = 0;
-  const mxRecord = mxRecords[mxIndex];
+  const mxHost = mxRecords[0]; // Use highest priority MX
+  log(`Verifying ${local}@${domain} via ${mxHost}`);
 
-  // Retry logic for the MX record
-  for (let attempt = 0; attempt < retryAttempts; attempt++) {
-    const result = await attemptVerification({
-      mxRecord,
-      local,
-      domain,
-      port,
-      timeout,
-      log,
-      attempt,
-    });
+  // Get cache store from cache parameter
+  const smtpCacheStore = cache ? getCacheStore<boolean | null>(cache, 'smtp') : null;
 
-    if (result !== null) {
-      return result;
-    }
-
-    // Wait before retry
-    if (attempt < retryAttempts - 1) {
-      await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * (attempt + 1), 3000)));
+  if (smtpCacheStore) {
+    let cachedResult: boolean | null | undefined;
+    try {
+      cachedResult = await smtpCacheStore.get(`${mxHost}:${local}@${domain}`);
+      if (cachedResult !== undefined) {
+        log(`Using cached SMTP result: ${cachedResult}`);
+        return {
+          result: typeof cachedResult === 'boolean' ? cachedResult : null,
+          cached: true,
+          port: 0,
+          portCached: false,
+        };
+      }
+    } catch (_error) {
+      // Cache error, continue with processing
+      cachedResult = undefined;
     }
   }
 
-  return null;
+  const smtpPortCacheStore = cache ? getCacheStore<number>(cache, 'smtpPort') : null;
+
+  // Check cache first - use mxHost as key to cache per host
+  if (smtpPortCacheStore) {
+    let cachedPort: number | null | undefined;
+    try {
+      cachedPort = await smtpPortCacheStore.get(mxHost);
+    } catch (_error) {
+      // Cache error, continue with processing
+      cachedPort = null;
+    }
+
+    if (cachedPort) {
+      log(`Using cached port: ${cachedPort}`);
+      const result = await testSMTPConnection({
+        mxHost,
+        port: cachedPort,
+        local,
+        domain,
+        timeout,
+        tlsConfig,
+        hostname,
+        useVRFY,
+        sequence,
+        log,
+      });
+
+      // Cache the SMTP result (cache even null results)
+      if (smtpCacheStore && result !== undefined) {
+        try {
+          await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, result);
+          log(`Cached SMTP result ${result} for ${local}@${domain} via ${mxHost}`);
+        } catch (_error) {
+          // Cache error, ignore it
+        }
+      }
+
+      return { result, cached: false, port: cachedPort, portCached: true };
+    }
+  }
+
+  // Test each port in order
+  for (const port of ports) {
+    log(`Testing port ${port}`);
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      if (attempt > 0) {
+        const delay = Math.min(1000 * 2 ** (attempt - 1), 5000);
+        log(`Retry ${attempt + 1}, waiting ${delay}ms`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
+      const result = await testSMTPConnection({
+        mxHost,
+        port,
+        local,
+        domain,
+        timeout,
+        tlsConfig,
+        hostname,
+        useVRFY,
+        sequence,
+        log,
+      });
+
+      // Cache the SMTP result (cache even null results)
+      if (smtpCacheStore && result !== undefined) {
+        try {
+          await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, result);
+          log(`Cached SMTP result ${result} for ${local}@${domain} via ${mxHost}`);
+        } catch (_error) {
+          // Cache error, ignore it
+        }
+      }
+
+      if (result !== null) {
+        if (smtpPortCacheStore) {
+          try {
+            await smtpPortCacheStore.set(mxHost, port);
+            log(`Cached port ${port} for ${mxHost}`);
+          } catch (_error) {
+            // Cache error, ignore it
+          }
+        }
+        return { result, cached: false, port, portCached: false };
+      }
+    }
+  }
+
+  log('All ports failed');
+  return { result: null, cached: false, port: 0, portCached: false };
 }
 
-async function attemptVerification(params: {
-  mxRecord: string;
+interface ConnectionTestParams {
+  mxHost: string;
+  port: number;
   local: string;
   domain: string;
-  port: number;
   timeout: number;
-  log: (...args: unknown[]) => void;
-  attempt: number;
-}): Promise<boolean | null> {
-  const { mxRecord, local, domain, port, timeout, log, attempt } = params;
+  tlsConfig: boolean | SMTPTLSConfig;
+  hostname: string;
+  useVRFY: boolean;
+  sequence?: SMTPSequence;
+  log: (...args: any[]) => void;
+}
+
+async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean | null> {
+  const { mxHost, port, local, domain, timeout, tlsConfig, hostname, useVRFY, sequence, log } = params;
+
+  const portConfig = PORT_CONFIGS[port as keyof typeof PORT_CONFIGS] || { tls: false, starttls: false };
+  const useTLS = tlsConfig !== false && (portConfig.tls || portConfig.starttls);
+  const implicitTLS = portConfig.tls;
+
+  // Default sequence if not provided
+  const defaultSequence: SMTPSequence = {
+    steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+  };
+  const activeSequence = sequence || defaultSequence;
+
+  // For port 25, use HELO instead of EHLO (original behavior)
+  if (port === 25) {
+    activeSequence.steps = activeSequence.steps.map((step) => (step === SMTPStep.EHLO ? SMTPStep.HELO : step));
+  }
+
+  const tlsOptions: tls.ConnectionOptions = {
+    host: mxHost,
+    servername: isIPAddress(mxHost) ? undefined : mxHost, // Don't set servername for IP addresses
+    rejectUnauthorized: false,
+    minVersion: 'TLSv1.2',
+    ...(typeof tlsConfig === 'object' ? tlsConfig : {}),
+  };
 
   return new Promise((resolve) => {
-    log(`[verifyMailboxSMTP] connecting to ${mxRecord}:${port} (attempt ${attempt + 1})`);
-    const socket = net.connect({
-      host: mxRecord,
-      port,
-    });
-
-    let resTimeout: NodeJS.Timeout | null = null;
+    let socket: net.Socket | tls.TLSSocket;
+    let buffer = '';
+    let isTLS = implicitTLS;
+    let currentStepIndex = 0;
     let resolved = false;
-    let cleaned = false;
+    let supportsSTARTTLS = false;
+    let supportsVRFY = false;
 
     const cleanup = () => {
-      if (cleaned) return;
-      cleaned = true;
-
-      if (resTimeout) {
-        clearTimeout(resTimeout);
-        resTimeout = null;
-      }
-
-      if (socket && !socket.destroyed) {
-        socket.removeAllListeners();
-        socket.destroy();
-      }
-    };
-
-    const ret = (result: boolean | null) => {
       if (resolved) return;
       resolved = true;
 
-      if (!socket?.destroyed) {
-        log('[verifyMailboxSMTP] closing socket');
+      try {
         socket?.write('QUIT\r\n');
-        socket?.end();
-      }
+      } catch {}
 
+      setTimeout(() => socket?.destroy(), 100);
+    };
+
+    const finish = (result: boolean | null, reason?: string) => {
+      if (resolved) return;
+      log(`${port}: ${reason || (result ? 'valid' : 'invalid')}`);
       cleanup();
       resolve(result);
     };
 
-    const messages = [`HELO ${domain}`, `MAIL FROM: <>`, `RCPT TO: <${local}@${domain}>`];
-    log('[verifyMailboxSMTP] writing messages', messages);
-    socket.on('data', (data: string) => {
-      const dataString = String(data);
-      log('[verifyMailboxSMTP] got data', dataString);
+    const sendCommand = (cmd: string) => {
+      if (resolved) return;
+      log(`→ ${cmd}`);
+      socket?.write(`${cmd}\r\n`);
+    };
 
-      if (isInvalidMailboxError(dataString)) {
-        log('[verifyMailboxSMTP] invalid mailbox error detected');
-        return ret(false);
+    const nextStep = () => {
+      currentStepIndex++;
+      if (currentStepIndex >= activeSequence.steps.length) {
+        finish(true, 'sequence_complete');
+        return;
       }
-      if (isOverQuota(dataString)) {
-        log('[verifyMailboxSMTP] mailbox over quota');
-        return ret(false);
+      executeStep(activeSequence.steps[currentStepIndex]);
+    };
+
+    const executeStep = (step: SMTPStep) => {
+      if (resolved) return;
+
+      switch (step) {
+        case SMTPStep.EHLO:
+          sendCommand(`EHLO ${hostname}`);
+          break;
+        case SMTPStep.HELO:
+          sendCommand(`HELO ${domain}`);
+          break;
+        case SMTPStep.GREETING:
+          // No command to send, wait for server greeting
+          break;
+        case SMTPStep.STARTTLS:
+          sendCommand('STARTTLS');
+          break;
+        case SMTPStep.MAIL_FROM: {
+          const from = activeSequence.from || '<>';
+          sendCommand(`MAIL FROM:${from}`);
+          break;
+        }
+        case SMTPStep.RCPT_TO:
+          sendCommand(`RCPT TO:<${local}@${domain}>`);
+          break;
+        case SMTPStep.VRFY: {
+          const vrfyTarget = activeSequence.vrfyTarget || local;
+          sendCommand(`VRFY ${vrfyTarget}`);
+          break;
+        }
+        case SMTPStep.QUIT:
+          sendCommand('QUIT');
+          break;
       }
-      if (!dataString.includes('220') && !dataString.includes('250')) {
-        log('[verifyMailboxSMTP] unrecognized response, returning null');
-        return ret(null);
+    };
+
+    const processResponse = (response: string) => {
+      if (resolved) return;
+
+      const code = response.substring(0, 3);
+      const isMultiline = response.length > 3 && response[3] === '-';
+      log(`← ${response}`);
+
+      // Handle multiline greetings properly (original behavior)
+      if (isMultilineGreet(response)) {
+        return;
       }
 
-      if (isMultilineGreet(dataString)) return;
-
-      if (messages.length > 0) {
-        const message = messages.shift();
-        log('[verifyMailboxSMTP] writing message', message);
-        return socket.write(`${message}\r\n`);
+      // Apply original logic for over quota and invalid mailbox errors (check before multiline handling)
+      if (isOverQuota(response)) {
+        finish(false, 'over_quota');
+        return;
       }
 
-      ret(true);
+      if (isInvalidMailboxError(response)) {
+        finish(false, 'not_found');
+        return;
+      }
+
+      // Skip multiline continuation for EHLO responses
+      if (isMultiline) {
+        const currentStep = activeSequence.steps[currentStepIndex];
+        if (currentStep === SMTPStep.EHLO && code === '250') {
+          const upper = response.toUpperCase();
+          if (upper.includes('STARTTLS')) supportsSTARTTLS = true;
+          if (upper.includes('VRFY')) supportsVRFY = true;
+        }
+        if (currentStep === SMTPStep.HELO && code === '250') {
+          const upper = response.toUpperCase();
+          if (upper.includes('VRFY')) supportsVRFY = true;
+        }
+        return;
+      }
+
+      // Check for recognized responses
+      if (
+        !response.includes('220') &&
+        !response.includes('250') &&
+        !response.includes('550') &&
+        !response.includes('552')
+      ) {
+        finish(null, 'unrecognized_response');
+        return;
+      }
+
+      const currentStep = activeSequence.steps[currentStepIndex];
+
+      // Process response based on current step
+      switch (currentStep) {
+        case SMTPStep.GREETING:
+          if (code.startsWith('220')) {
+            nextStep();
+          } else {
+            finish(null, 'no_greeting');
+          }
+          break;
+
+        case SMTPStep.EHLO:
+          if (code.startsWith('250')) {
+            // Check if we need STARTTLS
+            const hasSTARTTLS = activeSequence.steps.includes(SMTPStep.STARTTLS);
+            if (!isTLS && useTLS && supportsSTARTTLS && !implicitTLS && hasSTARTTLS) {
+              // Jump to STARTTLS step
+              currentStepIndex = activeSequence.steps.indexOf(SMTPStep.STARTTLS);
+              executeStep(SMTPStep.STARTTLS);
+            } else {
+              nextStep();
+            }
+          } else {
+            finish(null, 'ehlo_failed');
+          }
+          break;
+
+        case SMTPStep.HELO:
+          if (code.startsWith('250')) {
+            nextStep();
+          } else {
+            finish(null, 'helo_failed');
+          }
+          break;
+
+        case SMTPStep.STARTTLS:
+          if (code.startsWith('220')) {
+            // Upgrade to TLS
+            const plainSocket = socket as net.Socket;
+            socket = tls.connect(
+              {
+                ...tlsOptions,
+                socket: plainSocket,
+                servername: isIPAddress(mxHost) ? undefined : mxHost,
+              },
+              () => {
+                isTLS = true;
+                log('TLS upgraded');
+                buffer = '';
+                // Continue with next step after STARTTLS
+                const starttlsIndex = activeSequence.steps.indexOf(SMTPStep.STARTTLS);
+                currentStepIndex = starttlsIndex;
+                nextStep();
+              }
+            );
+            socket.on('data', handleData);
+            socket.on('error', () => finish(null, 'tls_error'));
+          } else {
+            // STARTTLS failed, continue to next step
+            nextStep();
+          }
+          break;
+
+        case SMTPStep.MAIL_FROM:
+          if (code.startsWith('250')) {
+            nextStep();
+          } else {
+            finish(null, 'mail_from_rejected');
+          }
+          break;
+
+        case SMTPStep.RCPT_TO:
+          if (code.startsWith('250') || code.startsWith('251')) {
+            finish(true, 'valid');
+          } else if (code.startsWith('552') || code.startsWith('452')) {
+            finish(false, 'over_quota');
+          } else if (code.startsWith('4')) {
+            finish(null, 'temporary_failure');
+          } else if (useVRFY && supportsVRFY && code.startsWith('5') && activeSequence.steps.includes(SMTPStep.VRFY)) {
+            // Jump to VRFY step
+            currentStepIndex = activeSequence.steps.indexOf(SMTPStep.VRFY);
+            executeStep(SMTPStep.VRFY);
+          } else {
+            finish(null, 'ambiguous');
+          }
+          break;
+
+        case SMTPStep.VRFY:
+          if (code.startsWith('250') || code.startsWith('252')) {
+            finish(true, 'vrfy_valid');
+          } else if (code.startsWith('550')) {
+            finish(false, 'vrfy_invalid');
+          } else {
+            finish(null, 'vrfy_failed');
+          }
+          break;
+
+        case SMTPStep.QUIT:
+          if (code.startsWith('221')) {
+            finish(null, 'quit_received');
+          }
+          break;
+      }
+    };
+
+    const handleData = (data: Buffer) => {
+      if (resolved) return;
+
+      buffer += data.toString();
+      let pos: number;
+      while ((pos = buffer.indexOf('\r\n')) !== -1) {
+        const line = buffer.substring(0, pos);
+        buffer = buffer.substring(pos + 2);
+        processResponse(line.trim());
+      }
+    };
+
+    // Validate port
+    if (port < 0 || port > 65535 || !Number.isInteger(port)) {
+      finish(null, 'invalid_port');
+      return;
+    }
+
+    // Create connection
+    if (implicitTLS) {
+      const connectOptions = {
+        ...tlsOptions,
+        port,
+        servername: isIPAddress(mxHost) ? undefined : mxHost,
+      };
+      socket = tls.connect(connectOptions, () => {
+        log(`Connected to ${mxHost}:${port} with TLS`);
+        socket.on('data', handleData);
+      });
+    } else {
+      socket = net.connect({ host: mxHost, port }, () => {
+        log(`Connected to ${mxHost}:${port}`);
+        socket.on('data', handleData);
+      });
+    }
+
+    // Start with the first step
+    if (activeSequence.steps.length === 0) {
+      // Empty sequence - consider it complete
+      finish(true, 'sequence_complete');
+      return;
+    }
+
+    const firstStep = activeSequence.steps[0];
+    if (firstStep !== SMTPStep.GREETING) {
+      // If sequence doesn't start with GREETING, start with the specified step
+      executeStep(firstStep);
+    }
+
+    socket.setTimeout(timeout, () => finish(null, 'timeout'));
+    socket.on('error', () => finish(null, 'connection_error'));
+    socket.on('close', () => {
+      if (!resolved) finish(null, 'connection_closed');
     });
-
-    socket.on('error', (err) => {
-      log('[verifyMailboxSMTP] error in socket', err);
-      ret(null);
-    });
-
-    socket.on('close', (err) => {
-      if (!resolved) {
-        log('[verifyMailboxSMTP] close socket', err);
-        ret(null);
-      }
-    });
-
-    socket.on('timeout', () => {
-      log('[verifyMailboxSMTP] timeout socket');
-      ret(null);
-    });
-
-    resTimeout = setTimeout(() => {
-      log(`[verifyMailboxSMTP] timed out (${timeout} ms)`);
-      if (!resolved) {
-        socket.destroy();
-        ret(null);
-      }
-    }, timeout);
   });
 }

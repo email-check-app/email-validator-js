@@ -57,6 +57,11 @@ function createRedisCache(): ICache {
       keyPrefix: 'email:smtp:',
       defaultTtlMs: DEFAULT_CACHE_OPTIONS.ttl.smtp,
     }),
+    // SMTP port cache: longer TTL for port performance
+    smtpPort: new RedisAdapter(mockRedisClient, {
+      keyPrefix: 'email:smtp_port:',
+      defaultTtlMs: DEFAULT_CACHE_OPTIONS.ttl.smtpPort,
+    }),
     // MX cache: medium TTL for MX records
     mx: new RedisAdapter(mockRedisClient, {
       keyPrefix: 'email:mx:',
