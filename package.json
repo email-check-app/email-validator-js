@@ -33,6 +33,11 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./check-if-email-exists": {
+      "require": "./dist/check-if-email-exists.js",
+      "import": "./dist/check-if-email-exists.js",
+      "types": "./dist/check-if-email-exists.d.ts"
+    },
     "./serverless": {
       "require": "./dist/serverless/index.js",
       "import": "./dist/serverless/index.js",
