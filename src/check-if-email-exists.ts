@@ -1,118 +1,47 @@
 import { promises as dns } from 'node:dns';
 import type { ICache } from './cache-interface';
+import {
+  CheckIfEmailExistsCoreResult,
+  CheckIfEmailExistsSmtpOptions,
+  EmailProvider,
+  type EmailSyntaxResult,
+  HeadlessOptions,
+  ICheckIfEmailExistsCoreParams,
+  MxLookupResult,
+  SmtpVerificationResult,
+  VerificationMetrics,
+  YahooApiOptions,
+} from './email-verifier-types';
 import { isDisposableEmail, isFreeEmail } from './index';
 import type { IVerifyEmailParams } from './types';
 
 // Constants for common providers
 export const CHECK_IF_EMAIL_EXISTS_CONSTANTS = {
-  GMAIL_DOMAINS: ['gmail.com', 'googlemail.com'],
-  YAHOO_DOMAINS: ['yahoo.com', 'ymail.com', 'rocketmail.com'],
-  HOTMAIL_DOMAINS: ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'],
+  GMAIL_DOMAINS: ['gmail.com', 'googlemail.com'] as const,
+  YAHOO_DOMAINS: ['yahoo.com', 'ymail.com', 'rocketmail.com'] as const,
+  HOTMAIL_DOMAINS: ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'] as const,
   DEFAULT_TIMEOUT: 30000,
   DEFAULT_SMTP_PORT: 25,
   DEFAULT_FROM_EMAIL: 'test@example.com',
   DEFAULT_HELLO_NAME: 'example.com',
 } as const;
 
-/**
- * Email providers as defined in the original Rust implementation
- */
-export enum EmailProvider {
-  GMAIL = 'gmail',
-  HOTMAIL_B2B = 'hotmail_b2b',
-  HOTMAIL_B2C = 'hotmail_b2c',
-  PROOFPOINT = 'proofpoint',
-  MIMECAST = 'mimecast',
-  YAHOO = 'yahoo',
-  EVERYTHING_ELSE = 'everything_else',
-}
+// Re-export types for backward compatibility
+export {
+  EmailProvider,
+  SmtpVerificationResult,
+  MxLookupResult,
+  CheckIfEmailExistsCoreResult,
+  CheckIfEmailExistsSmtpOptions,
+  YahooApiOptions,
+  HeadlessOptions,
+  ICheckIfEmailExistsCoreParams,
+};
 
 /**
- * SMTP verification result matching the original SmtpDetails structure
+ * Extended interface for our implementation
  */
-export interface SmtpVerificationResult {
-  can_connect_smtp: boolean;
-  has_full_inbox: boolean;
-  is_catch_all: boolean;
-  is_deliverable: boolean;
-  is_disabled: boolean;
-  error?: string;
-  provider_used?: EmailProvider;
-  // Additional properties for compatibility
-  success?: boolean;
-  can_connect?: boolean;
-}
-
-/**
- * MX record lookup result
- */
-export interface MxLookupResult {
-  success: boolean;
-  records: Array<{ exchange: string; priority: number }>;
-  lowest_priority?: { exchange: string; priority: number };
-  error?: string;
-  code?: string;
-}
-
-/**
- * Complete check-if-email-exists result
- */
-export interface CheckIfEmailExistsCoreResult {
-  email: string;
-  is_reachable: 'safe' | 'invalid' | 'risky' | 'unknown';
-  syntax: {
-    is_valid: boolean;
-    domain?: string;
-    local_part?: string;
-    error?: string;
-  };
-  mx: MxLookupResult | null;
-  smtp: SmtpVerificationResult | null;
-  misc: {
-    is_disposable: boolean;
-    is_free: boolean;
-    provider_type: EmailProvider;
-  } | null;
-  duration: number;
-  error?: string;
-}
-
-/**
- * SMTP connection options
- */
-export interface CheckIfEmailExistsSmtpOptions {
-  timeout?: number;
-  port?: number;
-  retries?: number;
-  fromEmail?: string;
-  helloName?: string;
-  useStartTls?: boolean;
-}
-
-/**
- * Yahoo API verification options
- */
-export interface YahooApiOptions {
-  timeout?: number;
-  userAgent?: string;
-  retryAttempts?: number;
-  proxyUrl?: string;
-}
-
-/**
- * Headless browser verification options
- */
-export interface HeadlessOptions {
-  webdriverEndpoint?: string;
-  timeout?: number;
-  retryAttempts?: number;
-  screenshot?: boolean;
-}
-
-/**
- * Enhanced verification parameters for check-if-email-exists functionality
- */
-export interface ICheckIfEmailExistsCoreParams extends Omit<IVerifyEmailParams, 'cache'> {
+export interface ICheckIfEmailExistsCoreParamsExtended extends ICheckIfEmailExistsCoreParams {
   cache?: ICache | null;
   smtpTimeout?: number;
   fromEmail?: string;
@@ -129,13 +58,7 @@ export interface ICheckIfEmailExistsCoreParams extends Omit<IVerifyEmailParams, 
 /**
  * Enhanced syntax validation with RFC 5321 compliance
  */
-export function validateEmailSyntax(email: string): {
-  is_valid: boolean;
-  email?: string;
-  local_part?: string;
-  domain?: string;
-  error?: string;
-} {
+export function validateEmailSyntax(email: string): EmailSyntaxResult {
   if (!email || typeof email !== 'string') {
     return {
       is_valid: false,
@@ -299,9 +222,11 @@ export function getProviderFromMxHost(host: string): EmailProvider {
 export function getProviderType(domain: string): EmailProvider {
   const { GMAIL_DOMAINS, YAHOO_DOMAINS, HOTMAIL_DOMAINS } = CHECK_IF_EMAIL_EXISTS_CONSTANTS;
 
-  if (GMAIL_DOMAINS.some((d) => domain === d)) return EmailProvider.GMAIL;
-  if (YAHOO_DOMAINS.some((d) => domain === d)) return EmailProvider.YAHOO;
-  if (HOTMAIL_DOMAINS.some((d) => domain === d)) return EmailProvider.HOTMAIL_B2C;
+  const lowerDomain = domain.toLowerCase();
+
+  if (GMAIL_DOMAINS.some((d) => lowerDomain === d)) return EmailProvider.GMAIL;
+  if (YAHOO_DOMAINS.some((d) => lowerDomain === d)) return EmailProvider.YAHOO;
+  if (HOTMAIL_DOMAINS.some((d) => lowerDomain === d)) return EmailProvider.HOTMAIL_B2C;
   return EmailProvider.EVERYTHING_ELSE;
 }
 
@@ -1075,7 +1000,7 @@ async function verifySmtpConnectionWithProviderOptimizations(
  * Main function to check if an email
  */
 export async function checkIfEmailExistsCore(
-  params: ICheckIfEmailExistsCoreParams
+  params: ICheckIfEmailExistsCoreParamsExtended
 ): Promise<CheckIfEmailExistsCoreResult> {
   // Handle null/undefined params
   if (!params) {
@@ -1411,14 +1336,15 @@ async function verifyYahooApi(
   }
 
   // Yahoo signup endpoint URLs (from original implementation)
-  const signupUrl = 'https://login.yahoo.com/account/module/create?specId=yidReg&lang=en-US&src=&done=https%3A%2F%2Fwww.yahoo.com&acrumb=&intl=us&contextId=signUp';
+  const signupUrl =
+    'https://login.yahoo.com/account/module/create?specId=yidReg&lang=en-US&src=&done=https%3A%2F%2Fwww.yahoo.com&acrumb=&intl=us&contextId=signUp';
 
   const headers = {
     'User-Agent': userAgent,
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.5',
     'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
+    Connection: 'keep-alive',
     'Upgrade-Insecure-Requests': '1',
     'Sec-Fetch-Dest': 'document',
     'Sec-Fetch-Mode': 'navigate',
@@ -1435,7 +1361,7 @@ async function verifyYahooApi(
       method: 'GET',
       headers,
       signal: controller.signal,
-      // @ts-ignore - Node.js fetch might not support agent in all versions
+      // @ts-expect-error - Node.js fetch might not support agent in all versions
       agent: proxyUrl ? new (await import('https-proxy-agent')).HttpsProxyAgent(proxyUrl) : undefined,
     });
 
@@ -1471,17 +1397,17 @@ async function verifyYahooApi(
     const validateHeaders = {
       ...headers,
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Referer': signupUrl,
-      'Cookie': cookies,
+      Referer: signupUrl,
+      Cookie: cookies,
     };
 
     // Prepare form data for email validation
     const validateData = new URLSearchParams({
-      'acrumb': '', // Would need to extract from page
-      'sessionIndex': '',
-      'specId': 'yidReg',
-      'user': email.split('@')[0], // Username part
-      'domain': domain,
+      acrumb: '', // Would need to extract from page
+      sessionIndex: '',
+      specId: 'yidReg',
+      user: email.split('@')[0], // Username part
+      domain: domain,
     });
 
     // Make validation request
@@ -1497,7 +1423,7 @@ async function verifyYahooApi(
     // Parse Yahoo's response to determine if email exists
     // Yahoo typically returns JSON with error codes for existing accounts
     let isDeliverable = false;
-    let error = undefined;
+    let error: string | undefined;
 
     try {
       const resultJson = JSON.parse(validateResult);
@@ -1521,9 +1447,11 @@ async function verifyYahooApi(
       }
     } catch (parseError) {
       // If we can't parse JSON, check for known error strings in response
-      if (validateResult.includes('IDENTIFIER_NOT_AVAILABLE') ||
-          validateResult.includes('IDENTIFIER_ALREADY_EXISTS') ||
-          validateResult.includes('This Yahoo ID is already taken')) {
+      if (
+        validateResult.includes('IDENTIFIER_NOT_AVAILABLE') ||
+        validateResult.includes('IDENTIFIER_ALREADY_EXISTS') ||
+        validateResult.includes('This Yahoo ID is already taken')
+      ) {
         isDeliverable = true;
       } else {
         error = 'Could not parse Yahoo response';
@@ -1538,7 +1466,6 @@ async function verifyYahooApi(
         response_text: validateResult.slice(0, 500), // First 500 chars for debugging
       },
     };
-
   } catch (error: any) {
     clearTimeout(timeoutId);
 
@@ -1728,7 +1655,7 @@ class HeadlessBrowser {
         return await this.findElement(sessionId, using, value);
       } catch (error) {
         // Element not found, wait and retry
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
 
@@ -1778,22 +1705,13 @@ class HeadlessBrowser {
           switch (action.type) {
             case 'waitFor':
               if (action.selector && action.using) {
-                await this.waitForElement(
-                  sessionId,
-                  action.using,
-                  action.selector,
-                  action.timeout
-                );
+                await this.waitForElement(sessionId, action.using, action.selector, action.timeout);
               }
               break;
 
             case 'type':
               if (action.selector) {
-                const elementId = await this.waitForElement(
-                  sessionId,
-                  action.using || 'css selector',
-                  action.selector
-                );
+                const elementId = await this.waitForElement(sessionId, action.using || 'css selector', action.selector);
                 if (elementId && action.text) {
                   await this.typeText(sessionId, elementId, action.text);
                 }
@@ -1802,11 +1720,7 @@ class HeadlessBrowser {
 
             case 'click':
               if (action.selector) {
-                const elementId = await this.waitForElement(
-                  sessionId,
-                  action.using || 'css selector',
-                  action.selector
-                );
+                const elementId = await this.waitForElement(sessionId, action.using || 'css selector', action.selector);
                 if (elementId) {
                   await this.clickElement(sessionId, elementId);
                 }
@@ -1825,7 +1739,7 @@ class HeadlessBrowser {
         if (step.successIndicators || step.errorIndicators) {
           const pageText = await this.executeScript(sessionId, 'return document.body.innerText');
 
-          if (step.successIndicators?.some(indicator => pageText.includes(indicator))) {
+          if (step.successIndicators?.some((indicator) => pageText.includes(indicator))) {
             return {
               success: true,
               email_exists: true,
@@ -1833,7 +1747,7 @@ class HeadlessBrowser {
             };
           }
 
-          if (step.errorIndicators?.some(indicator => pageText.includes(indicator))) {
+          if (step.errorIndicators?.some((indicator) => pageText.includes(indicator))) {
             return {
               success: true,
               email_exists: false,
@@ -1848,7 +1762,6 @@ class HeadlessBrowser {
         error: 'Could not determine email existence from page content',
         screenshot: screenshot ? await this.takeScreenshot(sessionId) : undefined,
       };
-
     } catch (error: any) {
       return {
         success: false,
@@ -1865,10 +1778,7 @@ class HeadlessBrowser {
 /**
  * Yahoo headless verification using browser automation
  */
-async function verifyYahooHeadless(
-  email: string,
-  options: HeadlessOptions = {}
-): Promise<HeadlessBrowserResult> {
+async function verifyYahooHeadless(email: string, options: HeadlessOptions = {}): Promise<HeadlessBrowserResult> {
   const browser = new HeadlessBrowser(options);
 
   const verificationSteps = [
@@ -1897,16 +1807,8 @@ async function verifyYahooHeadless(
           timeout: 15000,
         },
       ],
-      successIndicators: [
-        'account exists',
-        'verification method',
-        'confirm your identity',
-      ],
-      errorIndicators: [
-        "account doesn't exist",
-        'account not found',
-        'invalid username',
-      ],
+      successIndicators: ['account exists', 'verification method', 'confirm your identity'],
+      errorIndicators: ["account doesn't exist", 'account not found', 'invalid username'],
     },
   ];
 
@@ -1916,10 +1818,7 @@ async function verifyYahooHeadless(
 /**
  * Gmail headless verification using browser automation
  */
-async function verifyGmailHeadless(
-  email: string,
-  options: HeadlessOptions = {}
-): Promise<HeadlessBrowserResult> {
+async function verifyGmailHeadless(email: string, options: HeadlessOptions = {}): Promise<HeadlessBrowserResult> {
   const browser = new HeadlessBrowser(options);
 
   const verificationSteps = [
@@ -1948,16 +1847,8 @@ async function verifyGmailHeadless(
           timeout: 15000,
         },
       ],
-      successIndicators: [
-        'confirm your recovery information',
-        'recovery options',
-        'enter your password',
-      ],
-      errorIndicators: [
-        "account doesn't exist",
-        'couldnt find your google account',
-        'google account not found',
-      ],
+      successIndicators: ['confirm your recovery information', 'recovery options', 'enter your password'],
+      errorIndicators: ["account doesn't exist", 'couldnt find your google account', 'google account not found'],
     },
   ];
 
@@ -1968,7 +1859,7 @@ async function verifyGmailHeadless(
  * Provider-specific SMTP error parsing and analysis
  * Based on the original Rust implementation's error parsing modules
  */
-interface ParsedSmtpError {
+export interface ParsedSmtpError {
   type: 'disabled' | 'full_inbox' | 'unknown' | 'invalid' | 'catch_all' | 'rate_limited' | 'blocked';
   severity: 'permanent' | 'temporary' | 'unknown';
   message: string;
@@ -1984,40 +1875,39 @@ class SmtpErrorParser {
   /**
    * Parse SMTP error messages with provider-specific context
    */
-  static parseError(
-    smtpMessage: string,
-    provider: EmailProvider,
-    responseCode?: number
-  ): ParsedSmtpError {
+  static parseError(smtpMessage: string, provider: EmailProvider, responseCode?: number): ParsedSmtpError {
     const normalizedMessage = smtpMessage.toLowerCase().trim();
 
-    // Generic error patterns first
-    const genericResult = this.parseGenericErrors(normalizedMessage, smtpMessage, responseCode);
+    // Provider-specific parsing first
+    switch (provider) {
+      case EmailProvider.GMAIL:
+        return SmtpErrorParser.parseGmailError(normalizedMessage, smtpMessage, responseCode);
+      case EmailProvider.YAHOO:
+        return SmtpErrorParser.parseYahooError(normalizedMessage, smtpMessage, responseCode);
+      case EmailProvider.HOTMAIL_B2C:
+      case EmailProvider.HOTMAIL_B2B:
+        return SmtpErrorParser.parseHotmailError(normalizedMessage, smtpMessage, responseCode);
+      case EmailProvider.PROOFPOINT:
+        return SmtpErrorParser.parseProofpointError(normalizedMessage, smtpMessage, responseCode);
+      case EmailProvider.MIMECAST:
+        return SmtpErrorParser.parseMimecastError(normalizedMessage, smtpMessage, responseCode);
+      default:
+        break;
+    }
+
+    // Generic error patterns fallback
+    const genericResult = SmtpErrorParser.parseGenericErrors(normalizedMessage, smtpMessage, responseCode);
     if (genericResult.type !== 'unknown') {
       return genericResult;
     }
 
-    // Provider-specific parsing
-    switch (provider) {
-      case EmailProvider.GMAIL:
-        return this.parseGmailError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.YAHOO:
-        return this.parseYahooError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.HOTMAIL_B2C:
-      case EmailProvider.HOTMAIL_B2B:
-        return this.parseHotmailError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.PROOFPOINT:
-        return this.parseProofpointError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.MIMECAST:
-        return this.parseMimecastError(normalizedMessage, smtpMessage, responseCode);
-      default:
-        return {
-          type: 'unknown',
-          severity: 'unknown',
-          message: 'Unknown SMTP error',
-          originalMessage: smtpMessage,
-        };
-    }
+    // Unknown error
+    return {
+      type: 'unknown',
+      severity: 'unknown',
+      message: 'Unknown SMTP error',
+      originalMessage: smtpMessage,
+    };
   }
 
   /**
@@ -2029,11 +1919,13 @@ class SmtpErrorParser {
     responseCode?: number
   ): ParsedSmtpError {
     // Disabled account errors
-    if (normalizedMessage.includes('disabled') ||
-        normalizedMessage.includes('deactivated') ||
-        normalizedMessage.includes('suspended') ||
-        normalizedMessage.includes('account disabled') ||
-        responseCode === 550) {
+    if (
+      normalizedMessage.includes('disabled') ||
+      normalizedMessage.includes('deactivated') ||
+      normalizedMessage.includes('suspended') ||
+      normalizedMessage.includes('account disabled') ||
+      responseCode === 550
+    ) {
       return {
         type: 'disabled',
         severity: 'permanent',
@@ -2043,11 +1935,13 @@ class SmtpErrorParser {
     }
 
     // Full inbox errors
-    if (normalizedMessage.includes('full') ||
-        normalizedMessage.includes('quota exceeded') ||
-        normalizedMessage.includes('mailbox full') ||
-        normalizedMessage.includes('over quota') ||
-        responseCode === 552) {
+    if (
+      normalizedMessage.includes('full') ||
+      normalizedMessage.includes('quota exceeded') ||
+      normalizedMessage.includes('mailbox full') ||
+      normalizedMessage.includes('over quota') ||
+      responseCode === 552
+    ) {
       return {
         type: 'full_inbox',
         severity: 'temporary',
@@ -2057,12 +1951,14 @@ class SmtpErrorParser {
     }
 
     // Invalid email errors
-    if (normalizedMessage.includes('invalid recipient') ||
-        normalizedMessage.includes('user unknown') ||
-        normalizedMessage.includes('recipient unknown') ||
-        normalizedMessage.includes('no such user') ||
-        normalizedMessage.includes('address rejected') ||
-        responseCode === 550) {
+    if (
+      normalizedMessage.includes('invalid recipient') ||
+      normalizedMessage.includes('user unknown') ||
+      normalizedMessage.includes('recipient unknown') ||
+      normalizedMessage.includes('no such user') ||
+      normalizedMessage.includes('address rejected') ||
+      responseCode === 550
+    ) {
       return {
         type: 'invalid',
         severity: 'permanent',
@@ -2072,11 +1968,14 @@ class SmtpErrorParser {
     }
 
     // Rate limiting errors
-    if (normalizedMessage.includes('rate limit') ||
-        normalizedMessage.includes('too many') ||
-        normalizedMessage.includes('try again later') ||
-        normalizedMessage.includes('temporarily') ||
-        responseCode === 450 || responseCode === 451) {
+    if (
+      normalizedMessage.includes('rate limit') ||
+      normalizedMessage.includes('too many') ||
+      normalizedMessage.includes('try again later') ||
+      normalizedMessage.includes('temporarily') ||
+      responseCode === 450 ||
+      responseCode === 451
+    ) {
       return {
         type: 'rate_limited',
         severity: 'temporary',
@@ -2086,10 +1985,12 @@ class SmtpErrorParser {
     }
 
     // Blocked errors
-    if (normalizedMessage.includes('blocked') ||
-        normalizedMessage.includes('spam') ||
-        normalizedMessage.includes('blacklisted') ||
-        normalizedMessage.includes('rejected by policy')) {
+    if (
+      normalizedMessage.includes('blocked') ||
+      normalizedMessage.includes('spam') ||
+      normalizedMessage.includes('blacklisted') ||
+      normalizedMessage.includes('rejected by policy')
+    ) {
       return {
         type: 'blocked',
         severity: 'permanent',
@@ -2115,12 +2016,13 @@ class SmtpErrorParser {
     responseCode?: number
   ): ParsedSmtpError {
     // Gmail specific patterns
-    if (normalizedMessage.includes('g-smtp') ||
-        normalizedMessage.includes('gmail') ||
-        normalizedMessage.includes('google')) {
+    if (
+      normalizedMessage.includes('g-smtp') ||
+      normalizedMessage.includes('gmail') ||
+      normalizedMessage.includes('google')
+    ) {
       // Gmail disabled account
-      if (normalizedMessage.includes('account disabled') ||
-          normalizedMessage.includes('suspended')) {
+      if (normalizedMessage.includes('account disabled') || normalizedMessage.includes('suspended')) {
         return {
           type: 'disabled',
           severity: 'permanent',
@@ -2135,8 +2037,7 @@ class SmtpErrorParser {
       }
 
       // Gmail over quota
-      if (normalizedMessage.includes('over quota') ||
-          normalizedMessage.includes('storage quota')) {
+      if (normalizedMessage.includes('over quota') || normalizedMessage.includes('storage quota')) {
         return {
           type: 'full_inbox',
           severity: 'temporary',
@@ -2151,8 +2052,7 @@ class SmtpErrorParser {
       }
 
       // Gmail rate limiting
-      if (normalizedMessage.includes('temporarily deferred') ||
-          normalizedMessage.includes('rate limit')) {
+      if (normalizedMessage.includes('temporarily deferred') || normalizedMessage.includes('rate limit')) {
         return {
           type: 'rate_limited',
           severity: 'temporary',
@@ -2167,7 +2067,7 @@ class SmtpErrorParser {
       }
     }
 
-    return this.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
+    return SmtpErrorParser.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
   }
 
   /**
@@ -2178,12 +2078,13 @@ class SmtpErrorParser {
     originalMessage: string,
     responseCode?: number
   ): ParsedSmtpError {
-    if (normalizedMessage.includes('yahoo') ||
-        normalizedMessage.includes('ymail') ||
-        normalizedMessage.includes('rocketmail')) {
+    if (
+      normalizedMessage.includes('yahoo') ||
+      normalizedMessage.includes('ymail') ||
+      normalizedMessage.includes('rocketmail')
+    ) {
       // Yahoo account disabled
-      if (normalizedMessage.includes('account disabled') ||
-          normalizedMessage.includes('account suspended')) {
+      if (normalizedMessage.includes('account disabled') || normalizedMessage.includes('account suspended')) {
         return {
           type: 'disabled',
           severity: 'permanent',
@@ -2198,8 +2099,7 @@ class SmtpErrorParser {
       }
 
       // Yahoo full inbox
-      if (normalizedMessage.includes('mailbox over quota') ||
-          normalizedMessage.includes('storage limit')) {
+      if (normalizedMessage.includes('mailbox over quota') || normalizedMessage.includes('storage limit')) {
         return {
           type: 'full_inbox',
           severity: 'temporary',
@@ -2229,7 +2129,7 @@ class SmtpErrorParser {
       }
     }
 
-    return this.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
+    return SmtpErrorParser.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
   }
 
   /**
@@ -2240,13 +2140,14 @@ class SmtpErrorParser {
     originalMessage: string,
     responseCode?: number
   ): ParsedSmtpError {
-    if (normalizedMessage.includes('hotmail') ||
-        normalizedMessage.includes('outlook') ||
-        normalizedMessage.includes('live') ||
-        normalizedMessage.includes('microsoft')) {
+    if (
+      normalizedMessage.includes('hotmail') ||
+      normalizedMessage.includes('outlook') ||
+      normalizedMessage.includes('live') ||
+      normalizedMessage.includes('microsoft')
+    ) {
       // Microsoft 365 specific patterns
-      if (normalizedMessage.includes('550 5.2.1') ||
-          normalizedMessage.includes('recipient rejected')) {
+      if (normalizedMessage.includes('550 5.2.1') || normalizedMessage.includes('recipient rejected')) {
         return {
           type: 'invalid',
           severity: 'permanent',
@@ -2261,8 +2162,7 @@ class SmtpErrorParser {
       }
 
       // Exchange Server patterns
-      if (normalizedMessage.includes('550 5.4.1') ||
-          normalizedMessage.includes('relay access denied')) {
+      if (normalizedMessage.includes('550 5.4.1') || normalizedMessage.includes('relay access denied')) {
         return {
           type: 'blocked',
           severity: 'permanent',
@@ -2277,9 +2177,11 @@ class SmtpErrorParser {
       }
 
       // Microsoft rate limiting
-      if (normalizedMessage.includes('4.4.2') ||
-          normalizedMessage.includes('connection limit') ||
-          normalizedMessage.includes('throttling')) {
+      if (
+        normalizedMessage.includes('4.4.2') ||
+        normalizedMessage.includes('connection limit') ||
+        normalizedMessage.includes('throttling')
+      ) {
         return {
           type: 'rate_limited',
           severity: 'temporary',
@@ -2294,7 +2196,7 @@ class SmtpErrorParser {
       }
     }
 
-    return this.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
+    return SmtpErrorParser.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
   }
 
   /**
@@ -2307,8 +2209,7 @@ class SmtpErrorParser {
   ): ParsedSmtpError {
     if (normalizedMessage.includes('proofpoint')) {
       // Proofpoint security filtering
-      if (normalizedMessage.includes('message rejected') ||
-          normalizedMessage.includes('policy violation')) {
+      if (normalizedMessage.includes('message rejected') || normalizedMessage.includes('policy violation')) {
         return {
           type: 'blocked',
           severity: 'permanent',
@@ -2323,8 +2224,7 @@ class SmtpErrorParser {
       }
 
       // Proofpoint rate limiting
-      if (normalizedMessage.includes('too many messages') ||
-          normalizedMessage.includes('frequency limit')) {
+      if (normalizedMessage.includes('too many messages') || normalizedMessage.includes('frequency limit')) {
         return {
           type: 'rate_limited',
           severity: 'temporary',
@@ -2339,7 +2239,7 @@ class SmtpErrorParser {
       }
     }
 
-    return this.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
+    return SmtpErrorParser.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
   }
 
   /**
@@ -2352,8 +2252,7 @@ class SmtpErrorParser {
   ): ParsedSmtpError {
     if (normalizedMessage.includes('mimecast')) {
       // Mimecast security filtering
-      if (normalizedMessage.includes('blocked by policy') ||
-          normalizedMessage.includes('content filter')) {
+      if (normalizedMessage.includes('blocked by policy') || normalizedMessage.includes('content filter')) {
         return {
           type: 'blocked',
           severity: 'permanent',
@@ -2368,8 +2267,7 @@ class SmtpErrorParser {
       }
 
       // Mimecast rate limiting
-      if (normalizedMessage.includes('rate limit exceeded') ||
-          normalizedMessage.includes('too many recipients')) {
+      if (normalizedMessage.includes('rate limit exceeded') || normalizedMessage.includes('too many recipients')) {
         return {
           type: 'rate_limited',
           severity: 'temporary',
@@ -2384,7 +2282,7 @@ class SmtpErrorParser {
       }
     }
 
-    return this.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
+    return SmtpErrorParser.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
   }
 }
 
@@ -2439,3 +2337,7 @@ async function verifySmtpConnectionWithErrorParsing(
 
   return basicResult;
 }
+
+// Export functions for testing
+export { verifyYahooApi, verifyYahooHeadless, verifyGmailHeadless, SmtpErrorParser };
+export { HeadlessBrowser };
