@@ -42,6 +42,7 @@ export {
   isProofpoint,
   isYahoo,
   queryMxRecords,
+  SmtpErrorParser,
   validateEmailSyntax,
   verifySmtpConnection,
 } from './check-if-email-exists';

@@ -180,7 +180,7 @@ describe('SMTP Error Parsing Tests', () => {
 
   describe('Yahoo Error Parsing', () => {
     test('should parse Yahoo disabled account errors', () => {
-      const errorMessage = 'Account disabled due to terms of service violation';
+      const errorMessage = 'Yahoo Mail: Account disabled due to terms of service violation';
       const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.YAHOO, 550);
 
       expect(parsed.type).toBe('disabled');
@@ -190,7 +190,7 @@ describe('SMTP Error Parsing Tests', () => {
     });
 
     test('should parse Yahoo mailbox over quota errors', () => {
-      const errorMessage = 'Mailbox over quota';
+      const errorMessage = 'Yahoo Mail: Mailbox over quota';
       const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.YAHOO, 552);
 
       expect(parsed.type).toBe('full_inbox');
@@ -200,7 +200,7 @@ describe('SMTP Error Parsing Tests', () => {
     });
 
     test('should parse Yahoo request rejected errors', () => {
-      const errorMessage = '553 Request rejected';
+      const errorMessage = 'Yahoo Mail: 553 Request rejected';
       const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.YAHOO, 553);
 
       expect(parsed.type).toBe('blocked');
@@ -212,7 +212,7 @@ describe('SMTP Error Parsing Tests', () => {
 
   describe('Hotmail/Microsoft Error Parsing', () => {
     test('should parse Microsoft 365 recipient rejected errors', () => {
-      const errorMessage = '550 5.2.1 Recipient rejected';
+      const errorMessage = 'Outlook: 550 5.2.1 Recipient rejected';
       const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.HOTMAIL_B2B, 550);
 
       expect(parsed.type).toBe('invalid');
@@ -222,7 +222,7 @@ describe('SMTP Error Parsing Tests', () => {
     });
 
     test('should parse Exchange relay access denied errors', () => {
-      const errorMessage = '550 5.4.1 Relay access denied';
+      const errorMessage = 'Outlook: 550 5.4.1 Relay access denied';
       const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.HOTMAIL_B2B, 550);
 
       expect(parsed.type).toBe('blocked');
@@ -232,7 +232,7 @@ describe('SMTP Error Parsing Tests', () => {
     });
 
     test('should parse Microsoft throttling errors', () => {
-      const errorMessage = '4.4.2 Connection limit exceeded';
+      const errorMessage = 'Outlook: 4.4.2 Connection limit exceeded';
       const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.HOTMAIL_B2B, 450);
 
       expect(parsed.type).toBe('rate_limited');
@@ -254,7 +254,7 @@ describe('SMTP Error Parsing Tests', () => {
     });
 
     test('should parse Proofpoint rate limiting errors', () => {
-      const errorMessage = 'Too many messages - frequency limit exceeded';
+      const errorMessage = 'Proofpoint: Too many messages - frequency limit exceeded';
       const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.PROOFPOINT, 450);
 
       expect(parsed.type).toBe('rate_limited');
@@ -266,7 +266,7 @@ describe('SMTP Error Parsing Tests', () => {
 
   describe('Mimecast Error Parsing', () => {
     test('should parse Mimecast content policy violations', () => {
-      const errorMessage = 'Blocked by Mimecast content policy';
+      const errorMessage = 'Mimecast: Blocked by policy - content filter triggered';
       const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.MIMECAST, 550);
 
       expect(parsed.type).toBe('blocked');

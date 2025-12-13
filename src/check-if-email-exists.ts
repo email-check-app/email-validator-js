@@ -1,4 +1,5 @@
 import { promises as dns } from 'node:dns';
+import { Socket } from 'node:net';
 import type { ICache } from './cache-interface';
 import {
   CheckIfEmailExistsCoreResult,
@@ -9,12 +10,9 @@ import {
   ICheckIfEmailExistsCoreParams,
   MxLookupResult,
   SmtpVerificationResult,
-  VerificationMetrics,
   YahooApiOptions,
 } from './email-verifier-types';
 import { isDisposableEmail, isFreeEmail } from './index';
-import type { IVerifyEmailParams } from './types';
-
 // Constants for common providers
 export const CHECK_IF_EMAIL_EXISTS_CONSTANTS = {
   GMAIL_DOMAINS: ['gmail.com', 'googlemail.com'] as const,
@@ -636,7 +634,6 @@ async function createSmtpConnection(
   }
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    const { Socket } = require('net');
     const socket = new Socket();
 
     socket.setTimeout(options.timeout);
@@ -1901,11 +1898,41 @@ class SmtpErrorParser {
       return genericResult;
     }
 
+    // Fallback: response code based parsing when no text pattern matches
+    if (responseCode) {
+      switch (responseCode) {
+        case 550:
+          return {
+            type: 'disabled',
+            severity: 'permanent',
+            message: 'Account is disabled or deactivated',
+            originalMessage: smtpMessage,
+          };
+        case 552:
+          return {
+            type: 'full_inbox',
+            severity: 'temporary',
+            message: 'Mailbox is full or quota exceeded',
+            originalMessage: smtpMessage,
+          };
+        case 450:
+        case 451:
+          return {
+            type: 'rate_limited',
+            severity: 'temporary',
+            message: 'Rate limited or temporarily unavailable',
+            originalMessage: smtpMessage,
+          };
+        default:
+          break;
+      }
+    }
+
     // Unknown error
     return {
       type: 'unknown',
       severity: 'unknown',
-      message: 'Unknown SMTP error',
+      message: 'Unknown error pattern',
       originalMessage: smtpMessage,
     };
   }
@@ -1923,8 +1950,7 @@ class SmtpErrorParser {
       normalizedMessage.includes('disabled') ||
       normalizedMessage.includes('deactivated') ||
       normalizedMessage.includes('suspended') ||
-      normalizedMessage.includes('account disabled') ||
-      responseCode === 550
+      normalizedMessage.includes('account disabled')
     ) {
       return {
         type: 'disabled',
@@ -1956,8 +1982,7 @@ class SmtpErrorParser {
       normalizedMessage.includes('user unknown') ||
       normalizedMessage.includes('recipient unknown') ||
       normalizedMessage.includes('no such user') ||
-      normalizedMessage.includes('address rejected') ||
-      responseCode === 550
+      normalizedMessage.includes('address rejected')
     ) {
       return {
         type: 'invalid',
