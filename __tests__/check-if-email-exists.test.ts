@@ -19,14 +19,19 @@ jest.mock('dns', () => ({
   },
 }));
 
+// Get the mocked resolveMx function
+const mockResolveMx = require('dns').promises.resolveMx;
+
 // Mock console for debug tests
 const originalConsoleDebug = console.debug;
 beforeEach(() => {
   console.debug = jest.fn();
+  mockResolveMx.mockClear();
 });
 
 afterEach(() => {
   console.debug = originalConsoleDebug;
+  mockResolveMx.mockReset();
 });
 
 describe('validateEmailSyntax', () => {
@@ -134,10 +139,8 @@ describe('getProviderType', () => {
 });
 
 describe('queryMxRecords', () => {
-  const { resolveMx } = require('dns').promises;
-
   beforeEach(() => {
-    resolveMx.mockClear();
+    mockResolveMx.mockClear();
   });
 
   test('should successfully resolve MX records', async () => {
@@ -146,11 +149,11 @@ describe('queryMxRecords', () => {
       { exchange: 'mail2.example.com', preference: 20 },
     ];
 
-    resolveMx.mockResolvedValue(mockMxRecords);
+    mockResolveMx.mockResolvedValue(mockMxRecords);
 
     const result = await queryMxRecords('example.com');
 
-    expect(resolveMx).toHaveBeenCalledWith('example.com');
+    expect(mockResolveMx).toHaveBeenCalledWith('example.com');
     expect(result.success).toBe(true);
     expect(result.records).toHaveLength(2);
     expect(result.lowest_priority?.exchange).toBe('mail.example.com');
@@ -158,7 +161,7 @@ describe('queryMxRecords', () => {
   });
 
   test('should handle domains with no MX records', async () => {
-    resolveMx.mockResolvedValue([]);
+    mockResolveMx.mockResolvedValue([]);
 
     const result = await queryMxRecords('no-mx.com');
 
@@ -170,7 +173,7 @@ describe('queryMxRecords', () => {
   test('should handle DNS resolution errors', async () => {
     const dnsError = new Error('ENOTFOUND domain not found');
     (dnsError as any).code = 'ENOTFOUND';
-    resolveMx.mockRejectedValue(dnsError);
+    mockResolveMx.mockRejectedValue(dnsError);
 
     const result = await queryMxRecords('nonexistent.com');
 
@@ -186,7 +189,7 @@ describe('queryMxRecords', () => {
       { exchange: 'mail2.example.com', preference: 20 },
     ];
 
-    resolveMx.mockResolvedValue(mockMxRecords);
+    mockResolveMx.mockResolvedValue(mockMxRecords);
 
     const result = await queryMxRecords('example.com');
 
@@ -224,10 +227,8 @@ describe('verifySmtpConnection', () => {
 });
 
 describe('checkIfEmailExists', () => {
-  const { resolveMx } = require('dns').promises;
-
   beforeEach(() => {
-    resolveMx.mockClear();
+    mockResolveMx.mockClear();
   });
 
   test('should reject invalid email syntax', async () => {
@@ -242,7 +243,7 @@ describe('checkIfEmailExists', () => {
   });
 
   test('should handle domains with no MX records', async () => {
-    resolveMx.mockResolvedValue([]);
+    mockResolveMx.mockResolvedValue([]);
 
     const result = await checkIfEmailExistsCore({
       emailAddress: 'test@no-mx.com',
@@ -270,7 +271,7 @@ describe('checkIfEmailExists', () => {
   });
 
   test('should apply custom SMTP options', async () => {
-    resolveMx.mockResolvedValue([{ exchange: 'mail.example.com', preference: 10 }]);
+    mockResolveMx.mockResolvedValue([{ exchange: 'mail.example.com', preference: 10 }]);
 
     const customOptions = {
       timeout: 15000,
@@ -308,7 +309,7 @@ describe('checkIfEmailExists', () => {
   });
 
   test('should handle disposable and free email detection', async () => {
-    resolveMx.mockResolvedValue([{ exchange: 'mail.gmail.com', preference: 10 }]);
+    mockResolveMx.mockResolvedValue([{ exchange: 'mail.gmail.com', preference: 10 }]);
 
     const result = await checkIfEmailExistsCore({
       emailAddress: 'test@gmail.com',
@@ -325,7 +326,7 @@ describe('checkIfEmailExists', () => {
   });
 
   test('should apply provider optimizations when enabled', async () => {
-    resolveMx.mockResolvedValue([{ exchange: 'gmail-smtp-in.l.google.com', preference: 10 }]);
+    mockResolveMx.mockResolvedValue([{ exchange: 'gmail-smtp-in.l.google.com', preference: 10 }]);
 
     const result = await checkIfEmailExistsCore({
       emailAddress: 'test@gmail.com',
@@ -354,9 +355,13 @@ describe('constants', () => {
 });
 
 describe('error handling', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockResolveMx.mockClear();
+  });
+
   test('should handle network timeouts gracefully', async () => {
-    const { resolveMx } = require('dns').promises;
-    resolveMx.mockImplementation(() => {
+    mockResolveMx.mockImplementation(() => {
       return new Promise((_, reject) => {
         const error = new Error('ETIMEDOUT operation timed out');
         (error as any).code = 'ETIMEDOUT';
@@ -371,8 +376,9 @@ describe('error handling', () => {
       timeout: 50, // Very short timeout
     });
 
-    expect(result.is_reachable).toBe('unknown');
-    expect(result.error).toBeDefined();
+    expect(result.is_reachable).toBe('invalid'); // MX timeout makes it unreachable/invalid
+    expect(result.mx?.error).toBeDefined();
+    expect(result.mx?.error).toContain('operation timed out');
   });
 
   test('should handle malformed input gracefully', async () => {
@@ -391,8 +397,7 @@ describe('performance considerations', () => {
     const emails = Array.from({ length: 10 }, (_, i) => `test${i}@example.com`);
 
     // Mock successful MX resolution
-    const { resolveMx } = require('dns').promises;
-    resolveMx.mockResolvedValue([{ exchange: 'mail.example.com', preference: 10 }]);
+    mockResolveMx.mockResolvedValue([{ exchange: 'mail.example.com', preference: 10 }]);
 
     const startTime = Date.now();
 

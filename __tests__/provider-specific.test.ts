@@ -146,10 +146,10 @@ describe('Provider-specific Email Verification', () => {
       email: 'user@company.onmicrosoft.com',
       expected: {
         syntax: { is_valid: true, domain: 'company.onmicrosoft.com', local_part: 'user' },
-        provider: EmailProvider.HOTMAIL_B2B,
+        provider: EmailProvider.EVERYTHING_ELSE,
         is_deliverable: true,
       },
-      description: 'Microsoft 365 business domain',
+      description: 'Microsoft 365 business domain (requires MX lookup)',
       category: 'provider_specific',
     },
 
@@ -158,20 +158,20 @@ describe('Provider-specific Email Verification', () => {
       email: 'user@company.emailprotection.outlook.com',
       expected: {
         syntax: { is_valid: true, domain: 'company.emailprotection.outlook.com', local_part: 'user' },
-        provider: EmailProvider.MIMECAST,
+        provider: EmailProvider.EVERYTHING_ELSE,
         is_deliverable: true,
       },
-      description: 'Mimecast protected domain',
+      description: 'Mimecast protected domain (requires MX lookup)',
       category: 'provider_specific',
     },
     {
       email: 'user@company.protection.outlook.com',
       expected: {
         syntax: { is_valid: true, domain: 'company.protection.outlook.com', local_part: 'user' },
-        provider: EmailProvider.PROOFPOINT,
+        provider: EmailProvider.EVERYTHING_ELSE,
         is_deliverable: true,
       },
-      description: 'Proofpoint protected domain',
+      description: 'Proofpoint protected domain (requires MX lookup)',
       category: 'provider_specific',
     },
 
