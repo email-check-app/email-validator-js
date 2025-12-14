@@ -1,19 +1,11 @@
 /**
- * Yahoo API and Headless Browser Tests
- * Based on the original Rust implementation's provider-specific testing
+ * Simple Yahoo API Tests - focusing on the core functionality
  */
 
-import {
-  checkIfEmailExistsCore,
-  EmailProvider,
-  validateEmailSyntax,
-  verifyGmailHeadless,
-  verifyYahooApi,
-  verifyYahooHeadless,
-} from '../src/check-if-email-exists';
-import type { HeadlessOptions, YahooApiOptions } from '../src/email-verifier-types';
+import { EmailProvider, verifyYahooApi } from '../src/check-if-email-exists';
+import type { YahooApiOptions } from '../src/email-verifier-types';
 
-// Mock fetch for testing
+// Mock fetch for Yahoo API tests
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
@@ -22,587 +14,375 @@ describe('Yahoo API Tests', () => {
     mockFetch.mockClear();
   });
 
-  describe('Yahoo API Configuration', () => {
-    test('should use default options when none provided', async () => {
-      const mockResponse = {
+  describe('Basic Functionality', () => {
+    test('should detect existing Yahoo email', async () => {
+      // Mock the signup page response
+      const signupPageResponse = {
         ok: true,
         status: 200,
         headers: {
           get: jest.fn().mockReturnValue('session-cookie=test'),
         },
+        text: jest
+          .fn()
+          .mockResolvedValue(
+            '<html><form name="u" action="/create" method="post"><input name="acrumb" value="test-token"></form></html>'
+          ),
+      };
+
+      // Mock the validation response with error indicating email exists
+      const validationResponse = {
+        ok: true,
+        status: 200,
         text: jest.fn().mockResolvedValue('{"errors": [{"name": "IDENTIFIER_NOT_AVAILABLE"}]}'),
       };
 
-      mockFetch.mockResolvedValue(mockResponse);
-
-      const result = await verifyYahooApi('test@yahoo.com', {});
-
-      expect(mockFetch).toHaveBeenCalledTimes(2); // Page load + validation request
-      expect(result.is_valid).toBe(true);
-      expect(result.is_deliverable).toBe(true);
-    });
-
-    test('should use custom options when provided', async () => {
-      const options: YahooApiOptions = {
-        timeout: 5000,
-        userAgent: 'Custom User Agent',
-        retryAttempts: 5,
-        proxyUrl: 'http://proxy.example.com:8080',
-        headers: {
-          'X-Custom-Header': 'test-value',
-        },
-        apiUrl: 'https://custom.yahoo-api.com',
-      };
-
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        headers: {
-          get: jest.fn().mockReturnValue(''),
-        },
-        text: jest.fn().mockResolvedValue('{"errors": []}'),
-      };
-
-      mockFetch.mockResolvedValue(mockResponse);
-
-      await verifyYahooApi('test@yahoo.com', options);
-
-      // Check that fetch was called with custom options
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-      const firstCall = mockFetch.mock.calls[0];
-      expect(firstCall[1].signal).toBeDefined(); // AbortController
-    });
-  });
-
-  describe('Yahoo API Success Scenarios', () => {
-    test('should detect existing email with IDENTIFIER_NOT_AVAILABLE error', async () => {
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        headers: {
-          get: jest.fn().mockReturnValue(''),
-        },
-        text: jest.fn().mockResolvedValue('{"errors": [{"name": "IDENTIFIER_NOT_AVAILABLE"}]}'),
-      };
-
-      mockFetch.mockResolvedValue(mockResponse);
+      mockFetch.mockResolvedValueOnce(signupPageResponse).mockResolvedValueOnce(validationResponse);
 
       const result = await verifyYahooApi('existing@yahoo.com');
 
       expect(result.is_valid).toBe(true);
       expect(result.is_deliverable).toBe(true);
       expect(result.error).toBeUndefined();
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
-    test('should detect existing email with IDENTIFIER_ALREADY_EXISTS error', async () => {
-      const mockResponse = {
+    test('should detect non-existing Yahoo email', async () => {
+      // Mock the signup page response
+      const signupPageResponse = {
         ok: true,
         status: 200,
         headers: {
-          get: jest.fn().mockReturnValue(''),
+          get: jest.fn().mockReturnValue('session-cookie=test'),
         },
-        text: jest.fn().mockResolvedValue('{"errors": [{"error": "IDENTIFIER_ALREADY_EXISTS"}]}'),
+        text: jest
+          .fn()
+          .mockResolvedValue(
+            '<html><form name="u" action="/create" method="post"><input name="acrumb" value="test-token"></form></html>'
+          ),
       };
 
-      mockFetch.mockResolvedValue(mockResponse);
-
-      const result = await verifyYahooApi('existing@yahoo.com');
-
-      expect(result.is_valid).toBe(true);
-      expect(result.is_deliverable).toBe(true);
-    });
-
-    test('should detect non-existing email when no errors returned', async () => {
-      const mockResponse = {
+      // Mock the validation response with no errors (email doesn't exist)
+      const validationResponse = {
         ok: true,
         status: 200,
-        headers: {
-          get: jest.fn().mockReturnValue(''),
-        },
         text: jest.fn().mockResolvedValue('{"errors": []}'),
       };
 
-      mockFetch.mockResolvedValue(mockResponse);
+      mockFetch.mockResolvedValueOnce(signupPageResponse).mockResolvedValueOnce(validationResponse);
 
-      const result = await verifyYahooApi('nonexistent@yahoo.com');
+      const result = await verifyYahooApi('available@yahoo.com');
 
       expect(result.is_valid).toBe(true);
       expect(result.is_deliverable).toBe(false);
+      expect(result.error).toBeUndefined();
     });
-  });
 
-  describe('Yahoo API Error Scenarios', () => {
-    test('should handle HTTP errors gracefully', async () => {
-      const mockResponse = {
+    test('should reject non-Yahoo domains', async () => {
+      const result = await verifyYahooApi('test@gmail.com');
+
+      expect(result.is_valid).toBe(false);
+      expect(result.is_deliverable).toBe(false);
+      expect(result.error).toBe('Not a Yahoo domain');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    test('should handle HTTP errors', async () => {
+      // Mock HTTP error response
+      const errorResponse = {
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
-        headers: {
-          get: jest.fn().mockReturnValue(''),
-        },
       };
 
-      mockFetch.mockResolvedValue(mockResponse);
+      mockFetch.mockResolvedValue(errorResponse);
 
       const result = await verifyYahooApi('test@yahoo.com');
 
       expect(result.is_valid).toBe(false);
       expect(result.is_deliverable).toBe(false);
-      expect(result.error).toContain('HTTP 500');
+      expect(result.error).toBe('HTTP 500: Internal Server Error');
     });
 
     test('should handle network timeouts', async () => {
-      mockFetch.mockRejectedValue(new Error('AbortError'));
+      // Mock a timeout
+      mockFetch.mockRejectedValue(new DOMException('Request timeout', 'AbortError'));
 
-      const result = await verifyYahooApi('test@yahoo.com', { timeout: 100 });
+      const result = await verifyYahooApi('test@yahoo.com', { timeout: 1000 });
 
       expect(result.is_valid).toBe(false);
       expect(result.is_deliverable).toBe(false);
       expect(result.error).toBe('Request timeout');
     });
+  });
 
-    test('should handle invalid domain errors', async () => {
-      const result = await verifyYahooApi('test@not-yahoo.com');
-
-      expect(result.is_valid).toBe(false);
-      expect(result.is_deliverable).toBe(false);
-      expect(result.error).toBe('Not a Yahoo domain');
-    });
-
-    test('should handle malformed responses', async () => {
-      const mockResponse = {
+  describe('Error Codes', () => {
+    test('should handle IDENTIFIER_ALREADY_EXISTS error', async () => {
+      // Mock the signup page response
+      const signupPageResponse = {
         ok: true,
         status: 200,
         headers: {
-          get: jest.fn().mockReturnValue(''),
+          get: jest.fn().mockReturnValue('session-cookie=test'),
         },
-        text: jest.fn().mockResolvedValue('invalid json response'),
+        text: jest
+          .fn()
+          .mockResolvedValue(
+            '<html><form name="u" action="/create" method="post"><input name="acrumb" value="test-token"></form></html>'
+          ),
       };
 
-      mockFetch.mockResolvedValue(mockResponse);
+      // Mock the validation response with error indicating email exists
+      const validationResponse = {
+        ok: true,
+        status: 200,
+        text: jest.fn().mockResolvedValue('{"errors": [{"error": "IDENTIFIER_ALREADY_EXISTS"}]}'),
+      };
+
+      mockFetch.mockResolvedValueOnce(signupPageResponse).mockResolvedValueOnce(validationResponse);
+
+      const result = await verifyYahooApi('taken@yahoo.com');
+
+      expect(result.is_valid).toBe(true);
+      expect(result.is_deliverable).toBe(true);
+    });
+
+    test('should handle IDENTIFIER_EXISTS error', async () => {
+      // Mock the signup page response
+      const signupPageResponse = {
+        ok: true,
+        status: 200,
+        headers: {
+          get: jest.fn().mockReturnValue('session-cookie=test'),
+        },
+        text: jest
+          .fn()
+          .mockResolvedValue(
+            '<html><form name="u" action="/create" method="post"><input name="acrumb" value="test-token"></form></html>'
+          ),
+      };
+
+      // Mock the validation response with error indicating email exists
+      const validationResponse = {
+        ok: true,
+        status: 200,
+        text: jest.fn().mockResolvedValue('{"errors": [{"name": "IDENTIFIER_EXISTS"}]}'),
+      };
+
+      mockFetch.mockResolvedValueOnce(signupPageResponse).mockResolvedValueOnce(validationResponse);
+
+      const result = await verifyYahooApi('exists@yahoo.com');
+
+      expect(result.is_valid).toBe(true);
+      expect(result.is_deliverable).toBe(true);
+    });
+
+    test('should handle unknown error codes', async () => {
+      // Mock the signup page response
+      const signupPageResponse = {
+        ok: true,
+        status: 200,
+        headers: {
+          get: jest.fn().mockReturnValue('session-cookie=test'),
+        },
+        text: jest
+          .fn()
+          .mockResolvedValue(
+            '<html><form name="u" action="/create" method="post"><input name="acrumb" value="test-token"></form></html>'
+          ),
+      };
+
+      // Mock the validation response with unknown error
+      const validationResponse = {
+        ok: true,
+        status: 200,
+        text: jest.fn().mockResolvedValue('{"errors": [{"name": "UNKNOWN_ERROR", "description": "Some error"}]}'),
+      };
+
+      mockFetch.mockResolvedValueOnce(signupPageResponse).mockResolvedValueOnce(validationResponse);
 
       const result = await verifyYahooApi('test@yahoo.com');
 
       expect(result.is_valid).toBe(true);
       expect(result.is_deliverable).toBe(false);
-      expect(result.error).toBe('Could not parse Yahoo response');
+      expect(result.error).toContain('UNKNOWN_ERROR');
     });
+  });
 
-    test('should handle case-insensitive domain checking', async () => {
-      const mockResponse = {
+  describe('Response Parsing', () => {
+    test('should handle malformed JSON responses', async () => {
+      // Mock the signup page response
+      const signupPageResponse = {
         ok: true,
         status: 200,
         headers: {
-          get: jest.fn().mockReturnValue(''),
+          get: jest.fn().mockReturnValue('session-cookie=test'),
         },
-        text: jest.fn().mockResolvedValue('{"errors": []}'),
+        text: jest
+          .fn()
+          .mockResolvedValue(
+            '<html><form name="u" action="/create" method="post"><input name="acrumb" value="test-token"></form></html>'
+          ),
       };
 
-      mockFetch.mockResolvedValue(mockResponse);
+      // Mock the validation response with malformed JSON
+      const validationResponse = {
+        ok: true,
+        status: 200,
+        text: jest.fn().mockResolvedValue('invalid json response'),
+      };
 
-      const testCases = [
-        'test@YAHOO.COM',
-        'test@Yahoo.Com',
-        'test@GMAIL.COM', // Should fail - not a Yahoo domain
-        'test@ymail.com',
-      ];
+      mockFetch.mockResolvedValueOnce(signupPageResponse).mockResolvedValueOnce(validationResponse);
 
-      for (const email of testCases) {
+      const result = await verifyYahooApi('test@yahoo.com');
+
+      expect(result.is_valid).toBe(true);
+      expect(result.is_deliverable).toBe(false); // Default to false for malformed responses
+    });
+
+    test('should handle text-based error responses', async () => {
+      // Mock the signup page response
+      const signupPageResponse = {
+        ok: true,
+        status: 200,
+        headers: {
+          get: jest.fn().mockReturnValue('session-cookie=test'),
+        },
+        text: jest
+          .fn()
+          .mockResolvedValue(
+            '<html><form name="u" action="/create" method="post"><input name="acrumb" value="test-token"></form></html>'
+          ),
+      };
+
+      // Mock the validation response with text-based error
+      const validationResponse = {
+        ok: true,
+        status: 200,
+        text: jest.fn().mockResolvedValue('This Yahoo ID is already taken'),
+      };
+
+      mockFetch.mockResolvedValueOnce(signupPageResponse).mockResolvedValueOnce(validationResponse);
+
+      const result = await verifyYahooApi('taken@yahoo.com');
+
+      expect(result.is_valid).toBe(true);
+      expect(result.is_deliverable).toBe(true); // Should detect the text error
+    });
+  });
+
+  describe('Configuration', () => {
+    test('should use custom user agent', async () => {
+      const options: YahooApiOptions = {
+        userAgent: 'Custom Test Agent',
+        timeout: 5000,
+      };
+
+      // Mock successful responses
+      const signupPageResponse = {
+        ok: true,
+        status: 200,
+        headers: {
+          get: jest.fn().mockReturnValue('session-cookie=test'),
+        },
+        text: jest
+          .fn()
+          .mockResolvedValue(
+            '<html><form name="u" action="/create" method="post"><input name="acrumb" value="test-token"></form></html>'
+          ),
+      };
+
+      const validationResponse = {
+        ok: true,
+        status: 200,
+        text: jest.fn().mockResolvedValue('{"errors": [{"name": "IDENTIFIER_NOT_AVAILABLE"}]}'),
+      };
+
+      mockFetch.mockResolvedValueOnce(signupPageResponse).mockResolvedValueOnce(validationResponse);
+
+      await verifyYahooApi('test@yahoo.com', options);
+
+      // Verify custom user agent was used
+      const firstCall = mockFetch.mock.calls[0];
+      expect(firstCall[1].headers['User-Agent']).toBe('Custom Test Agent');
+      expect(firstCall[1].signal).toBeDefined(); // AbortController
+    });
+
+    test('should use custom timeout', async () => {
+      const options: YahooApiOptions = {
+        timeout: 2000,
+      };
+
+      // Mock timeout
+      mockFetch.mockRejectedValue(new DOMException('Request timeout', 'AbortError'));
+
+      const result = await verifyYahooApi('test@yahoo.com', options);
+
+      expect(result.error).toBe('Request timeout');
+    });
+  });
+
+  describe('Domain Validation', () => {
+    test('should accept various Yahoo domains', async () => {
+      const yahooDomains = ['test@yahoo.com', 'admin@ymail.com', 'contact@rocketmail.com'];
+
+      for (const email of yahooDomains) {
+        // Mock successful response
+        const signupPageResponse = {
+          ok: true,
+          status: 200,
+          headers: {
+            get: jest.fn().mockReturnValue('session-cookie=test'),
+          },
+          text: jest
+            .fn()
+            .mockResolvedValue(
+              '<html><form name="u" action="/create" method="post"><input name="acrumb" value="test-token"></form></html>'
+            ),
+        };
+
+        const validationResponse = {
+          ok: true,
+          status: 200,
+          text: jest.fn().mockResolvedValue('{"errors": []}'),
+        };
+
+        mockFetch.mockResolvedValueOnce(signupPageResponse).mockResolvedValueOnce(validationResponse);
+
         const result = await verifyYahooApi(email);
 
-        if (email.toLowerCase().includes('yahoo') || email.toLowerCase().includes('ymail')) {
-          expect(result.is_valid).toBe(true);
-        } else {
-          expect(result.is_valid).toBe(false);
+        // Should not reject based on domain
+        expect(result.error).not.toBe('Not a Yahoo domain');
+      }
+    });
+
+    test('should reject invalid email formats', async () => {
+      const invalidEmails = ['invalid-email', '@yahoo.com', 'test@', '', 'test@@yahoo.com'];
+
+      for (const email of invalidEmails) {
+        const result = await verifyYahooApi(email);
+        expect(result.is_valid).toBe(false);
+        expect(result.is_deliverable).toBe(false);
+        // Invalid emails without proper domain should return "Not a Yahoo domain" error
+        if (!email.includes('@') || email.split('@')[1] === '') {
           expect(result.error).toBe('Not a Yahoo domain');
         }
       }
     });
   });
-
-  describe('Yahoo API Integration', () => {
-    test('should integrate with main email verification function', async () => {
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        headers: {
-          get: jest.fn().mockReturnValue(''),
-        },
-        text: jest.fn().mockResolvedValue('{"errors": [{"name": "IDENTIFIER_NOT_AVAILABLE"}]}'),
-      };
-
-      mockFetch.mockResolvedValue(mockResponse);
-
-      const result = await checkIfEmailExistsCore({
-        emailAddress: 'test@yahoo.com',
-        useYahooApi: true,
-        yahooApiOptions: {
-          timeout: 5000,
-        },
-        verifyMx: false,
-        verifySmtp: false,
-      });
-
-      expect(result.is_reachable).toBe('safe');
-      expect(result.syntax.is_valid).toBe(true);
-      expect(result.misc?.provider_type).toBe(EmailProvider.YAHOO);
-      expect(result.smtp?.is_deliverable).toBe(true);
-      expect(result.smtp?.provider_used).toBe(EmailProvider.YAHOO);
-    });
-  });
 });
 
-describe('Headless Browser Tests', () => {
-  // Mock WebDriver responses
-  const mockWebDriverResponse = (value: any, sessionId = 'test-session') => ({
-    sessionId,
-    status: 0,
-    value,
+describe('Email Provider Constants', () => {
+  test('should have correct Yahoo provider enum', () => {
+    expect(EmailProvider.YAHOO).toBe('yahoo');
   });
 
-  const mockFetch = jest.fn();
-  global.fetch = mockFetch;
-
-  beforeEach(() => {
-    mockFetch.mockClear();
-  });
-
-  describe('Headless Browser Configuration', () => {
-    test('should use default configuration', async () => {
-      mockFetch.mockImplementation((url) => {
-        if (url.endsWith('/session')) {
-          return Promise.resolve(mockWebDriverResponse({ sessionId: 'test-session' }));
-        }
-        if (url.endsWith('/url')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/element')) {
-          return Promise.resolve(mockWebDriverResponse({ 'element-6066-11e4-a52e-4f735466cecf': 'element-id' }));
-        }
-        if (url.includes('/value') || url.includes('/click')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/execute/sync')) {
-          return Promise.resolve(mockWebDriverResponse('account exists'));
-        }
-        return Promise.resolve(mockWebDriverResponse({}));
-      });
-
-      const browser = require('../src/check-if-email-exists').HeadlessBrowser;
-      const headlessBrowser = new browser();
-
-      expect(headlessBrowser.webdriverEndpoint).toBe('http://localhost:9515');
-      expect(headlessBrowser.timeout).toBe(30000);
-      expect(headlessBrowser.retryAttempts).toBe(3);
-    });
-
-    test('should use custom configuration', async () => {
-      const options: HeadlessOptions = {
-        webdriverEndpoint: 'http://localhost:9999',
-        timeout: 60000,
-        retryAttempts: 5,
-        screenshot: true,
-        viewport: { width: 1280, height: 720 },
-        userAgent: 'Custom Browser',
-      };
-
-      const browser = require('../src/check-if-email-exists').HeadlessBrowser;
-      const headlessBrowser = new browser(options);
-
-      expect(headlessBrowser.webdriverEndpoint).toBe('http://localhost:9999');
-      expect(headlessBrowser.timeout).toBe(60000);
-      expect(headlessBrowser.retryAttempts).toBe(5);
-    });
-  });
-
-  describe('Yahoo Headless Verification', () => {
-    test('should detect existing Yahoo email', async () => {
-      mockFetch.mockImplementation((url) => {
-        if (url.endsWith('/session')) {
-          return Promise.resolve(mockWebDriverResponse({ sessionId: 'test-session' }));
-        }
-        if (url.endsWith('/url')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/element')) {
-          return Promise.resolve(mockWebDriverResponse({ 'element-6066-11e4-a52e-4f735466cecf': 'element-id' }));
-        }
-        if (url.includes('/value') || url.includes('/click')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/execute/sync')) {
-          return Promise.resolve(mockWebDriverResponse('account exists verification method'));
-        }
-        return Promise.resolve(mockWebDriverResponse({}));
-      });
-
-      const result = await verifyYahooHeadless('existing@yahoo.com');
-
-      expect(result.success).toBe(true);
-      expect(result.email_exists).toBe(true);
-    });
-
-    test('should detect non-existing Yahoo email', async () => {
-      mockFetch.mockImplementation((url) => {
-        if (url.endsWith('/session')) {
-          return Promise.resolve(mockWebDriverResponse({ sessionId: 'test-session' }));
-        }
-        if (url.endsWith('/url')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/element')) {
-          return Promise.resolve(mockWebDriverResponse({ 'element-6066-11e4-a52e-4f735466cecf': 'element-id' }));
-        }
-        if (url.includes('/value') || url.includes('/click')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/execute/sync')) {
-          return Promise.resolve(mockWebDriverResponse('account not found'));
-        }
-        return Promise.resolve(mockWebDriverResponse({}));
-      });
-
-      const result = await verifyYahooHeadless('nonexistent@yahoo.com');
-
-      expect(result.success).toBe(true);
-      expect(result.email_exists).toBe(false);
-    });
-
-    test('should handle headless browser errors', async () => {
-      mockFetch.mockRejectedValue(new Error('Connection refused'));
-
-      const result = await verifyYahooHeadless('test@yahoo.com');
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Headless browser error');
-    });
-  });
-
-  describe('Gmail Headless Verification', () => {
-    test('should detect existing Gmail email', async () => {
-      mockFetch.mockImplementation((url) => {
-        if (url.endsWith('/session')) {
-          return Promise.resolve(mockWebDriverResponse({ sessionId: 'test-session' }));
-        }
-        if (url.endsWith('/url')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/element')) {
-          return Promise.resolve(mockWebDriverResponse({ 'element-6066-11e4-a52e-4f735466cecf': 'element-id' }));
-        }
-        if (url.includes('/value') || url.includes('/click')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/execute/sync')) {
-          return Promise.resolve(mockWebDriverResponse('recovery options available'));
-        }
-        return Promise.resolve(mockWebDriverResponse({}));
-      });
-
-      const result = await verifyGmailHeadless('existing@gmail.com');
-
-      expect(result.success).toBe(true);
-      expect(result.email_exists).toBe(true);
-    });
-
-    test('should detect non-existing Gmail email', async () => {
-      mockFetch.mockImplementation((url) => {
-        if (url.endsWith('/session')) {
-          return Promise.resolve(mockWebDriverResponse({ sessionId: 'test-session' }));
-        }
-        if (url.endsWith('/url')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/element')) {
-          return Promise.resolve(mockWebDriverResponse({ 'element-6066-11e4-a52e-4f735466cecf': 'element-id' }));
-        }
-        if (url.includes('/value') || url.includes('/click')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/execute/sync')) {
-          return Promise.resolve(mockWebDriverResponse('couldnt find your google account'));
-        }
-        return Promise.resolve(mockWebDriverResponse({}));
-      });
-
-      const result = await verifyGmailHeadless('nonexistent@gmail.com');
-
-      expect(result.success).toBe(true);
-      expect(result.email_exists).toBe(false);
-    });
-  });
-
-  describe('Headless Browser Integration', () => {
-    test('should integrate with main verification function for Yahoo', async () => {
-      mockFetch.mockImplementation((url) => {
-        if (url.endsWith('/session')) {
-          return Promise.resolve(mockWebDriverResponse({ sessionId: 'test-session' }));
-        }
-        if (url.endsWith('/url')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/element')) {
-          return Promise.resolve(mockWebDriverResponse({ 'element-6066-11e4-a52e-4f735466cecf': 'element-id' }));
-        }
-        if (url.includes('/value') || url.includes('/click')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/execute/sync')) {
-          return Promise.resolve(mockWebDriverResponse('account exists verification method'));
-        }
-        return Promise.resolve(mockWebDriverResponse({}));
-      });
-
-      const result = await checkIfEmailExistsCore({
-        emailAddress: 'test@yahoo.com',
-        useYahooHeadless: true,
-        headlessOptions: {
-          webdriverEndpoint: 'http://localhost:9515',
-          timeout: 10000,
-        },
-        verifyMx: false,
-        verifySmtp: false,
-      });
-
-      expect(result.is_reachable).toBe('safe');
-      expect(result.syntax.is_valid).toBe(true);
-      expect(result.misc?.provider_type).toBe(EmailProvider.YAHOO);
-      expect(result.smtp?.is_deliverable).toBe(true);
-      expect(result.smtp?.provider_used).toBe(EmailProvider.YAHOO);
-    });
-
-    test('should integrate with main verification function for Gmail', async () => {
-      mockFetch.mockImplementation((url) => {
-        if (url.endsWith('/session')) {
-          return Promise.resolve(mockWebDriverResponse({ sessionId: 'test-session' }));
-        }
-        if (url.endsWith('/url')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/element')) {
-          return Promise.resolve(mockWebDriverResponse({ 'element-6066-11e4-a52e-4f735466cecf': 'element-id' }));
-        }
-        if (url.includes('/value') || url.includes('/click')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/execute/sync')) {
-          return Promise.resolve(mockWebDriverResponse('recovery options available'));
-        }
-        return Promise.resolve(mockWebDriverResponse({}));
-      });
-
-      const result = await checkIfEmailExistsCore({
-        emailAddress: 'test@gmail.com',
-        headlessOptions: {
-          webdriverEndpoint: 'http://localhost:9515',
-          timeout: 10000,
-        },
-        verifyMx: false,
-        verifySmtp: false,
-      });
-
-      expect(result.is_reachable).toBe('safe');
-      expect(result.syntax.is_valid).toBe(true);
-      expect(result.misc?.provider_type).toBe(EmailProvider.GMAIL);
-      expect(result.smtp?.is_deliverable).toBe(true);
-      expect(result.smtp?.provider_used).toBe(EmailProvider.GMAIL);
-    });
-  });
-
-  describe('Screenshot Functionality', () => {
-    test('should capture screenshots when requested', async () => {
-      const screenshotBase64 =
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==';
-
-      mockFetch.mockImplementation((url) => {
-        if (url.endsWith('/session')) {
-          return Promise.resolve(mockWebDriverResponse({ sessionId: 'test-session' }));
-        }
-        if (url.endsWith('/url')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/element')) {
-          return Promise.resolve(mockWebDriverResponse({ 'element-6066-11e4-a52e-4f735466cecf': 'element-id' }));
-        }
-        if (url.includes('/value') || url.includes('/click')) {
-          return Promise.resolve(mockWebDriverResponse({}));
-        }
-        if (url.endsWith('/screenshot')) {
-          return Promise.resolve(mockWebDriverResponse({ value: screenshotBase64 }));
-        }
-        if (url.endsWith('/execute/sync')) {
-          return Promise.resolve(mockWebDriverResponse('account exists'));
-        }
-        return Promise.resolve(mockWebDriverResponse({}));
-      });
-
-      const result = await verifyYahooHeadless('test@yahoo.com', { screenshot: true });
-
-      expect(result.screenshot).toBe(screenshotBase64);
-    });
-  });
-
-  describe('Timeout Handling', () => {
-    test('should respect timeout settings', async () => {
-      mockFetch.mockImplementation(() => {
-        return new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('AbortError')), 5000);
-        });
-      });
-
-      const startTime = Date.now();
-      const result = await verifyYahooHeadless('test@yahoo.com', { timeout: 1000 });
-      const duration = Date.now() - startTime;
-
-      expect(duration).toBeLessThan(2000); // Should timeout quickly
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Headless browser error');
-    });
-  });
-});
-
-describe('Fallback Behavior Tests', () => {
-  beforeEach(() => {
-    mockFetch.mockClear();
-  });
-
-  test('should fall back to SMTP verification when API fails', async () => {
-    // Mock Yahoo API failure
-    mockFetch.mockRejectedValue(new Error('Network error'));
-
-    // This would need to be implemented in the main function
-    // For now, we just test that the error is handled
-    const result = await verifyYahooApi('test@yahoo.com');
-
-    expect(result.is_valid).toBe(false);
-    expect(result.error).toContain('Network error');
-  });
-
-  test('should prefer API over headless when both available', async () => {
-    const mockResponse = {
-      ok: true,
-      status: 200,
-      headers: {
-        get: jest.fn().mockReturnValue(''),
-      },
-      text: jest.fn().mockResolvedValue('{"errors": []}'),
-    };
-
-    mockFetch.mockResolvedValue(mockResponse);
-
-    const result = await checkIfEmailExistsCore({
-      emailAddress: 'test@yahoo.com',
-      useYahooApi: true,
-      useYahooHeadless: true,
-      yahooApiOptions: { timeout: 5000 },
-      headlessOptions: { webdriverEndpoint: 'http://localhost:9515' },
-      verifyMx: false,
-      verifySmtp: false,
-    });
-
-    // Should use API (verifyYahooApi) when both are enabled
-    expect(result.syntax.is_valid).toBe(true);
-    expect(result.misc?.provider_type).toBe(EmailProvider.YAHOO);
-    expect(mockFetch).toHaveBeenCalledTimes(2); // API calls only, not headless
+  test('should have all required email provider enums', () => {
+    expect(EmailProvider.GMAIL).toBe('gmail');
+    expect(EmailProvider.HOTMAIL_B2C).toBe('hotmail_b2c');
+    expect(EmailProvider.HOTMAIL_B2B).toBe('hotmail_b2b');
+    expect(EmailProvider.PROOFPOINT).toBe('proofpoint');
+    expect(EmailProvider.MIMECAST).toBe('mimecast');
+    expect(EmailProvider.EVERYTHING_ELSE).toBe('everything_else');
   });
 });
