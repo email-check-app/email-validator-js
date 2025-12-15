@@ -635,20 +635,92 @@ async function createSmtpConnection(
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const socket = new Socket();
+    let isResolved = false;
+    let connectionTimeout: NodeJS.Timeout;
 
-    socket.setTimeout(options.timeout);
+    // Enhanced cleanup
+    const cleanup = () => {
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+      if (!isResolved) {
+        socket.destroy();
+      }
+    };
+
+    // Set multiple timeout layers
+    socket.setTimeout(options.timeout, () => {
+      if (!isResolved) {
+        cleanup();
+        isResolved = true;
+        reject(new Error(`Socket connection timeout after ${options.timeout}ms`));
+      }
+    });
+
+    // Additional connection timeout as safety net
+    connectionTimeout = setTimeout(() => {
+      if (!isResolved) {
+        cleanup();
+        isResolved = true;
+        reject(new Error(`Connection establishment timeout after ${options.timeout}ms`));
+      }
+    }, options.timeout);
 
     socket.on('connect', () => {
-      resolve(createSmtpTransport(socket, options));
+      if (!isResolved) {
+        isResolved = true;
+        if (connectionTimeout) clearTimeout(connectionTimeout);
+        socket.setTimeout(0); // Disable socket timeout for transport
+        resolve(createSmtpTransport(socket, options));
+      }
     });
 
-    socket.on('error', reject);
-    socket.on('timeout', () => {
-      socket.destroy();
-      reject(new Error('Connection timeout'));
+    socket.on('error', (error) => {
+      if (!isResolved) {
+        cleanup();
+        isResolved = true;
+        reject(new Error(`Connection error: ${error.message}`));
+      }
     });
+
+    // Handle socket timeout separately
+    socket.on('timeout', () => {
+      if (!isResolved) {
+        cleanup();
+        isResolved = true;
+        reject(new Error(`Socket timeout after ${options.timeout}ms`));
+      }
+    });
+
+    // Ensure socket doesn't hang
+    socket.on('close', () => {
+      if (!isResolved) {
+        cleanup();
+        isResolved = true;
+        reject(new Error('Connection closed before completion'));
+      }
+    });
+
+    // Set a maximum timeout for the entire operation
+    const maxTimeout = setTimeout(() => {
+      if (!isResolved) {
+        cleanup();
+        isResolved = true;
+        reject(new Error(`Maximum connection time exceeded: ${options.timeout * 2}ms`));
+      }
+    }, options.timeout * 2); // Double timeout as absolute maximum
 
     socket.connect(options.port, mxHost);
+
+    // Clear max timeout on resolution
+    const originalResolve = resolve;
+    const originalReject = reject;
+    resolve = (value: any) => {
+      clearTimeout(maxTimeout);
+      originalResolve(value);
+    };
+    reject = (error: any) => {
+      clearTimeout(maxTimeout);
+      originalReject(error);
+    };
   });
 }
 

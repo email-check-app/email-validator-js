@@ -256,7 +256,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
     let supportsSTARTTLS = false;
     let supportsVRFY = false;
 
-    const cleanup = () => {
+    let cleanup = () => {
       if (resolved) return;
       resolved = true;
 
@@ -479,7 +479,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
       }
     };
 
-    const handleData = (data: Buffer) => {
+    let handleData = (data: Buffer) => {
       if (resolved) return;
 
       buffer += data.toString();
@@ -523,15 +523,86 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
     }
 
     const firstStep = activeSequence.steps[0];
+
+    // Set up comprehensive timeout handling
+    let connectionTimeout: NodeJS.Timeout;
+    let stepTimeout: NodeJS.Timeout;
+    let lastActivityTime = Date.now();
+
+    const resetActivityTimeout = () => {
+      lastActivityTime = Date.now();
+      if (stepTimeout) {
+        clearTimeout(stepTimeout);
+      }
+      stepTimeout = setTimeout(() => {
+        if (!resolved) {
+          log(`Step timeout after ${timeout}ms of inactivity`);
+          finish(null, 'step_timeout');
+        }
+      }, timeout);
+    };
+
+    // Set initial connection timeout
+    connectionTimeout = setTimeout(() => {
+      if (!resolved) {
+        log(`Connection timeout after ${timeout}ms`);
+        finish(null, 'connection_timeout');
+      }
+    }, timeout);
+
     if (firstStep !== SMTPStep.GREETING) {
       // If sequence doesn't start with GREETING, start with the specified step
       executeStep(firstStep);
     }
 
-    socket.setTimeout(timeout, () => finish(null, 'timeout'));
-    socket.on('error', () => finish(null, 'connection_error'));
-    socket.on('close', () => {
-      if (!resolved) finish(null, 'connection_closed');
+    // Socket-level timeout (fallback)
+    socket.setTimeout(timeout, () => {
+      if (!resolved) {
+        log(`Socket timeout after ${timeout}ms`);
+        finish(null, 'socket_timeout');
+      }
     });
+
+    // Enhanced error handling
+    socket.on('error', (error) => {
+      log(`Socket error: ${error.message}`);
+      if (!resolved) finish(null, 'connection_error');
+    });
+
+    socket.on('close', () => {
+      if (!resolved) {
+        log('Socket closed unexpectedly');
+        finish(null, 'connection_closed');
+      }
+    });
+
+    // Override data handler to track activity
+    const originalHandleData = handleData;
+    handleData = (data: Buffer) => {
+      resetActivityTimeout(); // Reset timeout on each data receipt
+      originalHandleData(data);
+    };
+
+    // Store original cleanup before replacing
+    const originalCleanup = cleanup;
+
+    // Enhanced cleanup function
+    const enhancedCleanup = () => {
+      if (resolved) return;
+      resolved = true;
+
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+      if (stepTimeout) clearTimeout(stepTimeout);
+      socket.setTimeout(0); // Disable socket timeout
+
+      try {
+        socket?.write('QUIT\r\n');
+      } catch {}
+
+      setTimeout(() => socket?.destroy(), 100);
+    };
+
+    // Replace cleanup with enhanced version
+    cleanup = enhancedCleanup;
   });
 }
