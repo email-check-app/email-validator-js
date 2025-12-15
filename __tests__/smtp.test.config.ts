@@ -175,14 +175,14 @@ export const TestUtils = {
 
   // Check if test should be skipped (e.g., no internet)
   shouldSkip: (): boolean => {
-    const { TestEnvironmentUtils } = require('./utils/test-environment');
-    return TestEnvironmentUtils.shouldSkipIntegrationTests() || TestEnvironmentUtils.shouldSkipNetworkTests();
+    const { shouldSkipIntegrationTests, shouldSkipNetworkTests } = require('./utils/test-environment');
+    return shouldSkipIntegrationTests() || shouldSkipNetworkTests();
   },
 
   // Get test timeout based on test type and environment
   getTestTimeout: (type: 'fast' | 'slow' | 'integration' = 'fast'): number => {
     // Import environment utilities
-    const { TestEnvironmentUtils } = require('./utils/test-environment');
-    return TestEnvironmentUtils.getTestTimeout(type);
+    const { getTestTimeout } = require('./utils/test-environment');
+    return getTestTimeout(type);
   },
 };
