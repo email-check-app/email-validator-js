@@ -247,6 +247,9 @@ describe('checkIfEmailExistsCore', () => {
 
       expect(result.misc?.provider_type).toBe(testCase.expectedProvider);
     }
+
+    // Clean up mocks to prevent test contamination
+    mockResolveMx.mockReset();
   });
 });
 
@@ -259,6 +262,9 @@ describe('Integration Tests', () => {
     if (process.env.CI) {
       return;
     }
+
+    // Restore original DNS resolution for integration test
+    mockResolveMx.mockRestore();
 
     const params: ICheckIfEmailExistsCoreParams = {
       emailAddress: 'support@gmail.com', // This is a known valid Gmail address
