@@ -39,8 +39,8 @@ export async function verifyMailboxSMTP(
     return { result: false, cached: false, port: 0, portCached: false };
   }
 
-  // Validate ports - reject any invalid port numbers (allow 0 as it will fail naturally)
-  const hasInvalidPort = ports.some((port) => !Number.isInteger(port) || port < 0 || port > 65535);
+  // Validate ports - only reject negative ports that would cause RangeError
+  const hasInvalidPort = ports.some((port) => !Number.isInteger(port) || port < 0);
   if (hasInvalidPort) {
     log('Invalid port numbers provided');
     return { result: false, cached: false, port: 0, portCached: false };
