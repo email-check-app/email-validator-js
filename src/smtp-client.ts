@@ -114,7 +114,7 @@ export class SMTPClient {
   private verifyParams: SMTPVerifyParams | null = null;
 
   // Callbacks
-  private onMessage: (message: string) => void;
+  public onMessage: (message: string) => void;
   private onConnect: () => void;
   private onError: (err: Error) => void;
   private onClose: () => void;
@@ -507,7 +507,8 @@ export class SMTPClient {
         } else {
           return { success: false, reason: 'vrfy_failed' };
         }
-      //break;
+        // biome-ignore lint/correctness/noUnreachable: for consistency
+        break;
 
       case Step.QUIT:
         if (code.startsWith('221')) {

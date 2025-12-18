@@ -1,5 +1,4 @@
 import { promises as dns } from 'node:dns';
-import { Socket } from 'node:net';
 import type { ICache } from './cache-interface';
 import {
   CheckIfEmailExistsCoreResult,
@@ -13,6 +12,7 @@ import {
   YahooApiOptions,
 } from './email-verifier-types';
 import { isDisposableEmail, isFreeEmail } from './index';
+import { SMTPClient } from './smtp-client';
 // Constants for common providers
 export const CHECK_IF_EMAIL_EXISTS_CONSTANTS = {
   GMAIL_DOMAINS: ['gmail.com', 'googlemail.com'] as const,
@@ -348,9 +348,9 @@ function generateRandomEmail(domain: string): string {
 }
 
 /**
- * Parse SMTP error messages to detect specific conditions
+ * Parse SMTP error messages to detect specific conditions (legacy version)
  */
-function parseSmtpError(errorMessage: string): {
+function parseLegacySmtpError(errorMessage: string): {
   isDisabled: boolean;
   hasFullInbox: boolean;
   isInvalid: boolean;
@@ -560,7 +560,7 @@ function getProviderOptimizations(providerType: EmailProvider): Partial<any> {
 }
 
 /**
- * Perform SMTP verification with catch-all detection
+ * Perform SMTP verification with catch-all detection using SMTPClient
  */
 async function performSmtpVerificationWithCatchAll(
   email: string,
@@ -581,24 +581,30 @@ async function performSmtpVerificationWithCatchAll(
   let isDeliverable = false;
 
   try {
-    // Create SMTP connection
-    const connection = await createSmtpConnection(mxHost, options);
+    // Create SMTP client
+    const client = new SMTPClient(mxHost, options.port, {
+      timeout: options.timeout,
+      hostname: options.helloName,
+      debug: () => {}, // No debug logging by default
+    });
+
+    await client.connect();
 
     // Check if this is a catch-all domain
-    isCatchAll = await checkCatchAll(connection, domain, email, options);
+    isCatchAll = await checkCatchAllWithClient(client, domain, email, options);
 
     if (isCatchAll) {
       // If catch-all, we consider it deliverable
       isDeliverable = true;
     } else {
       // Check actual email deliverability
-      const deliverability = await checkEmailDeliverability(connection, email, options);
+      const deliverability = await checkEmailDeliverabilityWithClient(client, email, options);
       isDeliverable = deliverability.isDeliverable;
       hasFullInbox = deliverability.hasFullInbox;
       isDisabled = deliverability.isDisabled;
     }
 
-    await connection.quit();
+    client.destroy();
 
     return {
       can_connect_smtp: true,
@@ -608,10 +614,10 @@ async function performSmtpVerificationWithCatchAll(
       is_disabled: isDisabled,
     };
   } catch (error: any) {
-    const parsed = parseSmtpError(error.message);
+    const parsed = parseLegacySmtpError(error.message);
 
     return {
-      can_connect_smtp: true,
+      can_connect_smtp: false,
       has_full_inbox: parsed.hasFullInbox,
       is_catch_all: false,
       is_deliverable: !parsed.isInvalid && !parsed.isDisabled,
@@ -622,189 +628,10 @@ async function performSmtpVerificationWithCatchAll(
 }
 
 /**
- * Create SMTP connection
+ * Check if domain has catch-all email setup using SMTPClient
  */
-async function createSmtpConnection(
-  mxHost: string,
-  options: {
-    timeout: number;
-    fromEmail: string;
-    helloName: string;
-    port: number;
-  }
-): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const socket = new Socket();
-    let isResolved = false;
-    let connectionTimeout: NodeJS.Timeout;
-
-    // Enhanced cleanup
-    const cleanup = () => {
-      if (connectionTimeout) clearTimeout(connectionTimeout);
-      if (!isResolved) {
-        socket.destroy();
-      }
-    };
-
-    // Set multiple timeout layers
-    socket.setTimeout(options.timeout, () => {
-      if (!isResolved) {
-        cleanup();
-        isResolved = true;
-        reject(new Error(`Socket connection timeout after ${options.timeout}ms`));
-      }
-    });
-
-    // Additional connection timeout as safety net
-    connectionTimeout = setTimeout(() => {
-      if (!isResolved) {
-        cleanup();
-        isResolved = true;
-        reject(new Error(`Connection establishment timeout after ${options.timeout}ms`));
-      }
-    }, options.timeout);
-
-    socket.on('connect', () => {
-      if (!isResolved) {
-        isResolved = true;
-        if (connectionTimeout) clearTimeout(connectionTimeout);
-        socket.setTimeout(0); // Disable socket timeout for transport
-        resolve(createSmtpTransport(socket, options));
-      }
-    });
-
-    socket.on('error', (error) => {
-      if (!isResolved) {
-        cleanup();
-        isResolved = true;
-        reject(new Error(`Connection error: ${error.message}`));
-      }
-    });
-
-    // Handle socket timeout separately
-    socket.on('timeout', () => {
-      if (!isResolved) {
-        cleanup();
-        isResolved = true;
-        reject(new Error(`Socket timeout after ${options.timeout}ms`));
-      }
-    });
-
-    // Ensure socket doesn't hang
-    socket.on('close', () => {
-      if (!isResolved) {
-        cleanup();
-        isResolved = true;
-        reject(new Error('Connection closed before completion'));
-      }
-    });
-
-    // Set a maximum timeout for the entire operation
-    const maxTimeout = setTimeout(() => {
-      if (!isResolved) {
-        cleanup();
-        isResolved = true;
-        reject(new Error(`Maximum connection time exceeded: ${options.timeout * 2}ms`));
-      }
-    }, options.timeout * 2); // Double timeout as absolute maximum
-
-    socket.connect(options.port, mxHost);
-
-    // Clear max timeout on resolution
-    const originalResolve = resolve;
-    const originalReject = reject;
-    resolve = (value: any) => {
-      clearTimeout(maxTimeout);
-      originalResolve(value);
-    };
-    reject = (error: any) => {
-      clearTimeout(maxTimeout);
-      originalReject(error);
-    };
-  });
-}
-
-/**
- * Create SMTP transport layer
- */
-function createSmtpTransport(
-  socket: any,
-  options: {
-    fromEmail: string;
-    helloName: string;
-  }
-): any {
-  let responseBuffer = '';
-
-  socket.on('data', (data: Buffer) => {
-    responseBuffer += data.toString();
-  });
-
-  return {
-    async sendCommand(command: string): Promise<string> {
-      return new Promise((resolve, reject) => {
-        socket.write(command + '\r\n');
-
-        const checkResponse = () => {
-          const lines = responseBuffer.split('\r\n');
-          const completeLines = lines.slice(0, -1);
-
-          for (const line of completeLines) {
-            if (line.length >= 3) {
-              const code = parseInt(line.substring(0, 3));
-
-              if (line[3] === ' ' || line[3] === undefined) {
-                // Complete response
-                if (code >= 200 && code < 300) {
-                  responseBuffer = '';
-                  resolve(line);
-                } else {
-                  responseBuffer = '';
-                  reject(new Error(line));
-                }
-                return;
-              }
-            }
-          }
-        };
-
-        setTimeout(() => checkResponse(), 1000);
-      });
-    },
-
-    async mailFrom(email: string): Promise<void> {
-      await this.sendCommand(`MAIL FROM:<${email}>`);
-    },
-
-    async rcptTo(email: string): Promise<void> {
-      await this.sendCommand(`RCPT TO:<${email}>`);
-    },
-
-    async ehlo(hostname: string): Promise<void> {
-      try {
-        await this.sendCommand(`EHLO ${hostname}`);
-      } catch (error) {
-        // Fall back to HELO if EHLO fails
-        await this.sendCommand(`HELO ${hostname}`);
-      }
-    },
-
-    async quit(): Promise<void> {
-      try {
-        await this.sendCommand('QUIT');
-      } catch (error) {
-        // Ignore quit errors
-      }
-      socket.end();
-    },
-  };
-}
-
-/**
- * Check if domain has catch-all email setup
- */
-async function checkCatchAll(
-  connection: any,
+async function checkCatchAllWithClient(
+  client: SMTPClient,
   domain: string,
   originalEmail: string,
   options: {
@@ -814,14 +641,14 @@ async function checkCatchAll(
 ): Promise<boolean> {
   try {
     // Send EHLO/HELO
-    await connection.ehlo(options.helloName);
+    await sendCommandWithClient(client, `EHLO ${options.helloName}`);
 
     // Set MAIL FROM
-    await connection.mailFrom(options.fromEmail);
+    await sendCommandWithClient(client, `MAIL FROM:<${options.fromEmail}>`);
 
     // Test with a random email address
     const randomEmail = generateRandomEmail(domain);
-    await connection.rcptTo(randomEmail);
+    await sendCommandWithClient(client, `RCPT TO:<${randomEmail}>`);
 
     // If random email succeeds, domain has catch-all
     return true;
@@ -832,10 +659,50 @@ async function checkCatchAll(
 }
 
 /**
- * Check email deliverability
+ * Helper function to send commands with SMTPClient and wait for response
  */
-async function checkEmailDeliverability(
-  connection: any,
+async function sendCommandWithClient(client: SMTPClient, command: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const originalOnMessage = client.onMessage;
+    let commandResolved = false;
+
+    client.onMessage = (message: string) => {
+      if (!commandResolved) {
+        // Restore original handler
+        client.onMessage = originalOnMessage;
+        commandResolved = true;
+
+        if (message.length >= 3) {
+          const code = parseInt(message.substring(0, 3));
+          if (code >= 200 && code < 300) {
+            resolve(message);
+          } else {
+            reject(new Error(message));
+          }
+        } else {
+          reject(new Error('Invalid response format'));
+        }
+      }
+    };
+
+    client.send(command);
+
+    // Set a timeout in case no response is received
+    setTimeout(() => {
+      if (!commandResolved) {
+        commandResolved = true;
+        client.onMessage = originalOnMessage;
+        reject(new Error('Command timeout'));
+      }
+    }, 5000);
+  });
+}
+
+/**
+ * Check email deliverability using SMTPClient
+ */
+async function checkEmailDeliverabilityWithClient(
+  client: SMTPClient,
   email: string,
   options: {
     fromEmail: string;
@@ -848,13 +715,13 @@ async function checkEmailDeliverability(
 }> {
   try {
     // Send EHLO/HELO
-    await connection.ehlo(options.helloName);
+    await sendCommandWithClient(client, `EHLO ${options.helloName}`);
 
     // Set MAIL FROM
-    await connection.mailFrom(options.fromEmail);
+    await sendCommandWithClient(client, `MAIL FROM:<${options.fromEmail}>`);
 
     // Test with the actual email
-    await connection.rcptTo(email);
+    await sendCommandWithClient(client, `RCPT TO:<${email}>`);
 
     return {
       isDeliverable: true,
@@ -862,7 +729,7 @@ async function checkEmailDeliverability(
       isDisabled: false,
     };
   } catch (error: any) {
-    const parsed = parseSmtpError(error.message);
+    const parsed = parseLegacySmtpError(error.message);
     return {
       isDeliverable: !parsed.isInvalid && !parsed.isDisabled,
       hasFullInbox: parsed.hasFullInbox,
@@ -1934,454 +1801,452 @@ export interface ParsedSmtpError {
   message: string;
   originalMessage: string;
   providerSpecific?: {
+    provider?: string;
     code?: string;
     action?: string;
     details?: string;
   };
 }
 
-class SmtpErrorParser {
-  /**
-   * Parse SMTP error messages with provider-specific context
-   */
-  static parseError(smtpMessage: string, provider: EmailProvider, responseCode?: number): ParsedSmtpError {
-    const normalizedMessage = smtpMessage.toLowerCase().trim();
+/**
+ * Parse SMTP error messages with provider-specific context
+ */
+export function parseSmtpError(smtpMessage: string, provider: EmailProvider, responseCode?: number): ParsedSmtpError {
+  const normalizedMessage = smtpMessage.toLowerCase().trim();
 
-    // Provider-specific parsing first
-    switch (provider) {
-      case EmailProvider.GMAIL:
-        return SmtpErrorParser.parseGmailError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.YAHOO:
-        return SmtpErrorParser.parseYahooError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.HOTMAIL_B2C:
-      case EmailProvider.HOTMAIL_B2B:
-        return SmtpErrorParser.parseHotmailError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.PROOFPOINT:
-        return SmtpErrorParser.parseProofpointError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.MIMECAST:
-        return SmtpErrorParser.parseMimecastError(normalizedMessage, smtpMessage, responseCode);
+  // Provider-specific parsing first
+  switch (provider) {
+    case EmailProvider.GMAIL:
+      return parseGmailError(normalizedMessage, smtpMessage, responseCode);
+    case EmailProvider.YAHOO:
+      return parseYahooError(normalizedMessage, smtpMessage, responseCode);
+    case EmailProvider.HOTMAIL_B2C:
+    case EmailProvider.HOTMAIL_B2B:
+      return parseHotmailError(normalizedMessage, smtpMessage, responseCode);
+    case EmailProvider.PROOFPOINT:
+      return parseProofpointError(normalizedMessage, smtpMessage, responseCode);
+    case EmailProvider.MIMECAST:
+      return parseMimecastError(normalizedMessage, smtpMessage, responseCode);
+    default:
+      break;
+  }
+
+  // Generic error patterns fallback
+  const genericResult = parseGenericErrors(normalizedMessage, smtpMessage, responseCode);
+  if (genericResult.type !== 'unknown') {
+    return genericResult;
+  }
+
+  // Fallback: response code based parsing when no text pattern matches
+  if (responseCode) {
+    switch (responseCode) {
+      case 550:
+        return {
+          type: 'invalid',
+          severity: 'permanent',
+          message: 'Invalid recipient address',
+          originalMessage: smtpMessage,
+        };
+      case 552:
+        return {
+          type: 'full_inbox',
+          severity: 'temporary',
+          message: 'Mailbox is full or quota exceeded',
+          originalMessage: smtpMessage,
+        };
+      case 450:
+      case 451:
+        return {
+          type: 'rate_limited',
+          severity: 'temporary',
+          message: 'Rate limited or temporarily unavailable',
+          originalMessage: smtpMessage,
+        };
       default:
         break;
     }
+  }
 
-    // Generic error patterns fallback
-    const genericResult = SmtpErrorParser.parseGenericErrors(normalizedMessage, smtpMessage, responseCode);
-    if (genericResult.type !== 'unknown') {
-      return genericResult;
-    }
+  // Unknown error
+  return {
+    type: 'unknown',
+    severity: 'unknown',
+    message: 'Unknown error pattern',
+    originalMessage: smtpMessage,
+  };
+}
 
-    // Fallback: response code based parsing when no text pattern matches
-    if (responseCode) {
-      switch (responseCode) {
-        case 550:
-          return {
-            type: 'disabled',
-            severity: 'permanent',
-            message: 'Account is disabled or deactivated',
-            originalMessage: smtpMessage,
-          };
-        case 552:
-          return {
-            type: 'full_inbox',
-            severity: 'temporary',
-            message: 'Mailbox is full or quota exceeded',
-            originalMessage: smtpMessage,
-          };
-        case 450:
-        case 451:
-          return {
-            type: 'rate_limited',
-            severity: 'temporary',
-            message: 'Rate limited or temporarily unavailable',
-            originalMessage: smtpMessage,
-          };
-        default:
-          break;
-      }
-    }
-
-    // Unknown error
+/**
+ * Parse generic SMTP error patterns
+ */
+function parseGenericErrors(
+  normalizedMessage: string,
+  originalMessage: string,
+  responseCode?: number
+): ParsedSmtpError {
+  // Invalid email errors
+  if (
+    normalizedMessage.includes('invalid recipient') ||
+    normalizedMessage.includes('user unknown') ||
+    normalizedMessage.includes('recipient unknown') ||
+    normalizedMessage.includes('no such user') ||
+    normalizedMessage.includes('address rejected') ||
+    normalizedMessage.includes('user does not exist') ||
+    responseCode === 550
+  ) {
     return {
-      type: 'unknown',
-      severity: 'unknown',
-      message: 'Unknown error pattern',
-      originalMessage: smtpMessage,
+      type: 'invalid',
+      severity: 'permanent',
+      message: 'Invalid recipient address',
+      originalMessage,
     };
   }
 
-  /**
-   * Parse generic SMTP error patterns
-   */
-  private static parseGenericErrors(
-    normalizedMessage: string,
-    originalMessage: string,
-    responseCode?: number
-  ): ParsedSmtpError {
-    // Disabled account errors
+  // Full inbox errors
+  if (
+    normalizedMessage.includes('full') ||
+    normalizedMessage.includes('quota exceeded') ||
+    normalizedMessage.includes('insufficient storage') ||
+    normalizedMessage.includes('mailbox full') ||
+    responseCode === 552
+  ) {
+    return {
+      type: 'full_inbox',
+      severity: 'temporary',
+      message: 'Mailbox is full or quota exceeded',
+      originalMessage,
+    };
+  }
+
+  // Rate limiting errors
+  if (
+    normalizedMessage.includes('rate limit') ||
+    normalizedMessage.includes('too many') ||
+    normalizedMessage.includes('try again later') ||
+    normalizedMessage.includes('temporarily') ||
+    responseCode === 450 ||
+    responseCode === 451
+  ) {
+    return {
+      type: 'rate_limited',
+      severity: 'temporary',
+      message: 'Rate limited or temporarily unavailable',
+      originalMessage,
+    };
+  }
+
+  // Blocked errors
+  if (
+    normalizedMessage.includes('blocked') ||
+    normalizedMessage.includes('spam') ||
+    normalizedMessage.includes('blacklisted') ||
+    normalizedMessage.includes('rejected by policy')
+  ) {
+    return {
+      type: 'blocked',
+      severity: 'permanent',
+      message: 'Message blocked by spam or content filters',
+      originalMessage,
+    };
+  }
+
+  return {
+    type: 'unknown',
+    severity: 'unknown',
+    message: 'Unknown error pattern',
+    originalMessage,
+  };
+}
+
+/**
+ * Parse Gmail-specific SMTP errors
+ */
+function parseGmailError(normalizedMessage: string, originalMessage: string, responseCode?: number): ParsedSmtpError {
+  // Gmail specific patterns
+  if (
+    normalizedMessage.includes('g-smtp') ||
+    normalizedMessage.includes('gmail') ||
+    normalizedMessage.includes('google')
+  ) {
+    // Gmail invalid recipient patterns
     if (
-      normalizedMessage.includes('disabled') ||
-      normalizedMessage.includes('deactivated') ||
-      normalizedMessage.includes('suspended') ||
-      normalizedMessage.includes('account disabled')
+      normalizedMessage.includes('invalid address') ||
+      normalizedMessage.includes('does not exist') ||
+      normalizedMessage.includes('permanent failure')
     ) {
       return {
-        type: 'disabled',
+        type: 'invalid',
         severity: 'permanent',
-        message: 'Account is disabled or deactivated',
+        message: 'Gmail: Invalid recipient address',
         originalMessage,
+        providerSpecific: {
+          provider: 'gmail',
+          code: 'INVALID_RECIPIENT',
+          action: 'Check email address',
+        },
       };
     }
 
-    // Full inbox errors
-    if (
-      normalizedMessage.includes('full') ||
-      normalizedMessage.includes('quota exceeded') ||
-      normalizedMessage.includes('mailbox full') ||
-      normalizedMessage.includes('over quota') ||
-      responseCode === 552
-    ) {
+    // Gmail over quota
+    if (normalizedMessage.includes('over quota') || normalizedMessage.includes('storage quota')) {
       return {
         type: 'full_inbox',
         severity: 'temporary',
-        message: 'Mailbox is full or quota exceeded',
+        message: 'Gmail: Mailbox over quota',
         originalMessage,
+        providerSpecific: {
+          provider: 'gmail',
+          code: 'OVER_QUOTA',
+          action: 'Contact user to free up space',
+        },
       };
     }
 
-    // Invalid email errors
+    // Gmail rate limiting
+    if (normalizedMessage.includes('temporarily deferred') || normalizedMessage.includes('rate limit')) {
+      return {
+        type: 'rate_limited',
+        severity: 'temporary',
+        message: 'Gmail: Temporarily rate limited',
+        originalMessage,
+        providerSpecific: {
+          provider: 'gmail',
+          code: 'RATE_LIMITED',
+          action: 'Wait and retry',
+        },
+      };
+    }
+  }
+
+  return parseGenericErrors(normalizedMessage, originalMessage, responseCode);
+}
+
+/**
+ * Parse Yahoo-specific SMTP errors
+ */
+function parseYahooError(normalizedMessage: string, originalMessage: string, responseCode?: number): ParsedSmtpError {
+  // Yahoo specific patterns
+  if (normalizedMessage.includes('yahoo') || normalizedMessage.includes('ymail')) {
+    // Yahoo invalid recipient patterns
     if (
+      normalizedMessage.includes('unknown user') ||
       normalizedMessage.includes('invalid recipient') ||
+      normalizedMessage.includes('address unknown')
+    ) {
+      return {
+        type: 'invalid',
+        severity: 'permanent',
+        message: 'Yahoo: Invalid recipient address',
+        originalMessage,
+        providerSpecific: {
+          provider: 'yahoo',
+          code: 'INVALID_RECIPIENT',
+          action: 'Verify email address',
+        },
+      };
+    }
+
+    // Yahoo full inbox
+    if (normalizedMessage.includes('mailbox over quota') || normalizedMessage.includes('storage limit')) {
+      return {
+        type: 'full_inbox',
+        severity: 'temporary',
+        message: 'Yahoo: Mailbox over quota',
+        originalMessage,
+        providerSpecific: {
+          provider: 'yahoo',
+          code: 'OVER_QUOTA',
+          action: 'Contact user to free up space',
+        },
+      };
+    }
+
+    // Yahoo specific error codes
+    if (normalizedMessage.includes('553') && normalizedMessage.includes('request rejected')) {
+      return {
+        type: 'blocked',
+        severity: 'permanent',
+        message: 'Yahoo: Message rejected by policy',
+        originalMessage,
+        providerSpecific: {
+          provider: 'yahoo',
+          code: 'POLICY_REJECTION',
+          action: 'Review message content',
+        },
+      };
+    }
+  }
+
+  return parseGenericErrors(normalizedMessage, originalMessage, responseCode);
+}
+
+/**
+ * Parse Hotmail/Outlook-specific SMTP errors
+ */
+function parseHotmailError(normalizedMessage: string, originalMessage: string, responseCode?: number): ParsedSmtpError {
+  // Hotmail/Outlook specific patterns
+  if (
+    normalizedMessage.includes('outlook') ||
+    normalizedMessage.includes('hotmail') ||
+    normalizedMessage.includes('microsoft')
+  ) {
+    // Hotmail invalid recipient patterns
+    if (
+      normalizedMessage.includes('recipient not found') ||
       normalizedMessage.includes('user unknown') ||
-      normalizedMessage.includes('recipient unknown') ||
-      normalizedMessage.includes('no such user') ||
       normalizedMessage.includes('address rejected')
     ) {
       return {
         type: 'invalid',
         severity: 'permanent',
-        message: 'Invalid email address or user unknown',
+        message: 'Outlook: Invalid recipient address',
         originalMessage,
+        providerSpecific: {
+          provider: 'outlook',
+          code: 'INVALID_RECIPIENT',
+          action: 'Verify email address',
+        },
       };
     }
 
-    // Rate limiting errors
+    // Exchange Server patterns
+    if (normalizedMessage.includes('550 5.4.1') || normalizedMessage.includes('relay access denied')) {
+      return {
+        type: 'blocked',
+        severity: 'permanent',
+        message: 'Outlook: Relay access denied',
+        originalMessage,
+        providerSpecific: {
+          provider: 'outlook',
+          code: 'RELAY_DENIED',
+          action: 'Check authentication and sender permissions',
+        },
+      };
+    }
+
+    // Microsoft rate limiting
     if (
-      normalizedMessage.includes('rate limit') ||
-      normalizedMessage.includes('too many') ||
-      normalizedMessage.includes('try again later') ||
-      normalizedMessage.includes('temporarily') ||
-      responseCode === 450 ||
-      responseCode === 451
+      normalizedMessage.includes('4.4.2') ||
+      normalizedMessage.includes('connection limit') ||
+      normalizedMessage.includes('too many connections')
     ) {
       return {
         type: 'rate_limited',
         severity: 'temporary',
-        message: 'Rate limited or temporarily unavailable',
+        message: 'Outlook: Connection rate limited',
         originalMessage,
+        providerSpecific: {
+          provider: 'outlook',
+          code: 'RATE_LIMITED',
+          action: 'Reduce connection rate or wait',
+        },
       };
     }
+  }
 
-    // Blocked errors
-    if (
-      normalizedMessage.includes('blocked') ||
-      normalizedMessage.includes('spam') ||
-      normalizedMessage.includes('blacklisted') ||
-      normalizedMessage.includes('rejected by policy')
-    ) {
+  return parseGenericErrors(normalizedMessage, originalMessage, responseCode);
+}
+
+/**
+ * Parse Proofpoint-specific SMTP errors
+ */
+function parseProofpointError(
+  normalizedMessage: string,
+  originalMessage: string,
+  responseCode?: number
+): ParsedSmtpError {
+  // Proofpoint specific patterns
+  if (normalizedMessage.includes('proofpoint') || normalizedMessage.includes('pphosted')) {
+    // Proofpoint blocked messages
+    if (normalizedMessage.includes('message rejected') || normalizedMessage.includes('policy violation')) {
       return {
         type: 'blocked',
         severity: 'permanent',
-        message: 'Message blocked by spam or content filters',
+        message: 'Proofpoint: Message blocked by policy',
         originalMessage,
+        providerSpecific: {
+          provider: 'proofpoint',
+          code: 'POLICY_BLOCK',
+          action: 'Review message content and attachments',
+        },
       };
     }
 
-    return {
-      type: 'unknown',
-      severity: 'unknown',
-      message: 'Unknown error pattern',
-      originalMessage,
-    };
-  }
-
-  /**
-   * Parse Gmail-specific SMTP errors
-   */
-  private static parseGmailError(
-    normalizedMessage: string,
-    originalMessage: string,
-    responseCode?: number
-  ): ParsedSmtpError {
-    // Gmail specific patterns
-    if (
-      normalizedMessage.includes('g-smtp') ||
-      normalizedMessage.includes('gmail') ||
-      normalizedMessage.includes('google')
-    ) {
-      // Gmail disabled account
-      if (normalizedMessage.includes('account disabled') || normalizedMessage.includes('suspended')) {
-        return {
-          type: 'disabled',
-          severity: 'permanent',
-          message: 'Gmail account is disabled or suspended',
-          originalMessage,
-          providerSpecific: {
-            code: 'GMAIL_DISABLED',
-            action: 'Contact Gmail support',
-            details: 'Account has been disabled by Google',
-          },
-        };
-      }
-
-      // Gmail over quota
-      if (normalizedMessage.includes('over quota') || normalizedMessage.includes('storage quota')) {
-        return {
-          type: 'full_inbox',
-          severity: 'temporary',
-          message: 'Gmail storage quota exceeded',
-          originalMessage,
-          providerSpecific: {
-            code: 'GMAIL_QUOTA_EXCEEDED',
-            action: 'User needs to free up storage space',
-            details: 'Gmail account has exceeded storage limits',
-          },
-        };
-      }
-
-      // Gmail rate limiting
-      if (normalizedMessage.includes('temporarily deferred') || normalizedMessage.includes('rate limit')) {
-        return {
-          type: 'rate_limited',
-          severity: 'temporary',
-          message: 'Gmail rate limiting active',
-          originalMessage,
-          providerSpecific: {
-            code: 'GMAIL_RATE_LIMIT',
-            action: 'Wait before retrying',
-            details: 'Gmail is temporarily deferring messages',
-          },
-        };
-      }
+    // Proofpoint rate limiting
+    if (normalizedMessage.includes('too many messages') || normalizedMessage.includes('frequency limit')) {
+      return {
+        type: 'rate_limited',
+        severity: 'temporary',
+        message: 'Proofpoint: Message frequency limited',
+        originalMessage,
+        providerSpecific: {
+          provider: 'proofpoint',
+          code: 'RATE_LIMITED',
+          action: 'Reduce message frequency',
+        },
+      };
     }
-
-    return SmtpErrorParser.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
   }
 
-  /**
-   * Parse Yahoo-specific SMTP errors
-   */
-  private static parseYahooError(
-    normalizedMessage: string,
-    originalMessage: string,
-    responseCode?: number
-  ): ParsedSmtpError {
-    if (
-      normalizedMessage.includes('yahoo') ||
-      normalizedMessage.includes('ymail') ||
-      normalizedMessage.includes('rocketmail')
-    ) {
-      // Yahoo account disabled
-      if (normalizedMessage.includes('account disabled') || normalizedMessage.includes('account suspended')) {
-        return {
-          type: 'disabled',
-          severity: 'permanent',
-          message: 'Yahoo account is disabled or suspended',
-          originalMessage,
-          providerSpecific: {
-            code: 'YAHOO_DISABLED',
-            action: 'Contact Yahoo support',
-            details: 'Yahoo account has been disabled',
-          },
-        };
-      }
-
-      // Yahoo full inbox
-      if (normalizedMessage.includes('mailbox over quota') || normalizedMessage.includes('storage limit')) {
-        return {
-          type: 'full_inbox',
-          severity: 'temporary',
-          message: 'Yahoo mailbox is over quota',
-          originalMessage,
-          providerSpecific: {
-            code: 'YAHOO_FULL',
-            action: 'User needs to clean up mailbox',
-            details: 'Yahoo account has exceeded storage limits',
-          },
-        };
-      }
-
-      // Yahoo specific error codes
-      if (normalizedMessage.includes('553') && normalizedMessage.includes('request rejected')) {
-        return {
-          type: 'blocked',
-          severity: 'permanent',
-          message: 'Yahoo rejected the request',
-          originalMessage,
-          providerSpecific: {
-            code: 'YAHOO_REJECTED',
-            action: 'Check sender reputation',
-            details: 'Yahoo rejected the message due to policy',
-          },
-        };
-      }
-    }
-
-    return SmtpErrorParser.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
-  }
-
-  /**
-   * Parse Hotmail/Outlook-specific SMTP errors
-   */
-  private static parseHotmailError(
-    normalizedMessage: string,
-    originalMessage: string,
-    responseCode?: number
-  ): ParsedSmtpError {
-    if (
-      normalizedMessage.includes('hotmail') ||
-      normalizedMessage.includes('outlook') ||
-      normalizedMessage.includes('live') ||
-      normalizedMessage.includes('microsoft')
-    ) {
-      // Microsoft 365 specific patterns
-      if (normalizedMessage.includes('550 5.2.1') || normalizedMessage.includes('recipient rejected')) {
-        return {
-          type: 'invalid',
-          severity: 'permanent',
-          message: 'Microsoft 365 rejected recipient',
-          originalMessage,
-          providerSpecific: {
-            code: 'OFFICE365_REJECTED',
-            action: 'Verify email address',
-            details: 'Microsoft 365 rejected the recipient',
-          },
-        };
-      }
-
-      // Exchange Server patterns
-      if (normalizedMessage.includes('550 5.4.1') || normalizedMessage.includes('relay access denied')) {
-        return {
-          type: 'blocked',
-          severity: 'permanent',
-          message: 'Microsoft Exchange relay access denied',
-          originalMessage,
-          providerSpecific: {
-            code: 'EXCHANGE_RELAY_DENIED',
-            action: 'Check authentication settings',
-            details: 'Exchange server denied relay access',
-          },
-        };
-      }
-
-      // Microsoft rate limiting
-      if (
-        normalizedMessage.includes('4.4.2') ||
-        normalizedMessage.includes('connection limit') ||
-        normalizedMessage.includes('throttling')
-      ) {
-        return {
-          type: 'rate_limited',
-          severity: 'temporary',
-          message: 'Microsoft Exchange rate limiting',
-          originalMessage,
-          providerSpecific: {
-            code: 'EXCHANGE_THROTTLING',
-            action: 'Wait before retrying',
-            details: 'Microsoft Exchange is throttling connections',
-          },
-        };
-      }
-    }
-
-    return SmtpErrorParser.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
-  }
-
-  /**
-   * Parse Proofpoint-specific SMTP errors
-   */
-  private static parseProofpointError(
-    normalizedMessage: string,
-    originalMessage: string,
-    responseCode?: number
-  ): ParsedSmtpError {
-    if (normalizedMessage.includes('proofpoint')) {
-      // Proofpoint security filtering
-      if (normalizedMessage.includes('message rejected') || normalizedMessage.includes('policy violation')) {
-        return {
-          type: 'blocked',
-          severity: 'permanent',
-          message: 'Proofpoint security policy violation',
-          originalMessage,
-          providerSpecific: {
-            code: 'PROOFPOINT_BLOCKED',
-            action: 'Check message content and sender reputation',
-            details: 'Proofpoint blocked the message due to security policy',
-          },
-        };
-      }
-
-      // Proofpoint rate limiting
-      if (normalizedMessage.includes('too many messages') || normalizedMessage.includes('frequency limit')) {
-        return {
-          type: 'rate_limited',
-          severity: 'temporary',
-          message: 'Proofpoint frequency limit exceeded',
-          originalMessage,
-          providerSpecific: {
-            code: 'PROOFPOINT_RATE_LIMIT',
-            action: 'Reduce sending frequency',
-            details: 'Proofpoint limited the message frequency',
-          },
-        };
-      }
-    }
-
-    return SmtpErrorParser.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
-  }
-
-  /**
-   * Parse Mimecast-specific SMTP errors
-   */
-  private static parseMimecastError(
-    normalizedMessage: string,
-    originalMessage: string,
-    responseCode?: number
-  ): ParsedSmtpError {
-    if (normalizedMessage.includes('mimecast')) {
-      // Mimecast security filtering
-      if (normalizedMessage.includes('blocked by policy') || normalizedMessage.includes('content filter')) {
-        return {
-          type: 'blocked',
-          severity: 'permanent',
-          message: 'Mimecast content policy violation',
-          originalMessage,
-          providerSpecific: {
-            code: 'MIMECAST_BLOCKED',
-            action: 'Check message content and attachments',
-            details: 'Mimecast blocked the message due to content policy',
-          },
-        };
-      }
-
-      // Mimecast rate limiting
-      if (normalizedMessage.includes('rate limit exceeded') || normalizedMessage.includes('too many recipients')) {
-        return {
-          type: 'rate_limited',
-          severity: 'temporary',
-          message: 'Mimecast rate limiting active',
-          originalMessage,
-          providerSpecific: {
-            code: 'MIMECAST_RATE_LIMIT',
-            action: 'Wait or reduce sending frequency',
-            details: 'Mimecast limited the message rate',
-          },
-        };
-      }
-    }
-
-    return SmtpErrorParser.parseGenericErrors(normalizedMessage, originalMessage, responseCode);
-  }
+  return parseGenericErrors(normalizedMessage, originalMessage, responseCode);
 }
+
+/**
+ * Parse Mimecast-specific SMTP errors
+ */
+function parseMimecastError(
+  normalizedMessage: string,
+  originalMessage: string,
+  responseCode?: number
+): ParsedSmtpError {
+  // Mimecast specific patterns
+  if (normalizedMessage.includes('mimecast') || normalizedMessage.includes('ppe-hosted')) {
+    // Mimecast blocked messages
+    if (normalizedMessage.includes('content blocked') || normalizedMessage.includes('threat detected')) {
+      return {
+        type: 'blocked',
+        severity: 'permanent',
+        message: 'Mimecast: Threat detected in content',
+        originalMessage,
+        providerSpecific: {
+          provider: 'mimecast',
+          code: 'THREAT_BLOCKED',
+          action: 'Scan content for threats',
+        },
+      };
+    }
+
+    // Mimecast rate limiting
+    if (normalizedMessage.includes('rate limit exceeded') || normalizedMessage.includes('too many recipients')) {
+      return {
+        type: 'rate_limited',
+        severity: 'temporary',
+        message: 'Mimecast: Rate limit exceeded',
+        originalMessage,
+        providerSpecific: {
+          provider: 'mimecast',
+          code: 'RATE_LIMITED',
+          action: 'Reduce send rate or recipient count',
+        },
+      };
+    }
+  }
+
+  return parseGenericErrors(normalizedMessage, originalMessage, responseCode);
+}
+
+/**
+ * SmtpErrorParser object for backward compatibility
+ */
+export const SmtpErrorParser = {
+  parseError: parseSmtpError,
+  parseGenericErrors,
+  parseGmailError,
+  parseYahooError,
+  parseHotmailError,
+  parseProofpointError,
+  parseMimecastError,
+};
 
 /**
  * Enhanced SMTP verification with provider-specific error parsing
@@ -2436,5 +2301,5 @@ async function verifySmtpConnectionWithErrorParsing(
 }
 
 // Export functions for testing
-export { verifyYahooApi, verifyYahooHeadless, verifyGmailHeadless, SmtpErrorParser };
+export { verifyYahooApi, verifyYahooHeadless, verifyGmailHeadless };
 export { HeadlessBrowser };
