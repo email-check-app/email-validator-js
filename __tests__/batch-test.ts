@@ -3,6 +3,7 @@ import net, { Socket } from 'node:net';
 import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';
 import { clearDefaultCache, type VerificationResult, verifyEmailBatch } from '../src';
+import { SMTPClient } from '../src/smtp-client';
 
 describe('Batch Email Verification', () => {
   let sandbox: SinonSandbox;
@@ -53,19 +54,24 @@ describe('Batch Email Verification', () => {
       let maxConcurrent = 0;
       let currentConcurrent = 0;
 
-      const _originalConnect = net.connect;
-      sandbox.stub(net, 'connect').callsFake(() => {
+      // Stub SMTPClient constructor to track concurrent connections
+      const _originalSMTPClient = SMTPClient;
+      sandbox.stub(SMTPClient.prototype, 'connect').callsFake(async () => {
         currentConcurrent++;
         maxConcurrent = Math.max(maxConcurrent, currentConcurrent);
 
-        const socket = new Socket({});
-        setTimeout(() => {
-          currentConcurrent--;
-          socket.emit('data', '250 OK');
-        }, 50);
+        // Simulate connection delay
+        await new Promise((resolve) => setTimeout(resolve, 50));
 
-        return socket;
+        currentConcurrent--;
       });
+
+      sandbox.stub(SMTPClient.prototype, 'verifyEmail').resolves({
+        success: true,
+        reason: 'valid',
+      });
+
+      sandbox.stub(SMTPClient.prototype, 'destroy').returns();
 
       await verifyEmailBatch({
         emailAddresses: emails,
