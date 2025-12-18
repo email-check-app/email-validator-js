@@ -1842,9 +1842,9 @@ export function parseSmtpError(smtpMessage: string, provider: EmailProvider, res
     switch (responseCode) {
       case 550:
         return {
-          type: 'invalid',
+          type: 'disabled',
           severity: 'permanent',
-          message: 'Invalid recipient address',
+          message: 'Account is disabled or deactivated',
           originalMessage: smtpMessage,
         };
       case 552:
@@ -1884,6 +1884,22 @@ function parseGenericErrors(
   originalMessage: string,
   responseCode?: number
 ): ParsedSmtpError {
+  // Disabled account errors
+  if (
+    normalizedMessage.includes('account disabled') ||
+    normalizedMessage.includes('account suspended') ||
+    normalizedMessage.includes('disabled account') ||
+    normalizedMessage.includes('account has been disabled') ||
+    responseCode === 554
+  ) {
+    return {
+      type: 'disabled',
+      severity: 'permanent',
+      message: 'Account is disabled or deactivated',
+      originalMessage,
+    };
+  }
+
   // Invalid email errors
   if (
     normalizedMessage.includes('invalid recipient') ||
@@ -1891,13 +1907,12 @@ function parseGenericErrors(
     normalizedMessage.includes('recipient unknown') ||
     normalizedMessage.includes('no such user') ||
     normalizedMessage.includes('address rejected') ||
-    normalizedMessage.includes('user does not exist') ||
-    responseCode === 550
+    normalizedMessage.includes('user does not exist')
   ) {
     return {
       type: 'invalid',
       severity: 'permanent',
-      message: 'Invalid recipient address',
+      message: 'Invalid email address or user unknown',
       originalMessage,
     };
   }
@@ -1962,6 +1977,21 @@ function parseGenericErrors(
  * Parse Gmail-specific SMTP errors
  */
 function parseGmailError(normalizedMessage: string, originalMessage: string, responseCode?: number): ParsedSmtpError {
+  // Gmail disabled account patterns (check first)
+  if (normalizedMessage.includes('disabled') || normalizedMessage.includes('suspended') || responseCode === 554) {
+    return {
+      type: 'disabled',
+      severity: 'permanent',
+      message: 'Gmail account is disabled or suspended',
+      originalMessage,
+      providerSpecific: {
+        provider: 'gmail',
+        code: 'GMAIL_DISABLED',
+        action: 'Contact Gmail support',
+      },
+    };
+  }
+
   // Gmail specific patterns
   if (
     normalizedMessage.includes('g-smtp') ||
@@ -1992,12 +2022,12 @@ function parseGmailError(normalizedMessage: string, originalMessage: string, res
       return {
         type: 'full_inbox',
         severity: 'temporary',
-        message: 'Gmail: Mailbox over quota',
+        message: 'Gmail storage quota exceeded',
         originalMessage,
         providerSpecific: {
           provider: 'gmail',
-          code: 'OVER_QUOTA',
-          action: 'Contact user to free up space',
+          code: 'GMAIL_QUOTA_EXCEEDED',
+          action: 'Free up storage space',
         },
       };
     }
@@ -2007,11 +2037,11 @@ function parseGmailError(normalizedMessage: string, originalMessage: string, res
       return {
         type: 'rate_limited',
         severity: 'temporary',
-        message: 'Gmail: Temporarily rate limited',
+        message: 'Gmail rate limiting active',
         originalMessage,
         providerSpecific: {
           provider: 'gmail',
-          code: 'RATE_LIMITED',
+          code: 'GMAIL_RATE_LIMIT',
           action: 'Wait and retry',
         },
       };
@@ -2025,6 +2055,26 @@ function parseGmailError(normalizedMessage: string, originalMessage: string, res
  * Parse Yahoo-specific SMTP errors
  */
 function parseYahooError(normalizedMessage: string, originalMessage: string, responseCode?: number): ParsedSmtpError {
+  // Yahoo disabled account patterns (check first)
+  if (
+    normalizedMessage.includes('disabled') ||
+    normalizedMessage.includes('suspended') ||
+    normalizedMessage.includes('terms of service violation') ||
+    responseCode === 554
+  ) {
+    return {
+      type: 'disabled',
+      severity: 'permanent',
+      message: 'Yahoo account is disabled or suspended',
+      originalMessage,
+      providerSpecific: {
+        provider: 'yahoo',
+        code: 'YAHOO_DISABLED',
+        action: 'Contact Yahoo support',
+      },
+    };
+  }
+
   // Yahoo specific patterns
   if (normalizedMessage.includes('yahoo') || normalizedMessage.includes('ymail')) {
     // Yahoo invalid recipient patterns
@@ -2051,12 +2101,12 @@ function parseYahooError(normalizedMessage: string, originalMessage: string, res
       return {
         type: 'full_inbox',
         severity: 'temporary',
-        message: 'Yahoo: Mailbox over quota',
+        message: 'Yahoo mailbox is over quota',
         originalMessage,
         providerSpecific: {
           provider: 'yahoo',
-          code: 'OVER_QUOTA',
-          action: 'Contact user to free up space',
+          code: 'YAHOO_FULL',
+          action: 'Free up storage space',
         },
       };
     }
@@ -2066,11 +2116,11 @@ function parseYahooError(normalizedMessage: string, originalMessage: string, res
       return {
         type: 'blocked',
         severity: 'permanent',
-        message: 'Yahoo: Message rejected by policy',
+        message: 'Yahoo rejected the request',
         originalMessage,
         providerSpecific: {
           provider: 'yahoo',
-          code: 'POLICY_REJECTION',
+          code: 'YAHOO_REJECTED',
           action: 'Review message content',
         },
       };
@@ -2094,16 +2144,17 @@ function parseHotmailError(normalizedMessage: string, originalMessage: string, r
     if (
       normalizedMessage.includes('recipient not found') ||
       normalizedMessage.includes('user unknown') ||
-      normalizedMessage.includes('address rejected')
+      normalizedMessage.includes('address rejected') ||
+      normalizedMessage.includes('recipient rejected')
     ) {
       return {
         type: 'invalid',
         severity: 'permanent',
-        message: 'Outlook: Invalid recipient address',
+        message: 'Microsoft 365 rejected recipient',
         originalMessage,
         providerSpecific: {
           provider: 'outlook',
-          code: 'INVALID_RECIPIENT',
+          code: 'OFFICE365_REJECTED',
           action: 'Verify email address',
         },
       };
@@ -2114,11 +2165,11 @@ function parseHotmailError(normalizedMessage: string, originalMessage: string, r
       return {
         type: 'blocked',
         severity: 'permanent',
-        message: 'Outlook: Relay access denied',
+        message: 'Microsoft Exchange relay access denied',
         originalMessage,
         providerSpecific: {
           provider: 'outlook',
-          code: 'RELAY_DENIED',
+          code: 'EXCHANGE_RELAY_DENIED',
           action: 'Check authentication and sender permissions',
         },
       };
@@ -2133,11 +2184,11 @@ function parseHotmailError(normalizedMessage: string, originalMessage: string, r
       return {
         type: 'rate_limited',
         severity: 'temporary',
-        message: 'Outlook: Connection rate limited',
+        message: 'Microsoft Exchange rate limiting',
         originalMessage,
         providerSpecific: {
           provider: 'outlook',
-          code: 'RATE_LIMITED',
+          code: 'EXCHANGE_THROTTLING',
           action: 'Reduce connection rate or wait',
         },
       };
@@ -2162,11 +2213,11 @@ function parseProofpointError(
       return {
         type: 'blocked',
         severity: 'permanent',
-        message: 'Proofpoint: Message blocked by policy',
+        message: 'Proofpoint security policy violation',
         originalMessage,
         providerSpecific: {
           provider: 'proofpoint',
-          code: 'POLICY_BLOCK',
+          code: 'PROOFPOINT_BLOCKED',
           action: 'Review message content and attachments',
         },
       };
@@ -2177,11 +2228,11 @@ function parseProofpointError(
       return {
         type: 'rate_limited',
         severity: 'temporary',
-        message: 'Proofpoint: Message frequency limited',
+        message: 'Proofpoint frequency limit exceeded',
         originalMessage,
         providerSpecific: {
           provider: 'proofpoint',
-          code: 'RATE_LIMITED',
+          code: 'PROOFPOINT_RATE_LIMIT',
           action: 'Reduce message frequency',
         },
       };
@@ -2202,15 +2253,20 @@ function parseMimecastError(
   // Mimecast specific patterns
   if (normalizedMessage.includes('mimecast') || normalizedMessage.includes('ppe-hosted')) {
     // Mimecast blocked messages
-    if (normalizedMessage.includes('content blocked') || normalizedMessage.includes('threat detected')) {
+    if (
+      normalizedMessage.includes('content blocked') ||
+      normalizedMessage.includes('threat detected') ||
+      normalizedMessage.includes('blocked by policy') ||
+      normalizedMessage.includes('content filter')
+    ) {
       return {
         type: 'blocked',
         severity: 'permanent',
-        message: 'Mimecast: Threat detected in content',
+        message: 'Mimecast content policy violation',
         originalMessage,
         providerSpecific: {
           provider: 'mimecast',
-          code: 'THREAT_BLOCKED',
+          code: 'MIMECAST_BLOCKED',
           action: 'Scan content for threats',
         },
       };

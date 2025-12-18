@@ -39,6 +39,13 @@ export async function verifyMailboxSMTP(
     return { result: false, cached: false, port: 0, portCached: false };
   }
 
+  // Validate ports - reject any invalid port numbers (allow 0 as it will fail naturally)
+  const hasInvalidPort = ports.some((port) => !Number.isInteger(port) || port < 0 || port > 65535);
+  if (hasInvalidPort) {
+    log('Invalid port numbers provided');
+    return { result: false, cached: false, port: 0, portCached: false };
+  }
+
   const mxHost = mxRecords[0]; // Use highest priority MX
   log(`Verifying ${local}@${domain} via ${mxHost}`);
 
