@@ -17,7 +17,6 @@ const PORT_CONFIGS = {
 
 /**
  * Parse SMTP error messages to detect specific conditions
- * Ported from check-if-email-exists.ts for consistency
  */
 function parseSmtpError(errorMessage: string): {
   isDisabled: boolean;
@@ -152,7 +151,7 @@ function extractResponseCode(errorMessage: string): number | undefined {
 
 /**
  * Enhanced SMTP verification with rich result data
- * Returns SmtpVerificationResult with all data points from check-if-email-exists.ts
+ * Returns SmtpVerificationResult
  */
 export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promise<SmtpVerificationResult> {
   const { local, domain, mxRecords = [], options = {} } = params;

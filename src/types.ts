@@ -165,8 +165,6 @@ export interface VerifyMailboxSMTPParams {
 
 /**
  * SMTP verification result with rich data points
- * Matches the structure from check-if-email-exists.ts SmtpVerificationResult
- * Using camelCase naming convention
  */
 export interface SmtpVerificationResult {
   /** Whether SMTP connection was successful */
@@ -191,24 +189,6 @@ export interface SmtpVerificationResult {
     actionRequired?: string;
     details?: string;
   };
-}
-
-/**
- * Connection pool configuration
- */
-export interface ConnectionPoolConfig {
-  maxConnections?: number;
-  maxIdleTime?: number;
-  connectionTimeout?: number;
-}
-
-/**
- * Email suggestion for typo correction (deprecated - use DomainSuggestion)
- */
-export interface EmailSuggestion {
-  original: string;
-  suggested: string;
-  confidence: number;
 }
 
 /**
@@ -255,20 +235,6 @@ export type NameDetectionMethod = (email: string) => DetectedName | null;
 export interface IDetectNameParams {
   email: string;
   customMethod?: NameDetectionMethod;
-}
-
-/**
- * WHOIS data structure
- */
-export interface WhoisData {
-  domainName: string | null;
-  registrar: string | null;
-  creationDate: Date | null;
-  expirationDate: Date | null;
-  updatedDate: Date | null;
-  status: string[];
-  nameServers: string[];
-  rawData: string;
 }
 
 /**

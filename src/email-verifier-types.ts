@@ -85,9 +85,6 @@ export interface EmailSyntaxResult {
   error?: string;
 }
 
-/**
- * Complete check-if-email-exists result
- */
 export interface CheckIfEmailExistsCoreResult {
   email: string;
   is_reachable: 'safe' | 'invalid' | 'risky' | 'unknown';
