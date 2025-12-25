@@ -186,8 +186,8 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
     return defaultFailureResult;
   }
 
-  // Validate ports - only reject negative ports that would cause RangeError
-  const hasInvalidPort = ports.some((port) => !Number.isInteger(port) || port < 0);
+  // Validate ports - reject invalid ports (outside valid range 1-65535)
+  const hasInvalidPort = ports.some((port) => !Number.isInteger(port) || port < 1 || port > 65535);
   if (hasInvalidPort) {
     log('Invalid port numbers provided');
     return {
