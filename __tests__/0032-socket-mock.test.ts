@@ -1,4 +1,5 @@
 // 0032: Socket Mock Tests
+/** biome-ignore-all lint/complexity/useArrowFunction: <explanation> */
 //
 // Tests for SMTP with mocked socket connections
 
@@ -23,6 +24,7 @@ function setupMockSocket(socket: Socket, sandbox: SinonSandbox): void {
   socket.setKeepAlive = sandbox.stub().returns(socket);
   socket.ref = sandbox.stub().returns(socket);
   socket.unref = sandbox.stub().returns(socket);
+  socket.on = sandbox.stub().returns(socket);
 }
 
 function stubResolveMx(self: SelfMockType, domain = 'foo.com') {
@@ -37,9 +39,10 @@ function stubSocket(self: SelfMockType) {
   self.socket = new Socket({});
   setupMockSocket(self.socket, self.sandbox);
   let greetingSent = false;
+  let commandQueue: Array<(socket: Socket) => void> = [];
 
   // Mock the connect function to emit the socket immediately with a greeting
-  self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+  self.connectStub = self.sandbox.stub(net, 'connect').callsFake((_options, callback) => {
     // Emit the socket with a small delay
     setTimeout(() => {
       if (callback) callback();
@@ -47,6 +50,9 @@ function stubSocket(self: SelfMockType) {
       setTimeout(() => {
         self.socket.emit('data', '220 test.example.com ESMTP\r\n');
         greetingSent = true;
+        // Process any queued commands
+        commandQueue.forEach((fn) => fn(self.socket));
+        commandQueue = [];
       }, 10);
     }, 5);
     return self.socket;
@@ -54,19 +60,24 @@ function stubSocket(self: SelfMockType) {
 
   self.sandbox.stub(self.socket, 'write').callsFake(function (data) {
     const command = data.toString().trim();
-    if (!command.includes('QUIT') && greetingSent) {
-      // Respond to SMTP commands
-      setTimeout(() => {
+    if (!command.includes('QUIT')) {
+      const respond = (socket: Socket) => {
         if (command.includes('EHLO') || command.includes('HELO')) {
-          this.emit('data', '250-test.example.com Hello\r\n250 VRFY\r\n250 8BITMIME\r\n250 OK\r\n');
+          socket.emit('data', '250-test.example.com Hello\r\n250 VRFY\r\n250 8BITMIME\r\n250 OK\r\n');
         } else if (command.includes('MAIL FROM')) {
-          this.emit('data', '250 Mail OK\r\n');
+          socket.emit('data', '250 Mail OK\r\n');
         } else if (command.includes('RCPT TO')) {
-          this.emit('data', '250 Recipient OK\r\n');
+          socket.emit('data', '250 Recipient OK\r\n');
         } else {
-          this.emit('data', '250 Foo');
+          socket.emit('data', '250 Foo');
         }
-      }, 10);
+      };
+
+      if (greetingSent) {
+        setTimeout(() => respond(self.socket), 10);
+      } else {
+        commandQueue.push(respond);
+      }
     }
     return true;
   });

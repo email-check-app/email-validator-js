@@ -111,7 +111,7 @@ describe('0024: Detailed Email Verification', () => {
 
       // 550 User not found means the mailbox doesn't exist, so validSmtp should be false
       expect(result.validSmtp).toBe(false);
-      expect(result.metadata?.error).toBe(VerificationErrorCode.SMTP_CONNECTION_FAILED);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.MAILBOX_NOT_FOUND);
     });
 
     it('should handle SMTP connection failure', async () => {
