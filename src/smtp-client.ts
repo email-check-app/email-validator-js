@@ -135,15 +135,10 @@ export class SMTPClient {
     this.hostname = options.hostname ?? 'localhost';
     this.useVRFY = options.useVRFY ?? true;
 
-    // Default sequence if not provided
+    // Accept sequence from outside - use as-is without modification
     this.sequence = options.sequence ?? {
       steps: [Step.GREETING, Step.EHLO, Step.MAIL_FROM, Step.RCPT_TO],
     };
-
-    // For port 25, use HELO instead of EHLO (original behavior)
-    if (port === 25) {
-      this.sequence.steps = this.sequence.steps.map((step) => (step === Step.EHLO ? Step.HELO : step));
-    }
 
     this.debug = options.debug ?? (() => {});
     this.onMessage = options.onMessage ?? this.debug;
@@ -275,19 +270,13 @@ export class SMTPClient {
       this.currentStepIndex = 0;
       this.verifyParams = params;
 
-      // Override sequence with email verification specific steps
-      const verifySequence: SMTPSequence = {
-        steps: [Step.GREETING, Step.EHLO, Step.MAIL_FROM, Step.RCPT_TO],
-        from: params.from,
-        vrfyTarget: params.vrfyTarget,
+      // Merge params into sequence (from/vrfyTarget)
+      // The sequence steps are used as-is from constructor/options
+      this.sequence = {
+        ...this.sequence,
+        from: params.from ?? this.sequence.from,
+        vrfyTarget: params.vrfyTarget ?? this.sequence.vrfyTarget,
       };
-
-      // For port 25, use HELO instead of EHLO
-      if (this.port === 25) {
-        verifySequence.steps = verifySequence.steps.map((step) => (step === Step.EHLO ? Step.HELO : step));
-      }
-
-      this.sequence = verifySequence;
 
       const cleanup = () => {
         if (this.resolved) return;
