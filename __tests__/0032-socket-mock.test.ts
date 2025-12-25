@@ -29,8 +29,30 @@ jest.mock('node:net', () => {
     connect: jest.fn((options: any, callback?: () => void) => {
       // Store the callback to invoke it later
       connectCallback = callback || null;
-      // Return the mock socket if set, otherwise a generic EventEmitter
-      return mockSmtpSocket || new EventEmitter();
+
+      // Get the mock socket (if set)
+      const socket = mockSmtpSocket || new EventEmitter();
+
+      // IMPORTANT: Real net.connect invokes the callback synchronously when successful
+      // But we need to ensure the socket is ready before invoking
+      if (connectCallback) {
+        // Invoke callback on next tick to ensure proper setup
+        setImmediate(() => {
+          try {
+            connectCallback();
+            // After callback (which calls setupSocket), send greeting
+            if (mockSmtpSocket) {
+              setTimeout(() => {
+                mockSmtpSocket.sendGreeting(5);
+              }, 10);
+            }
+          } catch (e) {
+            // Ignore errors during callback
+          }
+        });
+      }
+
+      return socket;
     }),
   };
 });
@@ -62,7 +84,7 @@ class MockSmtpSocket extends EventEmitter {
     this.responses.set('STARTTLS', '220 Ready for TLS\r\n');
   }
 
-  // Override write to track calls and emit responses
+  // Override write to track calls
   write = jest.fn((data: string | Buffer): boolean => {
     const dataStr = data.toString();
     this.writeCalls.push(dataStr);
@@ -179,26 +201,17 @@ describe('0032: Socket Mock Tests (Jest)', () => {
       // Mock MX records
       jest.spyOn(dnsPromises, 'resolveMx').mockResolvedValue([{ exchange: 'mx1.bar.com', priority: 10 }]);
 
-      // Create and set mock socket
+      // Create and set mock socket - will automatically handle connection
       const mockSocket = new MockSmtpSocket();
       mockSmtpSocket = mockSocket;
 
-      // Start verification with explicit port to avoid multiple connection attempts
-      const verifyPromise = verifyEmail({
+      // Run verification - mock will simulate connection automatically
+      const result = await verifyEmail({
         emailAddress: 'foo@bar.com',
         verifyMx: true,
         verifySmtp: true,
         smtpPort: 587, // Use single port to avoid multiple connection attempts
       } as any);
-
-      // After net.connect() is called, simulate the connection flow
-      await new Promise((resolve) => setTimeout(resolve, 10)); // Let net.connect() be called
-      mockSocket.connect();
-
-      // Wait for greeting and responses to flow
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      const result = await verifyPromise;
 
       expect(result.validFormat).toBe(true);
       expect(result.validMx).toBe(true);
@@ -237,17 +250,13 @@ describe('0032: Socket Mock Tests (Jest)', () => {
       const mockSocket = new MockSmtpSocket();
       mockSmtpSocket = mockSocket;
 
-      const verifyPromise = verifyEmail({
+      const result = await verifyEmail({
         emailAddress: 'bar@foo.com',
         verifySmtp: true,
         verifyMx: true,
-      });
+        smtpPort: 587,
+      } as any);
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      mockSocket.connect();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      const result = await verifyPromise;
       expect(result.validSmtp).toBe(true);
     });
 
@@ -258,17 +267,13 @@ describe('0032: Socket Mock Tests (Jest)', () => {
       mockSocket.setResponse('RCPT TO', '452-4.2.2 The email account that you tried to reach is over quota\r\n');
       mockSmtpSocket = mockSocket;
 
-      const verifyPromise = verifyEmail({
+      const result = await verifyEmail({
         emailAddress: 'bar@foo.com',
         verifySmtp: true,
         verifyMx: true,
-      });
+        smtpPort: 587,
+      } as any);
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      mockSocket.connect();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      const result = await verifyPromise;
       expect(result.validSmtp).toBe(false);
       expect(result.validFormat).toBe(true);
       expect(result.validMx).toBe(true);
@@ -280,17 +285,19 @@ describe('0032: Socket Mock Tests (Jest)', () => {
       const mockSocket = new MockSmtpSocket();
       mockSmtpSocket = mockSocket;
 
-      const verifyPromise = verifyEmail({
+      // Set up to emit error immediately after connection
+      setImmediate(() => {
+        mockSocket.destroyed = true;
+        mockSocket.emit('error', new Error('Connection failed'));
+      });
+
+      const result = await verifyEmail({
         emailAddress: 'bar@foo.com',
         verifySmtp: true,
         verifyMx: true,
-      });
+        smtpPort: 587,
+      } as any);
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      mockSocket.destroyed = true;
-      mockSocket.emit('error', new Error('Connection failed'));
-
-      const result = await verifyPromise;
       expect(result.validSmtp).toBe(null);
       expect(result.validMx).toBe(true);
       expect(result.validFormat).toBe(true);
@@ -302,17 +309,18 @@ describe('0032: Socket Mock Tests (Jest)', () => {
       const mockSocket = new MockSmtpSocket();
       mockSmtpSocket = mockSocket;
 
-      const verifyPromise = verifyEmail({
+      // Set up to emit error immediately
+      setImmediate(() => {
+        mockSocket.destroyed = true;
+        mockSocket.emit('error', new Error('Connection failed'));
+      });
+
+      await verifyEmail({
         emailAddress: 'bar@foo.com',
         verifySmtp: true,
         verifyMx: true,
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      mockSocket.destroyed = true;
-      mockSocket.emit('error', new Error('Connection failed'));
-
-      await verifyPromise;
+        smtpPort: 587,
+      } as any);
 
       expect(mockSocket.write.mock.calls.length).toBeLessThan(10);
       expect(mockSocket.end.mock.calls.length).toBeLessThan(5);
@@ -325,17 +333,13 @@ describe('0032: Socket Mock Tests (Jest)', () => {
       mockSocket.setResponse('RCPT TO', '500 Unknown Error\r\n');
       mockSmtpSocket = mockSocket;
 
-      const verifyPromise = verifyEmail({
+      const result = await verifyEmail({
         emailAddress: 'bar@foo.com',
         verifySmtp: true,
         verifyMx: true,
-      });
+        smtpPort: 587,
+      } as any);
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      mockSocket.connect();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      const result = await verifyPromise;
       expect(result.validSmtp).toBe(null);
     });
 
@@ -346,17 +350,13 @@ describe('0032: Socket Mock Tests (Jest)', () => {
       mockSocket.setResponse('RCPT TO', '550 User unknown\r\n');
       mockSmtpSocket = mockSocket;
 
-      const verifyPromise = verifyEmail({
+      const result = await verifyEmail({
         emailAddress: 'bar@foo.com',
         verifySmtp: true,
         verifyMx: true,
-      });
+        smtpPort: 587,
+      } as any);
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      mockSocket.connect();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      const result = await verifyPromise;
       expect(result.validSmtp).toBe(false);
     });
 
@@ -367,17 +367,13 @@ describe('0032: Socket Mock Tests (Jest)', () => {
       mockSocket.setResponse('RCPT TO', '550-"JunkMail rejected\r\n');
       mockSmtpSocket = mockSocket;
 
-      const verifyPromise = verifyEmail({
+      const result = await verifyEmail({
         emailAddress: 'bar@foo.com',
         verifySmtp: true,
         verifyMx: true,
-      });
+        smtpPort: 587,
+      } as any);
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      mockSocket.connect();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      const result = await verifyPromise;
       expect(result.validSmtp).toBe(null);
     });
   });
