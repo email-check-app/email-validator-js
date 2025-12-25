@@ -19,12 +19,12 @@ type SelfMockType = {
 
 // Helper to add all required socket methods for mocking
 function setupMockSocket(socket: Socket, sandbox: SinonSandbox): void {
-  socket.setTimeout = sandbox.stub().returns(socket);
+  // Don't stub 'on' - Socket needs it for event handling
+  // Don't stub 'setTimeout' - we need the real method to actually schedule timeouts
   socket.setEncoding = sandbox.stub().returns(socket);
   socket.setKeepAlive = sandbox.stub().returns(socket);
   socket.ref = sandbox.stub().returns(socket);
   socket.unref = sandbox.stub().returns(socket);
-  // Don't stub 'on' - Socket needs it for event handling
 }
 
 function stubResolveMx(self: SelfMockType, domain = 'foo.com') {
@@ -42,14 +42,15 @@ function stubSocket(self: SelfMockType) {
 
   // Mock the connect function to emit the socket immediately with a greeting
   self.connectStub = self.sandbox.stub(net, 'connect').callsFake((_options, callback) => {
-    // Emit greeting first, then call callback
-    setTimeout(() => {
+    // Call callback first (which sets up data handlers), then emit greeting
+    if (callback) {
+      callback();
+    }
+    // Use setImmediate to ensure the callback has completed before emitting greeting
+    setImmediate(() => {
       self.socket.emit('data', '220 test.example.com ESMTP\r\n');
       greetingSent = true;
-      setTimeout(() => {
-        if (callback) callback();
-      }, 5);
-    }, 5);
+    });
     return self.socket;
   });
 
