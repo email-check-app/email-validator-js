@@ -24,7 +24,7 @@ function setupMockSocket(socket: Socket, sandbox: SinonSandbox): void {
   socket.setKeepAlive = sandbox.stub().returns(socket);
   socket.ref = sandbox.stub().returns(socket);
   socket.unref = sandbox.stub().returns(socket);
-  socket.on = sandbox.stub().returns(socket);
+  // Don't stub 'on' - Socket needs it for event handling
 }
 
 function stubResolveMx(self: SelfMockType, domain = 'foo.com') {
@@ -42,14 +42,13 @@ function stubSocket(self: SelfMockType) {
 
   // Mock the connect function to emit the socket immediately with a greeting
   self.connectStub = self.sandbox.stub(net, 'connect').callsFake((_options, callback) => {
-    // Emit the socket with a small delay
+    // Emit greeting first, then call callback
     setTimeout(() => {
-      if (callback) callback();
-      // Emit greeting after connection
+      self.socket.emit('data', '220 test.example.com ESMTP\r\n');
+      greetingSent = true;
       setTimeout(() => {
-        self.socket.emit('data', '220 test.example.com ESMTP\r\n');
-        greetingSent = true;
-      }, 10);
+        if (callback) callback();
+      }, 5);
     }, 5);
     return self.socket;
   });
@@ -57,16 +56,16 @@ function stubSocket(self: SelfMockType) {
   self.sandbox.stub(self.socket, 'write').callsFake(function (data) {
     const command = data.toString().trim();
     if (!command.includes('QUIT') && greetingSent) {
-      // Respond to SMTP commands
+      // Respond to SMTP commands - use self.socket instead of this
       setTimeout(() => {
         if (command.includes('EHLO') || command.includes('HELO')) {
-          this.emit('data', '250-test.example.com Hello\r\n250 VRFY\r\n250 8BITMIME\r\n250 OK\r\n');
+          self.socket.emit('data', '250-test.example.com Hello\r\n250 VRFY\r\n250 8BITMIME\r\n250 OK\r\n');
         } else if (command.includes('MAIL FROM')) {
-          this.emit('data', '250 Mail OK\r\n');
+          self.socket.emit('data', '250 Mail OK\r\n');
         } else if (command.includes('RCPT TO')) {
-          this.emit('data', '250 Recipient OK\r\n');
+          self.socket.emit('data', '250 Recipient OK\r\n');
         } else {
-          this.emit('data', '250 Foo');
+          self.socket.emit('data', '250 Foo');
         }
       }, 10);
     }
@@ -124,7 +123,7 @@ describe('0032: Socket Mock Tests', () => {
       it('returns null if mailbox is yahoo', async () => {
         self.resolveMxStub.restore();
         stubResolveMx(self, 'yahoo.com');
-        stubSocket(self);
+        // Don't call stubSocket again - it's already stubbed from beforeEach
 
         const result = await verifyEmail({ emailAddress: 'bar@yahoo.com', verifySmtp: true, verifyMx: true });
 
@@ -154,11 +153,11 @@ describe('0032: Socket Mock Tests', () => {
           if (!command.includes('QUIT') && greetingSent) {
             setTimeout(() => {
               if (command.includes('EHLO') || command.includes('HELO')) {
-                this.emit('data', '250 Hello\r\n');
+                socket.emit('data', '250 Hello\r\n');
               } else if (command.includes('MAIL FROM')) {
-                this.emit('data', '250 Mail OK\r\n');
+                socket.emit('data', '250 Mail OK\r\n');
               } else if (command.includes('RCPT TO')) {
-                this.emit('data', msg + '\r\n');
+                socket.emit('data', msg + '\r\n');
               }
             }, 10);
           }
@@ -228,11 +227,11 @@ describe('0032: Socket Mock Tests', () => {
           if (!command.includes('QUIT')) {
             setTimeout(() => {
               if (command.includes('EHLO') || command.includes('HELO')) {
-                this.emit('data', '250 Hello\r\n');
+                socket.emit('data', '250 Hello\r\n');
               } else if (command.includes('MAIL FROM')) {
-                this.emit('data', '250 Mail OK\r\n');
+                socket.emit('data', '250 Mail OK\r\n');
               } else if (command.includes('RCPT TO')) {
-                this.emit('data', '250 OK\r\n');
+                socket.emit('data', '250 OK\r\n');
               }
             }, 10);
           }
@@ -294,11 +293,11 @@ describe('0032: Socket Mock Tests', () => {
           if (!command.includes('QUIT') && greetingSent) {
             setTimeout(() => {
               if (command.includes('EHLO') || command.includes('HELO')) {
-                this.emit('data', '250 Hello\r\n');
+                socket.emit('data', '250 Hello\r\n');
               } else if (command.includes('MAIL FROM')) {
-                this.emit('data', '250 Mail OK\r\n');
+                socket.emit('data', '250 Mail OK\r\n');
               } else if (command.includes('RCPT TO')) {
-                this.emit('data', '500 Unknown Error\r\n');
+                socket.emit('data', '500 Unknown Error\r\n');
               }
             }, 10);
           }
@@ -331,11 +330,11 @@ describe('0032: Socket Mock Tests', () => {
           if (!command.includes('QUIT') && greetingSent) {
             setTimeout(() => {
               if (command.includes('EHLO') || command.includes('HELO')) {
-                this.emit('data', '250 Hello\r\n');
+                socket.emit('data', '250 Hello\r\n');
               } else if (command.includes('MAIL FROM')) {
-                this.emit('data', '250 Mail OK\r\n');
+                socket.emit('data', '250 Mail OK\r\n');
               } else if (command.includes('RCPT TO')) {
-                this.emit('data', '550 User unknown\r\n');
+                socket.emit('data', '550 User unknown\r\n');
               }
             }, 10);
           }
@@ -352,7 +351,7 @@ describe('0032: Socket Mock Tests', () => {
         setupMockSocket(socket, self.sandbox);
 
         self.sandbox.stub(socket, 'write').callsFake(function (data) {
-          if (!data.toString().includes('QUIT')) this.emit('data', msg);
+          if (!data.toString().includes('QUIT')) socket.emit('data', msg);
           return true;
         });
 
@@ -371,7 +370,7 @@ describe('0032: Socket Mock Tests', () => {
         setupMockSocket(socket, self.sandbox);
 
         self.sandbox.stub(socket, 'write').callsFake(function (data) {
-          if (!data.toString().includes('QUIT')) this.emit('data', msg);
+          if (!data.toString().includes('QUIT')) socket.emit('data', msg);
           return true;
         });
 
