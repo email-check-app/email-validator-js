@@ -8,6 +8,7 @@ import {
   type IDisposableEmailParams,
   type IFreeEmailParams,
   type IVerifyEmailParams,
+  type SmtpVerificationResult,
   VerificationErrorCode,
   type VerificationResult,
 } from './types';
@@ -323,11 +324,12 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
       // SMTP verification
       if (verifySmtp && mxRecords.length > 0) {
         const cacheKey = `${emailAddress}:smtp`;
-        const smtpCacheInstance = getCacheStore<boolean | null>(params.cache, 'smtp');
+        const smtpCacheInstance = getCacheStore<SmtpVerificationResult | null>(params.cache, 'smtp');
         const cachedSmtp = await smtpCacheInstance.get(cacheKey);
 
         if (cachedSmtp !== null && cachedSmtp !== undefined) {
-          result.validSmtp = cachedSmtp;
+          // Extract boolean from rich cache result
+          result.validSmtp = cachedSmtp.canConnectSmtp ? cachedSmtp.isDeliverable : null;
           log(`[verifyEmail] SMTP result from cache: ${result.validSmtp} for ${emailAddress}`);
           if (result.metadata) {
             result.metadata.cached = true;
@@ -362,10 +364,10 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
             },
           });
 
-          // Map SmtpVerificationResult to the legacy boolean|null format
-          const smtpBooleanResult = smtpResult.canConnectSmtp ? smtpResult.isDeliverable : null;
-          await smtpCacheInstance.set(cacheKey, smtpBooleanResult);
-          result.validSmtp = smtpBooleanResult;
+          // Cache the rich result
+          await smtpCacheInstance.set(cacheKey, smtpResult);
+          // Extract boolean for legacy API
+          result.validSmtp = smtpResult.canConnectSmtp ? smtpResult.isDeliverable : null;
 
           log(
             `[verifyEmail] SMTP verification result: ${result.validSmtp} for ${emailAddress} (cached for future use)`

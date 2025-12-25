@@ -1,5 +1,6 @@
 import { LRUAdapter } from './adapters/lru-adapter';
 import type { ICache, ICacheStore } from './cache-interface';
+import type { SmtpVerificationResult } from './types';
 import type { ParsedWhoisResult } from './whois-parser';
 
 /**
@@ -11,7 +12,7 @@ export const DEFAULT_CACHE_OPTIONS = {
     disposable: 86400000, // 24 hours
     free: 86400000, // 24 hours
     domainValid: 86400000, // 24 hours
-    smtp: 1800000, // 30 minutes
+    smtp: 1800000, // 30 minutes - rich SMTP result cache
     smtpPort: 86400000, // 1 hour
     domainSuggestion: 86400000, // 24 hours
     whois: 3600000, // 1 hour
@@ -50,7 +51,10 @@ export function getDefaultCache(): ICache {
         DEFAULT_CACHE_OPTIONS.maxSize.domainValid,
         DEFAULT_CACHE_OPTIONS.ttl.domainValid
       ),
-      smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+      smtp: new LRUAdapter<SmtpVerificationResult | null>(
+        DEFAULT_CACHE_OPTIONS.maxSize.smtp,
+        DEFAULT_CACHE_OPTIONS.ttl.smtp
+      ),
       smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
       domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
         DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,

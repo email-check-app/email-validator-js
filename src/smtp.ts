@@ -199,6 +199,20 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
   const mxHost = mxRecords[0]; // Use highest priority MX
   log(`Verifying ${local}@${domain} via ${mxHost}`);
 
+  // Check cache for existing rich result
+  const smtpCacheStore = cache ? getCacheStore<SmtpVerificationResult | null>(cache, 'smtp') : null;
+  if (smtpCacheStore) {
+    try {
+      const cachedResult = await smtpCacheStore.get(`${mxHost}:${local}@${domain}`);
+      if (cachedResult !== null && cachedResult !== undefined) {
+        log(`Using cached SMTP result: ${cachedResult.isDeliverable}`);
+        return cachedResult;
+      }
+    } catch (_error) {
+      // Cache error, continue with processing
+    }
+  }
+
   const smtpPortCacheStore = cache ? getCacheStore<number>(cache, 'smtpPort') : null;
 
   // Check cache for port
@@ -237,6 +251,16 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
         sequence,
         log,
       });
+
+      // Cache the rich result
+      if (smtpCacheStore && (result.canConnectSmtp || result.error)) {
+        try {
+          await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, result);
+          log(`Cached SMTP result for ${local}@${domain} via ${mxHost}`);
+        } catch (_error) {
+          // Cache error, ignore it
+        }
+      }
 
       // Cache successful port
       if (result.canConnectSmtp && smtpPortCacheStore && !cachedPort) {

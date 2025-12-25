@@ -3,6 +3,8 @@
  * Mirrors the logging pattern - pass as optional parameter
  */
 
+import type { SmtpVerificationResult } from './types';
+
 /**
  * Generic cache interface that can be implemented by any cache store
  */
@@ -48,13 +50,15 @@ export interface ICacheStore<T = any> {
 
 /**
  * Cache interface for different types of data
+ * Each cache store stores the appropriate data type for its use case
  */
 export interface ICache {
   mx: ICacheStore<string[]>;
   disposable: ICacheStore<boolean>;
   free: ICacheStore<boolean>;
   domainValid: ICacheStore<boolean>;
-  smtp: ICacheStore<boolean | null>;
+  /** Rich SMTP verification result with all data points (has_full_inbox, is_disabled, etc.) */
+  smtp: ICacheStore<SmtpVerificationResult | null>;
   smtpPort: ICacheStore<number>; // Cache for storing successful port per host/domain
   domainSuggestion: ICacheStore<{ suggested: string; confidence: number } | null>;
   whois: ICacheStore<any>;
