@@ -5,7 +5,7 @@
 import expect from 'expect';
 import { isDisposableEmail, isValidEmail, isValidEmailDomain } from '../src';
 
-describe('utilsTest', () => {
+describe('0030: Utility Functions', () => {
   describe('isEmail', () => {
     it('should validate a correct address', async () => {
       expect(isValidEmail('foo@bar.com')).toBe(true);

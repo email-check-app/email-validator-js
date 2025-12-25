@@ -6,7 +6,7 @@ import expect from 'expect';
 import { defaultNameDetectionMethod, detectName, detectNameFromEmail } from '../src';
 import type { NameDetectionMethod } from '../src/types';
 
-describe('Name Detection', () => {
+describe('0027: Name Detection', () => {
   describe('detectName', () => {
     it('should detect names with dot separator', () => {
       const result = detectName('john.doe@example.com');

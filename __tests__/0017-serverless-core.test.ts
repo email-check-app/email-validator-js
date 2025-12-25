@@ -4,7 +4,7 @@
 
 import { clearCache, EdgeCache, suggestDomain, validateEmailBatch, validateEmailCore } from '../src/serverless/core';
 
-describe('Serverless Core', () => {
+describe('0017: Serverless Core', () => {
   beforeEach(() => {
     clearCache();
   });

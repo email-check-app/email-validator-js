@@ -5,7 +5,7 @@
 import type { EmailTestCase } from '../src/email-verifier-types';
 import { EmailProvider, getProviderType, isEmailExistsCore, validateEmailSyntax } from '../src/is-email-exists';
 
-describe('Edge Cases and Integration Tests', () => {
+describe('0013: Edge Cases and Integration Tests', () => {
   // Comprehensive edge case test data
   const edgeCaseTests: EmailTestCase[] = [
     // Valid edge cases

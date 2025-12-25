@@ -5,7 +5,7 @@
 import expect from 'expect';
 import { getDomainAge, getDomainRegistrationStatus } from '../src';
 
-describe('WHOIS Functions', () => {
+describe('0031: WHOIS Functions', () => {
   // Note: These are integration tests that make real network calls
   // They may fail in environments without internet access or with strict firewalls
   // Consider mocking for unit tests in production environments

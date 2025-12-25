@@ -10,7 +10,7 @@ import { resolveMxRecords } from '../src/dns';
 import { isDisposableEmail, isFreeEmail } from '../src/index';
 import type { SmtpVerificationResult } from '../src/types';
 
-describe('Cache Integration', () => {
+describe('0021: Cache Integration', () => {
   // No need to reset cache for parameter-based testing
 
   describe('Disposable Email Cache', () => {

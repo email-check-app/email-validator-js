@@ -6,7 +6,7 @@ import { clearDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
 import type { SmtpVerificationResult } from '../src/types';
 import { SMTPStep } from '../src/types';
-import { createTestParams, TEST_SEQUENCES, TestUtils } from './smtp.test.config';
+import { createTestParams, TEST_SEQUENCES, TestUtils } from './utils/smtp.test.config';
 
 // Helper to map SmtpVerificationResult to boolean|null for legacy assertions
 function toBooleanResult(result: SmtpVerificationResult): boolean | null {
@@ -16,7 +16,7 @@ function toBooleanResult(result: SmtpVerificationResult): boolean | null {
   return result.isDeliverable;
 }
 
-describe('SMTP Custom Sequences', () => {
+describe('0003: SMTP Custom Sequences', () => {
   beforeEach(() => {
     clearDefaultCache();
   });

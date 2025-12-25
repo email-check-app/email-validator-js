@@ -4,7 +4,7 @@
 
 import { cleanNameForAlgrothin, detectName, detectNameForAlgrothin } from '../src/name-detector';
 
-describe('Name Detection for Algrothin', () => {
+describe('0015: Name Detection for Algrothin', () => {
   describe('cleanNameForAlgrothin', () => {
     it('should remove dots from names', () => {
       expect(cleanNameForAlgrothin('john.doe')).toBe('johndoe');

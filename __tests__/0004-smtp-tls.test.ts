@@ -5,7 +5,7 @@
 import { clearDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
 import type { SmtpVerificationResult } from '../src/types';
-import { createTestParams, TEST_CONFIGS, TestUtils } from './smtp.test.config';
+import { createTestParams, TEST_CONFIGS, TestUtils } from './utils/smtp.test.config';
 
 // Helper to map SmtpVerificationResult to boolean|null for legacy assertions
 function toBooleanResult(result: SmtpVerificationResult): boolean | null {
@@ -15,7 +15,7 @@ function toBooleanResult(result: SmtpVerificationResult): boolean | null {
   return result.isDeliverable;
 }
 
-describe('SMTP TLS Configuration', () => {
+describe('0004: SMTP TLS Configuration', () => {
   beforeEach(() => {
     clearDefaultCache();
   });

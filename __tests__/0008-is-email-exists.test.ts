@@ -34,7 +34,7 @@ afterEach(() => {
   mockResolveMx.mockReset();
 });
 
-describe('validateEmailSyntax', () => {
+describe('0008: validateEmailSyntax', () => {
   test('should validate correct email formats', () => {
     const validEmails = [
       'test@example.com',
@@ -104,7 +104,7 @@ describe('validateEmailSyntax', () => {
   });
 });
 
-describe('getProviderType', () => {
+describe('0008: getProviderType', () => {
   test('should identify Gmail domains correctly', () => {
     const gmailDomains = ['gmail.com', 'googlemail.com'];
 
@@ -138,7 +138,7 @@ describe('getProviderType', () => {
   });
 });
 
-describe('queryMxRecords', () => {
+describe('0008: queryMxRecords', () => {
   beforeEach(() => {
     mockResolveMx.mockClear();
   });
@@ -200,7 +200,7 @@ describe('queryMxRecords', () => {
   });
 });
 
-describe('verifySmtpConnection', () => {
+describe('0008: verifySmtpConnection', () => {
   test('should handle Gmail provider optimizations', async () => {
     // This test would require mocking the entire SMTP connection
     // For now, we'll test the provider optimization logic
@@ -226,7 +226,7 @@ describe('verifySmtpConnection', () => {
   });
 });
 
-describe('isEmailExists', () => {
+describe('0008: isEmailExists', () => {
   beforeEach(() => {
     mockResolveMx.mockClear();
   });
@@ -339,7 +339,7 @@ describe('isEmailExists', () => {
   });
 });
 
-describe('constants', () => {
+describe('0008: constants', () => {
   test('should have correct default values', () => {
     expect(isEmailExistConstants.defaultTimeout).toBe(5000);
     expect(isEmailExistConstants.defaultSmtpPort).toBe(25);
@@ -354,7 +354,7 @@ describe('constants', () => {
   });
 });
 
-describe('error handling', () => {
+describe('0008: error handling', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockResolveMx.mockClear();
@@ -392,7 +392,7 @@ describe('error handling', () => {
   });
 });
 
-describe('performance considerations', () => {
+describe('0008: performance considerations', () => {
   test('should handle batch processing efficiently', async () => {
     const emails = Array.from({ length: 10 }, (_, i) => `test${i}@example.com`);
 
@@ -424,7 +424,7 @@ describe('performance considerations', () => {
 });
 
 // Integration tests (would require actual network access in real environment)
-describe('integration tests', () => {
+describe('0008: integration tests', () => {
   test('should work with real-world Gmail address', async () => {
     // Skip this test in unit test environment
     if (process.env.NODE_ENV === 'test') {

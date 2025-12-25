@@ -65,7 +65,7 @@ class TestMockSmtpServer implements MockSmtpServer {
   }
 }
 
-describe('Mock SMTP Server Tests', () => {
+describe('0012: Mock SMTP Server Tests', () => {
   describe('Gmail Mock Server', () => {
     let server: TestMockSmtpServer;
 
@@ -139,7 +139,7 @@ describe('Mock SMTP Server Tests', () => {
   });
 });
 
-describe('SMTP Error Parsing Tests', () => {
+describe('0012: SMTP Error Parsing Tests', () => {
   describe('Gmail Error Parsing', () => {
     test('should parse Gmail disabled account errors', () => {
       const errorMessage = 'Gmail Service: Account disabled';
@@ -352,7 +352,7 @@ describe('SMTP Error Parsing Tests', () => {
   });
 });
 
-describe('Mock Server Integration Tests', () => {
+describe('0012: Mock Server Integration Tests', () => {
   describe('Server Lifecycle', () => {
     test('should connect and disconnect properly', () => {
       const server = new TestMockSmtpServer('gmail.com', EmailProvider.GMAIL);

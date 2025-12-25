@@ -6,7 +6,7 @@ import expect from 'expect';
 import { verifyEmail, verifyEmailBatch } from '../src';
 import type { DomainSuggestionMethod } from '../src/types';
 
-describe('Integrated Domain Suggestion', () => {
+describe('0026: Integrated Domain Suggestion', () => {
   describe('verifyEmail with domain suggestion', () => {
     it('should include domain suggestion for typos', async () => {
       const result = await verifyEmail({

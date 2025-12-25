@@ -33,7 +33,7 @@ jest.mock('../src/serverless/core', () => ({
   clearCache: jest.fn(),
 }));
 
-describe('AWS Lambda Adapter', () => {
+describe('0018: AWS Lambda Adapter', () => {
   const mockContext: Context = {
     callbackWaitsForEmptyEventLoop: false,
     functionName: 'email-validator',

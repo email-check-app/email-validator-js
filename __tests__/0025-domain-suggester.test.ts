@@ -13,7 +13,7 @@ import {
   suggestEmailDomain,
 } from '../src';
 
-describe('Domain Suggestion', () => {
+describe('0025: Domain Suggestion', () => {
   describe('suggestEmailDomain', () => {
     it('should suggest gmail.com for common typos', async () => {
       const typos = ['gmial.com', 'gmai.com', 'gmali.com', 'gmil.com', 'gmaill.com', 'gmail.co', 'gmail.cm'];

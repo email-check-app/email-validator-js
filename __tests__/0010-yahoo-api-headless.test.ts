@@ -9,7 +9,7 @@ import { EmailProvider, verifyYahooApi } from '../src/is-email-exists';
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
-describe('Yahoo API Tests', () => {
+describe('0010: Yahoo API Tests', () => {
   beforeEach(() => {
     mockFetch.mockClear();
   });
@@ -372,7 +372,7 @@ describe('Yahoo API Tests', () => {
   });
 });
 
-describe('Email Provider Constants', () => {
+describe('0010: Email Provider Constants', () => {
   test('should have correct Yahoo provider enum', () => {
     expect(EmailProvider.YAHOO).toBe('yahoo');
   });

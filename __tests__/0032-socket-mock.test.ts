@@ -64,7 +64,7 @@ function stubSocket(self: SelfMockType) {
 
 const self: SelfMockType = {};
 
-describe('verifyEmailMockTest', () => {
+describe('0032: Socket Mock Tests', () => {
   beforeEach(() => {
     self.sandbox = sinon.createSandbox();
     clearDefaultCache();

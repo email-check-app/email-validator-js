@@ -8,7 +8,7 @@ import type { ICache } from '../src/cache-interface';
 import { isDisposableEmail, isFreeEmail } from '../src/index';
 import type { SmtpVerificationResult } from '../src/types';
 
-describe('Custom Cache Implementation', () => {
+describe('0022: Custom Cache Implementation', () => {
   // No global cache management needed with parameter-based injection
 
   describe('LRUAdapter', () => {

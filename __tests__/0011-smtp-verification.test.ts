@@ -5,7 +5,7 @@
 import { EmailProvider } from '../src/is-email-exists';
 
 // Test the provider optimizations logic without actual network calls
-describe('SMTP Provider Optimizations', () => {
+describe('0011: SMTP Provider Optimizations', () => {
   describe('Gmail Provider', () => {
     test('should identify Gmail provider correctly', () => {
       // This test verifies that we can correctly identify Gmail providers
@@ -92,7 +92,7 @@ describe('SMTP Provider Optimizations', () => {
   });
 });
 
-describe('SMTP Error Handling', () => {
+describe('0011: SMTP Error Handling', () => {
   test('should handle SMTP timeout scenarios', () => {
     // Test timeout handling logic
     const timeoutMs = 5000;
@@ -126,7 +126,7 @@ describe('SMTP Error Handling', () => {
   });
 });
 
-describe('SMTP Configuration', () => {
+describe('0011: SMTP Configuration', () => {
   test('should use appropriate SMTP ports', () => {
     const standardPorts = [25, 465, 587];
 

@@ -5,7 +5,7 @@
 import type { IRedisClient } from '../src/adapters/redis-adapter';
 import { RedisAdapter } from '../src/adapters/redis-adapter';
 
-describe('RedisAdapter', () => {
+describe('0029: RedisAdapter', () => {
   // Mock Redis client
   const createMockRedis = (): IRedisClient => {
     const store = new Map<string, string>();

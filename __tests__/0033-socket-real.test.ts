@@ -5,7 +5,7 @@
 import expect from 'expect';
 import { verifyEmail } from '../src';
 
-describe('verifyEmailRealTest', () => {
+describe('0033: Real Socket Connection Tests', () => {
   it('should success on real email gmail', async () => {
     const result = await verifyEmail({
       emailAddress: 'foo@google.com',

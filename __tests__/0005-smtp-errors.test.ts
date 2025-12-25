@@ -6,7 +6,7 @@ import { clearDefaultCache, getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
 import type { SmtpVerificationResult } from '../src/types';
 import { SMTPStep } from '../src/types';
-import { createTestParams } from './smtp.test.config';
+import { createTestParams } from './utils/smtp.test.config';
 
 // Helper to check if SmtpVerificationResult is valid
 function isValidSmtpResult(result: SmtpVerificationResult): boolean {
@@ -27,7 +27,7 @@ function toBooleanResult(result: SmtpVerificationResult): boolean | null {
   return result.isDeliverable;
 }
 
-describe('SMTP Error Handling', () => {
+describe('0005: SMTP Error Handling', () => {
   beforeEach(() => {
     clearDefaultCache();
   });

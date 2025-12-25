@@ -6,7 +6,7 @@ import expect from 'expect';
 import { verifyEmail, verifyEmailBatch } from '../src';
 import type { NameDetectionMethod } from '../src/types';
 
-describe('Integrated Name Detection', () => {
+describe('0028: Integrated Name Detection', () => {
   describe('verifyEmail with name detection', () => {
     it('should include detected name when detectName is true', async () => {
       const result = await verifyEmail({

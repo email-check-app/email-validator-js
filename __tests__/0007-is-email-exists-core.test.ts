@@ -25,7 +25,7 @@ jest.mock('dns', () => ({
 
 const mockResolveMx = dns.promises.resolveMx as jest.MockedFunction<typeof dns.promises.resolveMx>;
 
-describe('Email Provider Detection', () => {
+describe('0007: Email Provider Detection', () => {
   describe('isGmail', () => {
     it('should identify Gmail MX hosts', () => {
       expect(isGmail('gmail-smtp-in.l.google.com.')).toBe(true);
@@ -108,7 +108,7 @@ describe('Email Provider Detection', () => {
   });
 });
 
-describe('isEmailExistsCore', () => {
+describe('0007: isEmailExistsCore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -257,7 +257,7 @@ describe('isEmailExistsCore', () => {
   });
 });
 
-describe('Integration Tests', () => {
+describe('0007: Integration Tests', () => {
   // These tests require actual network connections and should be run manually
   // or in a CI environment with proper mocking
 

@@ -11,7 +11,7 @@ import {
   validateEmailSyntax,
 } from '../src/is-email-exists';
 
-describe('Provider-specific Email Verification', () => {
+describe('0009: Provider-Specific Email Verification', () => {
   // Test cases based on original repository patterns
   const providerTestCases: EmailTestCase[] = [
     // Gmail tests

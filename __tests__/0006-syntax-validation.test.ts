@@ -4,7 +4,7 @@
 
 import { EmailProvider, getProviderType, validateEmailSyntax } from '../src/is-email-exists';
 
-describe('Email Syntax Validation', () => {
+describe('0006: Email Syntax Validation', () => {
   describe('valid email formats', () => {
     test('should accept standard email formats', () => {
       const validEmails = [
@@ -285,7 +285,7 @@ describe('Email Syntax Validation', () => {
   });
 });
 
-describe('getProviderType', () => {
+describe('0006: getProviderType', () => {
   describe('known provider detection', () => {
     test('should identify Gmail domains', () => {
       const gmailDomains = ['gmail.com', 'googlemail.com'];
@@ -360,7 +360,7 @@ describe('getProviderType', () => {
   });
 });
 
-describe('Performance and Edge Cases', () => {
+describe('0006: Performance and Edge Cases', () => {
   test('should handle large number of validations efficiently', () => {
     const emails = Array.from({ length: 1000 }, (_, i) => `user${i}@example.com`);
 

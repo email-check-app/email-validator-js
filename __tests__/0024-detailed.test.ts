@@ -8,7 +8,7 @@ import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';
 import { clearDefaultCache, getDefaultCache, VerificationErrorCode, verifyEmail } from '../src';
 
-describe('Detailed Email Verification', () => {
+describe('0024: Detailed Email Verification', () => {
   let sandbox: SinonSandbox;
 
   beforeEach(() => {

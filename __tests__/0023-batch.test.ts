@@ -8,7 +8,7 @@ import sinon, { type SinonSandbox } from 'sinon';
 import { clearDefaultCache, type VerificationResult, verifyEmailBatch } from '../src';
 import { SMTPClient } from '../src/smtp-client';
 
-describe('Batch Email Verification', () => {
+describe('0023: Batch Email Verification', () => {
   let sandbox: SinonSandbox;
 
   beforeEach(() => {

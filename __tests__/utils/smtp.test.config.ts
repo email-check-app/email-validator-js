@@ -2,7 +2,7 @@
 //
 // Shared test data and utilities for SMTP tests
 
-import { SMTPStep } from '../src/types';
+import { SMTPStep } from '../../src/types';
 
 export const TEST_DATA = {
   // Test MX records (these are real MX servers)
@@ -176,7 +176,7 @@ export const TestUtils = {
   // Get test timeout based on test type and environment
   getTestTimeout: (type: 'fast' | 'slow' | 'integration' = 'fast'): number => {
     // Import environment utilities
-    const { getTestTimeout } = require('./utils/test-environment');
+    const { getTestTimeout } = require('./test-environment');
     return getTestTimeout(type);
   },
 };
