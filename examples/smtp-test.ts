@@ -4,6 +4,15 @@
 
 import { getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
+import type { SmtpVerificationResult } from '../src/types';
+
+// Helper to extract boolean from SmtpVerificationResult
+function toBooleanResult(result: SmtpVerificationResult): boolean | null {
+  if (!result.canConnectSmtp) {
+    return null;
+  }
+  return result.isDeliverable;
+}
 
 // Mock MX records for testing (these are real MX servers)
 const testDomains = {
@@ -23,7 +32,7 @@ async function testPortConnectivity() {
     for (const port of [25, 587, 465]) {
       console.log(`  Port ${port}:`);
 
-      const { result } = await verifyMailboxSMTP({
+      const smtpResult = await verifyMailboxSMTP({
         local: 'test',
         domain,
         mxRecords,
@@ -39,7 +48,7 @@ async function testPortConnectivity() {
         },
       });
 
-      console.log(`    Result: ${result}`);
+      console.log(`    Result: ${toBooleanResult(smtpResult)}`);
     }
     console.log();
   }
@@ -66,7 +75,7 @@ async function testMultiPortWithCaching() {
     },
   });
   const duration1 = Date.now() - start1;
-  console.log(`  Result: ${result1.result}, Port: ${result1.port}, Duration: ${duration1}ms`);
+  console.log(`  Result: ${toBooleanResult(result1)}, Duration: ${duration1}ms`);
 
   // Second run - should use cached port
   console.log('Second verification (warm cache):');
@@ -82,7 +91,7 @@ async function testMultiPortWithCaching() {
     },
   });
   const duration2 = Date.now() - start2;
-  console.log(`  Result: ${result2.result}, Port: ${result2.port}, Duration: ${duration2}ms`);
+  console.log(`  Result: ${toBooleanResult(result2)}, Duration: ${duration2}ms`);
 
   console.log(
     `  Speed improvement: ${duration1 - duration2}ms (${Math.round(((duration1 - duration2) / duration1) * 100)}%)`
@@ -111,7 +120,7 @@ async function testTimeoutHandling() {
     },
   });
   const duration = Date.now() - start;
-  console.log(`  Result: ${result.result}, Duration: ${duration}ms`);
+  console.log(`  Result: ${toBooleanResult(result)}, Duration: ${duration}ms`);
   console.log();
 }
 
@@ -138,7 +147,7 @@ async function testTLSConfiguration() {
       debug: false,
     },
   });
-  console.log(`  Strict TLS Result: ${result1.result}`);
+  console.log(`  Strict TLS Result: ${toBooleanResult(result1)}`);
 
   // Test with lenient TLS
   console.log('Testing with lenient TLS:');
@@ -156,7 +165,7 @@ async function testTLSConfiguration() {
       debug: false,
     },
   });
-  console.log(`  Lenient TLS Result: ${result2.result}`);
+  console.log(`  Lenient TLS Result: ${toBooleanResult(result2)}`);
   console.log();
 }
 
@@ -179,7 +188,7 @@ async function testCustomSequences() {
       debug: false,
     },
   });
-  console.log(`  With VRFY Result: ${result1.result}`);
+  console.log(`  With VRFY Result: ${toBooleanResult(result1)}`);
 
   // Test without VRFY command
   console.log('Testing without VRFY command:');
@@ -193,7 +202,7 @@ async function testCustomSequences() {
       debug: false,
     },
   });
-  console.log(`  Without VRFY Result: ${result2.result}`);
+  console.log(`  Without VRFY Result: ${toBooleanResult(result2)}`);
   console.log();
 }
 

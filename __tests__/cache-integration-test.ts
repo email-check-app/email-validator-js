@@ -8,6 +8,7 @@ import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
 import type { ICache } from '../src/cache-interface';
 import { resolveMxRecords } from '../src/dns';
 import { isDisposableEmail, isFreeEmail } from '../src/index';
+import type { SmtpVerificationResult } from '../src/types';
 
 describe('Cache Integration', () => {
   // No need to reset cache for parameter-based testing
@@ -39,7 +40,10 @@ describe('Cache Integration', () => {
           DEFAULT_CACHE_OPTIONS.maxSize.domainValid,
           DEFAULT_CACHE_OPTIONS.ttl.domainValid
         ),
-        smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        smtp: new LRUAdapter<SmtpVerificationResult | null>(
+          DEFAULT_CACHE_OPTIONS.maxSize.smtp,
+          DEFAULT_CACHE_OPTIONS.ttl.smtp
+        ),
         smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
           DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
@@ -86,7 +90,10 @@ describe('Cache Integration', () => {
           DEFAULT_CACHE_OPTIONS.maxSize.domainValid,
           DEFAULT_CACHE_OPTIONS.ttl.domainValid
         ),
-        smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        smtp: new LRUAdapter<SmtpVerificationResult | null>(
+          DEFAULT_CACHE_OPTIONS.maxSize.smtp,
+          DEFAULT_CACHE_OPTIONS.ttl.smtp
+        ),
         smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
           DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
@@ -138,7 +145,10 @@ describe('Cache Integration', () => {
           DEFAULT_CACHE_OPTIONS.maxSize.domainValid,
           DEFAULT_CACHE_OPTIONS.ttl.domainValid
         ),
-        smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        smtp: new LRUAdapter<SmtpVerificationResult | null>(
+          DEFAULT_CACHE_OPTIONS.maxSize.smtp,
+          DEFAULT_CACHE_OPTIONS.ttl.smtp
+        ),
         smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
           DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
@@ -190,7 +200,10 @@ describe('Cache Integration', () => {
           DEFAULT_CACHE_OPTIONS.maxSize.domainValid,
           DEFAULT_CACHE_OPTIONS.ttl.domainValid
         ),
-        smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        smtp: new LRUAdapter<SmtpVerificationResult | null>(
+          DEFAULT_CACHE_OPTIONS.maxSize.smtp,
+          DEFAULT_CACHE_OPTIONS.ttl.smtp
+        ),
         smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
           DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
@@ -223,7 +236,7 @@ describe('Cache Integration', () => {
         mx: new LRUAdapter<string[]>(100, 3600000),
         free: new LRUAdapter<boolean>(100, 86400000),
         domainValid: new LRUAdapter<boolean>(100, 86400000),
-        smtp: new LRUAdapter<boolean | null>(100, 1800000),
+        smtp: new LRUAdapter<SmtpVerificationResult | null>(100, 1800000),
         smtpPort: new LRUAdapter<number>(100, 3600000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(100, 86400000),
         whois: new LRUAdapter<any>(100, 3600000),
@@ -234,7 +247,7 @@ describe('Cache Integration', () => {
         mx: new LRUAdapter<string[]>(100, 3600000),
         free: new LRUAdapter<boolean>(100, 86400000),
         domainValid: new LRUAdapter<boolean>(100, 86400000),
-        smtp: new LRUAdapter<boolean | null>(100, 1800000),
+        smtp: new LRUAdapter<SmtpVerificationResult | null>(100, 1800000),
         smtpPort: new LRUAdapter<number>(100, 3600000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(100, 86400000),
         whois: new LRUAdapter<any>(100, 3600000),

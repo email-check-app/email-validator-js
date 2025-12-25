@@ -1,8 +1,17 @@
 // Example of using custom cache with SMTP verification
 
 import { getDefaultCache } from '../src/cache';
+import type { ICache } from '../src/cache-interface';
 import { verifyMailboxSMTP } from '../src/smtp';
-import type { ICache } from '../src/types';
+import type { SmtpVerificationResult } from '../src/types';
+
+// Helper to extract boolean from SmtpVerificationResult
+function toBooleanResult(result: SmtpVerificationResult): boolean | null {
+  if (!result.canConnectSmtp) {
+    return null;
+  }
+  return result.isDeliverable;
+}
 
 // Example custom cache implementation
 class CustomMemoryCache implements ICache {
@@ -62,7 +71,7 @@ class CustomMemoryCache implements ICache {
 
   smtp = {
     get: (key: string) => Promise.resolve(this.getStore('smtp').get(key)),
-    set: (key: string, value: boolean | null) => {
+    set: (key: string, value: SmtpVerificationResult | null) => {
       this.getStore('smtp').set(key, value);
     },
     delete: (key: string) => this.getStore('smtp').delete(key),
@@ -140,7 +149,7 @@ async function demonstrateCustomCache() {
     },
   });
   const time1 = Date.now() - start1;
-  console.log(`Result: ${result1}, Time: ${time1}ms\n`);
+  console.log(`Result: ${toBooleanResult(result1)}, Time: ${time1}ms\n`);
   console.log('Cache stats after first verification:', customCache.getCacheStats());
 
   // Second verification - should use cached port
@@ -158,7 +167,7 @@ async function demonstrateCustomCache() {
     },
   });
   const time2 = Date.now() - start2;
-  console.log(`Result: ${result2}, Time: ${time2}ms`);
+  console.log(`Result: ${toBooleanResult(result2)}, Time: ${time2}ms`);
 
   if (time1 > 0) {
     const improvement = Math.round(((time1 - time2) / time1) * 100);
@@ -180,7 +189,7 @@ async function demonstrateCustomCache() {
     },
   });
   const time3 = Date.now() - start3;
-  console.log(`Result: ${result3}, Time: ${time3}ms\n`);
+  console.log(`Result: ${toBooleanResult(result3)}, Time: ${time3}ms\n`);
   console.log('Final cache stats:', customCache.getCacheStats());
 }
 
@@ -203,7 +212,7 @@ async function demonstrateDefaultCache() {
       debug: true,
     },
   });
-  console.log(`Result: ${result1}`);
+  console.log(`Result: ${toBooleanResult(result1)}`);
 
   // Second verification - should use cached port
   console.log('\n2. Second verification (should use cached port):');
@@ -218,7 +227,7 @@ async function demonstrateDefaultCache() {
       debug: true,
     },
   });
-  console.log(`Result: ${result2}`);
+  console.log(`Result: ${toBooleanResult(result2)}`);
 
   // Example with no caching
   console.log('\n3. Verification without caching:');
@@ -233,7 +242,7 @@ async function demonstrateDefaultCache() {
       debug: true,
     },
   });
-  console.log(`Result: ${result3}`);
+  console.log(`Result: ${toBooleanResult(result3)}`);
 }
 
 // Run the demonstrations

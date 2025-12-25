@@ -2,6 +2,7 @@ import { LRUAdapter } from '../src/adapters/lru-adapter';
 import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
 import type { ICache } from '../src/cache-interface';
 import { isDisposableEmail, isFreeEmail } from '../src/index';
+import type { SmtpVerificationResult } from '../src/types';
 
 describe('Custom Cache Implementation', () => {
   // No global cache management needed with parameter-based injection
@@ -66,7 +67,7 @@ describe('Custom Cache Implementation', () => {
         disposable: new LRUAdapter<boolean>(5, 60000),
         free: new LRUAdapter<boolean>(5, 60000),
         domainValid: new LRUAdapter<boolean>(5, 60000),
-        smtp: new LRUAdapter<boolean | null>(5, 60000),
+        smtp: new LRUAdapter<SmtpVerificationResult | null>(5, 60000),
         smtpPort: new LRUAdapter<number>(5, 60000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(5, 60000),
         whois: new LRUAdapter<any>(5, 60000),
@@ -98,7 +99,7 @@ describe('Custom Cache Implementation', () => {
         disposable: new LRUAdapter<boolean>(10, 60000),
         free: new LRUAdapter<boolean>(10, 60000),
         domainValid: new LRUAdapter<boolean>(10, 60000),
-        smtp: new LRUAdapter<boolean | null>(10, 60000),
+        smtp: new LRUAdapter<SmtpVerificationResult | null>(10, 60000),
         smtpPort: new LRUAdapter<number>(10, 60000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(10, 60000),
         whois: new LRUAdapter<any>(10, 60000),
@@ -109,7 +110,7 @@ describe('Custom Cache Implementation', () => {
         disposable: new LRUAdapter<boolean>(10, 60000),
         free: new LRUAdapter<boolean>(10, 60000),
         domainValid: new LRUAdapter<boolean>(10, 60000),
-        smtp: new LRUAdapter<boolean | null>(10, 60000),
+        smtp: new LRUAdapter<SmtpVerificationResult | null>(10, 60000),
         smtpPort: new LRUAdapter<number>(10, 60000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(10, 60000),
         whois: new LRUAdapter<any>(10, 60000),

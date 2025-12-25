@@ -220,17 +220,13 @@ describe('SMTP Basic Verification', () => {
         });
 
         // First call
-        const {
-          result: { result: result1 },
-          duration: duration1,
-        } = await measureTime(() => verifyMailboxSMTP(params));
+        const { result: smtpResult1, duration: duration1 } = await measureTime(() => verifyMailboxSMTP(params));
+        const result1 = toBooleanResult(smtpResult1);
         expect(TestUtils.isValidResult(result1)).toBe(true);
 
         // Second call should use cache
-        const {
-          result: { result: result2 },
-          duration: duration2,
-        } = await measureTime(() => verifyMailboxSMTP(params));
+        const { result: smtpResult2, duration: duration2 } = await measureTime(() => verifyMailboxSMTP(params));
+        const result2 = toBooleanResult(smtpResult2);
         expect(TestUtils.isValidResult(result2)).toBe(true);
 
         console.log(`First call: ${duration1}ms, Second call: ${duration2}ms`);

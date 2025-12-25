@@ -6,6 +6,15 @@
 import { resolveMx } from 'dns/promises';
 import { getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
+import type { SmtpVerificationResult } from '../src/types';
+
+// Helper to extract boolean from SmtpVerificationResult
+function toBooleanResult(result: SmtpVerificationResult): boolean | null {
+  if (!result.canConnectSmtp) {
+    return null;
+  }
+  return result.isDeliverable;
+}
 
 // Example 1: Basic usage with default settings (tests ports 25, 587, 465)
 async function basicVerification(email: string) {
@@ -15,7 +24,7 @@ async function basicVerification(email: string) {
     const mxRecords = await resolveMx(domain);
     const mxHosts = mxRecords.map((mx) => mx.exchange);
 
-    const { result: isValid } = await verifyMailboxSMTP({
+    const smtpResult = await verifyMailboxSMTP({
       local,
       domain,
       mxRecords: mxHosts,
@@ -24,6 +33,7 @@ async function basicVerification(email: string) {
         debug: true, // Enable debug logging
       },
     });
+    const isValid = toBooleanResult(smtpResult);
 
     console.log(`Email ${email} validation result:`, isValid);
     return isValid;
@@ -42,7 +52,7 @@ async function customPortVerification(email: string) {
     const mxHosts = mxRecords.map((mx) => mx.exchange);
 
     // Test only specific ports in custom order
-    const { result: isValid } = await verifyMailboxSMTP({
+    const smtpResult = await verifyMailboxSMTP({
       local,
       domain,
       mxRecords: mxHosts,
@@ -56,6 +66,7 @@ async function customPortVerification(email: string) {
         },
       },
     });
+    const isValid = toBooleanResult(smtpResult);
 
     console.log(`Email ${email} validation result with custom ports:`, isValid);
     return isValid;
@@ -73,7 +84,7 @@ async function secureVerification(email: string) {
     const mxRecords = await resolveMx(domain);
     const mxHosts = mxRecords.map((mx) => mx.exchange);
 
-    const { result: isValid } = await verifyMailboxSMTP({
+    const smtpResult = await verifyMailboxSMTP({
       local,
       domain,
       mxRecords: mxHosts,
@@ -90,6 +101,7 @@ async function secureVerification(email: string) {
         },
       },
     });
+    const isValid = toBooleanResult(smtpResult);
 
     console.log(`Email ${email} secure validation result:`, isValid);
     return isValid;
@@ -108,7 +120,7 @@ async function testSpecificPort(email: string, port: number) {
     const mxHosts = mxRecords.map((mx) => mx.exchange);
 
     // Test only port 465 (SMTPS)
-    const { result: isValid } = await verifyMailboxSMTP({
+    const smtpResult = await verifyMailboxSMTP({
       local,
       domain,
       mxRecords: mxHosts,
@@ -122,6 +134,7 @@ async function testSpecificPort(email: string, port: number) {
         },
       },
     });
+    const isValid = toBooleanResult(smtpResult);
 
     console.log(`Email ${email} validation on port ${port}:`, isValid);
     return isValid;
@@ -143,7 +156,7 @@ async function fastVerification(emails: string[]) {
       const mxHosts = mxRecords.map((mx) => mx.exchange);
 
       // Optimized for speed with aggressive caching
-      const { result: isValid } = await verifyMailboxSMTP({
+      const smtpResult = await verifyMailboxSMTP({
         local,
         domain,
         mxRecords: mxHosts,
@@ -157,6 +170,7 @@ async function fastVerification(emails: string[]) {
           },
         },
       });
+      const isValid = toBooleanResult(smtpResult);
 
       results.set(email, isValid);
       console.log(`${email}: ${isValid}`);
