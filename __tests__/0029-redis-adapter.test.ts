@@ -1,6 +1,6 @@
-/**
- * Tests for Redis adapter implementation
- */
+// 0029: Redis Adapter Tests
+//
+// Tests for Redis adapter implementation
 
 import type { IRedisClient } from '../src/adapters/redis-adapter';
 import { RedisAdapter } from '../src/adapters/redis-adapter';

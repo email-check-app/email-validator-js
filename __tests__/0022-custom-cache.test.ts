@@ -1,3 +1,7 @@
+// 0022: Custom Cache Implementation Tests
+//
+// Tests for custom cache implementations
+
 import { LRUAdapter } from '../src/adapters/lru-adapter';
 import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
 import type { ICache } from '../src/cache-interface';

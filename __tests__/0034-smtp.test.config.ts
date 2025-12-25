@@ -1,4 +1,4 @@
-// SMTP Test Configuration
+// 0034: SMTP Test Configuration
 //
 // Shared test data and utilities for SMTP tests
 

@@ -1,3 +1,7 @@
+// 0023: Batch Email Verification Tests
+//
+// Tests for batch email verification functionality
+
 import { promises as dnsPromises } from 'node:dns';
 import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';

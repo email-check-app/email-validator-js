@@ -1,7 +1,7 @@
-/**
- * Integration tests for cache functionality
- * Tests that caching works correctly with email verification
- */
+// 0021: Cache Integration Tests
+//
+// Integration tests for cache functionality
+// Tests that caching works correctly with email verification
 
 import { LRUAdapter } from '../src/adapters/lru-adapter';
 import { DEFAULT_CACHE_OPTIONS } from '../src/cache';

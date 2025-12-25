@@ -1,3 +1,7 @@
+// 0033: Real Socket Connection Tests
+//
+// Tests with real SMTP connections (integration tests)
+
 import expect from 'expect';
 import { verifyEmail } from '../src';
 

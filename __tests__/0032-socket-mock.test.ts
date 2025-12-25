@@ -1,3 +1,7 @@
+// 0032: Socket Mock Tests
+//
+// Tests for SMTP with mocked socket connections
+
 import { promises as dnsPromises, type MxRecord } from 'node:dns';
 import net, { Socket } from 'node:net';
 import expect from 'expect';

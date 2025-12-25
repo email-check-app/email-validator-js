@@ -1,3 +1,7 @@
+// 0020: Cache System Tests
+//
+// Tests for caching functionality
+
 import { promises as dnsPromises } from 'node:dns';
 import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';

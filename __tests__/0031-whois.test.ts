@@ -1,3 +1,7 @@
+// 0031: WHOIS Functions Tests
+//
+// Tests for WHOIS domain lookup functionality
+
 import expect from 'expect';
 import { getDomainAge, getDomainRegistrationStatus } from '../src';
 

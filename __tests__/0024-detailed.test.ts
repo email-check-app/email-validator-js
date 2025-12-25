@@ -1,3 +1,7 @@
+// 0024: Detailed Email Verification Tests
+//
+// Tests for detailed verification results
+
 import { promises as dnsPromises } from 'node:dns';
 import net, { Socket } from 'node:net';
 import expect from 'expect';

@@ -1,3 +1,7 @@
+// 0030: Utility Functions Tests
+//
+// Tests for utility functions
+
 import expect from 'expect';
 import { isDisposableEmail, isValidEmail, isValidEmailDomain } from '../src';
 

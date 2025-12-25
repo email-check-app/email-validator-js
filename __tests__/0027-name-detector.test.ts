@@ -1,3 +1,7 @@
+// 0027: Name Detection Tests
+//
+// Tests for name detection from email addresses
+
 import expect from 'expect';
 import { defaultNameDetectionMethod, detectName, detectNameFromEmail } from '../src';
 import type { NameDetectionMethod } from '../src/types';

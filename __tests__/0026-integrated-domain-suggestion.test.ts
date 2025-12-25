@@ -1,3 +1,7 @@
+// 0026: Integrated Domain Suggestion Tests
+//
+// Tests for domain suggestion integrated with verification
+
 import expect from 'expect';
 import { verifyEmail, verifyEmailBatch } from '../src';
 import type { DomainSuggestionMethod } from '../src/types';

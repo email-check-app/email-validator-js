@@ -1,3 +1,7 @@
+// 0025: Domain Suggestion Tests
+//
+// Tests for domain suggestion functionality
+
 import expect from 'expect';
 import type { DomainSuggestionMethod } from '../src';
 import {

@@ -1,3 +1,7 @@
+// 0028: Integrated Name Detection Tests
+//
+// Tests for name detection integrated with verification
+
 import expect from 'expect';
 import { verifyEmail, verifyEmailBatch } from '../src';
 import type { NameDetectionMethod } from '../src/types';
