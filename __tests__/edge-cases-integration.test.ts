@@ -3,14 +3,8 @@
  * Based on the original Rust implementation's comprehensive test suite
  */
 
-import type { EmailTestCase, VerificationMetrics } from '../src/email-verifier-types';
-import {
-  CHECK_IF_EMAIL_EXISTS_CONSTANTS,
-  EmailProvider,
-  getProviderType,
-  isEmailExistsCore,
-  validateEmailSyntax,
-} from '../src/is-email-exists';
+import type { EmailTestCase } from '../src/email-verifier-types';
+import { EmailProvider, getProviderType, isEmailExistsCore, validateEmailSyntax } from '../src/is-email-exists';
 
 describe('Edge Cases and Integration Tests', () => {
   // Comprehensive edge case test data
@@ -19,7 +13,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'a@b.co',
       expected: {
-        syntax: { is_valid: true, domain: 'b.co', local_part: 'a' },
+        syntax: { isValid: true, domain: 'b.co', localPart: 'a' },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Minimum valid email format',
@@ -28,7 +22,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'test@xn--d1acufc.xn--p1ai',
       expected: {
-        syntax: { is_valid: true, domain: 'xn--d1acufc.xn--p1ai', local_part: 'test' },
+        syntax: { isValid: true, domain: 'xn--d1acufc.xn--p1ai', localPart: 'test' },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'International domain (punycode)',
@@ -37,7 +31,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'test+very.long.tag+with.multiple.dots@gmail.com',
       expected: {
-        syntax: { is_valid: true, domain: 'gmail.com', local_part: 'test+very.long.tag+with.multiple.dots' },
+        syntax: { isValid: true, domain: 'gmail.com', localPart: 'test+very.long.tag+with.multiple.dots' },
         provider: EmailProvider.GMAIL,
       },
       description: 'Complex Gmail plus addressing',
@@ -46,7 +40,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'user_name@domain.co.uk',
       expected: {
-        syntax: { is_valid: true, domain: 'domain.co.uk', local_part: 'user_name' },
+        syntax: { isValid: true, domain: 'domain.co.uk', localPart: 'user_name' },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Underscore in local part',
@@ -55,7 +49,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'test123@domain123.com',
       expected: {
-        syntax: { is_valid: true, domain: 'domain123.com', local_part: 'test123' },
+        syntax: { isValid: true, domain: 'domain123.com', localPart: 'test123' },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Numbers in both local and domain parts',
@@ -65,9 +59,9 @@ describe('Edge Cases and Integration Tests', () => {
       email: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@domain.com',
       expected: {
         syntax: {
-          is_valid: true,
+          isValid: true,
           domain: 'domain.com',
-          local_part: 'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz0123456789',
+          localPart: 'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz0123456789',
         },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
@@ -79,7 +73,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: '',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Empty email string',
@@ -88,7 +82,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: '@domain.com',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Empty local part',
@@ -97,7 +91,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'user@',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Empty domain part',
@@ -106,7 +100,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: '.user@domain.com',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Local part starts with dot',
@@ -115,7 +109,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'user.@domain.com',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Local part ends with dot',
@@ -124,7 +118,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'user..name@domain.com',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Consecutive dots in local part',
@@ -133,7 +127,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'user@domain..com',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Consecutive dots in domain',
@@ -142,7 +136,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'user@.domain.com',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Domain starts with dot',
@@ -151,7 +145,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'user@domain.com.',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Domain ends with dot',
@@ -160,7 +154,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'user name@domain.com',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Space in local part',
@@ -169,7 +163,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'user@domain name.com',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Space in domain',
@@ -178,7 +172,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'test@localhost',
       expected: {
-        syntax: { is_valid: true, domain: 'localhost', local_part: 'test' },
+        syntax: { isValid: true, domain: 'localhost', localPart: 'test' },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Localhost domain (syntactically valid but not deliverable)',
@@ -187,7 +181,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'test@-domain.com',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Domain starts with hyphen',
@@ -196,7 +190,7 @@ describe('Edge Cases and Integration Tests', () => {
     {
       email: 'test@domain-.com',
       expected: {
-        syntax: { is_valid: false },
+        syntax: { isValid: false },
         provider: EmailProvider.EVERYTHING_ELSE,
       },
       description: 'Domain ends with hyphen',
@@ -211,11 +205,11 @@ describe('Edge Cases and Integration Tests', () => {
     }) => {
       const result = validateEmailSyntax(email);
 
-      expect(result.is_valid).toBe(expected.syntax.is_valid);
+      expect(result.isValid).toBe(expected.syntax.isValid);
 
-      if (result.is_valid) {
+      if (result.isValid) {
         expect(result.domain).toBe(expected.syntax.domain);
-        expect(result.local_part).toBe(expected.syntax.local_part);
+        expect(result.localPart).toBe(expected.syntax.localPart);
         expect(result.email).toBe(email.toLowerCase());
       }
     });
@@ -228,7 +222,7 @@ describe('Edge Cases and Integration Tests', () => {
     }) => {
       const result = validateEmailSyntax(email);
 
-      expect(result.is_valid).toBe(expected.syntax.is_valid);
+      expect(result.isValid).toBe(expected.syntax.isValid);
       expect(result.error).toBeDefined();
     });
   });
@@ -238,12 +232,12 @@ describe('Edge Cases and Integration Tests', () => {
       // Test local part length limit (64 characters)
       const validLocal = 'a'.repeat(64);
       const validEmail = `${validLocal}@example.com`;
-      expect(validateEmailSyntax(validEmail).is_valid).toBe(true);
+      expect(validateEmailSyntax(validEmail).isValid).toBe(true);
 
       const tooLongLocal = 'a'.repeat(65);
       const tooLongEmail = `${tooLongLocal}@example.com`;
       const result = validateEmailSyntax(tooLongEmail);
-      expect(result.is_valid).toBe(false);
+      expect(result.isValid).toBe(false);
       expect(result.error).toContain('Local part exceeds 64 characters');
 
       // Test domain length limit (253 characters total, 63 per label)
@@ -252,7 +246,7 @@ describe('Edge Cases and Integration Tests', () => {
       const tooLongDomain = manyLabels.join('.') + '.com'; // This will exceed 253 chars total
       const tooLongDomainEmail = `test@${tooLongDomain}`;
       const domainResult = validateEmailSyntax(tooLongDomainEmail);
-      expect(domainResult.is_valid).toBe(false);
+      expect(domainResult.isValid).toBe(false);
       expect(domainResult.error).toContain('Domain exceeds 253 characters');
     });
 
@@ -261,8 +255,8 @@ describe('Edge Cases and Integration Tests', () => {
       const boundaryLocal = 'a'.repeat(64);
       const boundaryEmail = `${boundaryLocal}@example.com`;
       const boundaryResult = validateEmailSyntax(boundaryEmail);
-      expect(boundaryResult.is_valid).toBe(true);
-      expect(boundaryResult.local_part).toHaveLength(64);
+      expect(boundaryResult.isValid).toBe(true);
+      expect(boundaryResult.localPart).toHaveLength(64);
     });
   });
 
@@ -278,7 +272,7 @@ describe('Edge Cases and Integration Tests', () => {
 
       testCases.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(true);
+        expect(result.isValid).toBe(true);
         expect(result.email).toBe(email.toLowerCase());
       });
     });
@@ -308,7 +302,7 @@ describe('Edge Cases and Integration Tests', () => {
 
       punycodeEmails.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(true);
+        expect(result.isValid).toBe(true);
       });
     });
 
@@ -317,7 +311,7 @@ describe('Edge Cases and Integration Tests', () => {
 
       unicodeEmails.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(false);
+        expect(result.isValid).toBe(false);
       });
     });
   });
@@ -328,7 +322,7 @@ describe('Edge Cases and Integration Tests', () => {
 
       gmailVariations.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(true);
+        expect(result.isValid).toBe(true);
         expect(getProviderType(result.domain!)).toBe(EmailProvider.GMAIL);
       });
     });
@@ -344,7 +338,7 @@ describe('Edge Cases and Integration Tests', () => {
 
       alternativeDomainTests.forEach(({ email, provider }) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(true);
+        expect(result.isValid).toBe(true);
         expect(getProviderType(result.domain!)).toBe(provider);
       });
     });
@@ -360,7 +354,7 @@ describe('Edge Cases and Integration Tests', () => {
         }).not.toThrow();
 
         const result = validateEmailSyntax(input as any);
-        expect(result.is_valid).toBe(false);
+        expect(result.isValid).toBe(false);
         expect(result.error).toContain('must be a string');
       });
     });
@@ -394,8 +388,8 @@ describe('Edge Cases and Integration Tests', () => {
       const results = await Promise.all(promises);
 
       results.forEach((result) => {
-        expect(result.syntax.is_valid).toBe(true);
-        expect(result.misc?.provider_type).toBeDefined();
+        expect(result.syntax.isValid).toBe(true);
+        expect(result.misc?.providerType).toBeDefined();
       });
     });
   });
@@ -407,7 +401,7 @@ describe('Edge Cases and Integration Tests', () => {
       });
 
       expect(result.email).toBe('test@example.com');
-      expect(result.syntax.is_valid).toBe(true);
+      expect(result.syntax.isValid).toBe(true);
     });
 
     test('should work with all verification enabled', async () => {
@@ -422,9 +416,9 @@ describe('Edge Cases and Integration Tests', () => {
         timeout: 10000,
       });
 
-      expect(result.syntax.is_valid).toBe(true);
+      expect(result.syntax.isValid).toBe(true);
       expect(result.misc).not.toBeNull();
-      expect(result.misc!.provider_type).toBeDefined();
+      expect(result.misc!.providerType).toBeDefined();
     });
 
     test('should handle Yahoo API configuration', async () => {
@@ -443,8 +437,8 @@ describe('Edge Cases and Integration Tests', () => {
         verifySmtp: false,
       });
 
-      expect(result.syntax.is_valid).toBe(true);
-      expect(result.misc?.provider_type).toBe(EmailProvider.YAHOO);
+      expect(result.syntax.isValid).toBe(true);
+      expect(result.misc?.providerType).toBe(EmailProvider.YAHOO);
     });
 
     test('should handle headless browser configuration', async () => {
@@ -461,8 +455,8 @@ describe('Edge Cases and Integration Tests', () => {
         verifySmtp: false,
       });
 
-      expect(result.syntax.is_valid).toBe(true);
-      expect(result.misc?.provider_type).toBe(EmailProvider.GMAIL);
+      expect(result.syntax.isValid).toBe(true);
+      expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
     });
   });
 
@@ -479,8 +473,8 @@ describe('Edge Cases and Integration Tests', () => {
       for (const input of malformedInputs) {
         try {
           const result = await isEmailExistsCore(input);
-          expect(result.is_reachable).toBe('invalid');
-          expect(result.syntax?.is_valid).toBe(false);
+          expect(result.isReachable).toBe('invalid');
+          expect(result.syntax?.isValid).toBe(false);
         } catch (error) {
           // Should not throw, but if it does, it should be handled gracefully
           expect(error).toBeDefined();

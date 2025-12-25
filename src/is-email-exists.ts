@@ -24,7 +24,7 @@ export const CHECK_IF_EMAIL_EXISTS_CONSTANTS = {
   DEFAULT_HELLO_NAME: 'example.com',
 } as const;
 
-// Re-export types for backward compatibility
+// Re-export commonly used types
 export {
   EmailProvider,
   SmtpVerificationResult,
@@ -59,7 +59,7 @@ export interface IIsEmailExistsCoreParamsExtended extends IIsEmailExistsCorePara
 export function validateEmailSyntax(email: string): EmailSyntaxResult {
   if (!email || typeof email !== 'string') {
     return {
-      is_valid: false,
+      isValid: false,
       error: 'Invalid input: email must be a string',
     };
   }
@@ -72,7 +72,7 @@ export function validateEmailSyntax(email: string): EmailSyntaxResult {
   // Length checks according to RFC first
   if (!emailLower.includes('@')) {
     return {
-      is_valid: false,
+      isValid: false,
       error: 'Invalid email format',
     };
   }
@@ -81,14 +81,14 @@ export function validateEmailSyntax(email: string): EmailSyntaxResult {
 
   if (localPart.length > 64) {
     return {
-      is_valid: false,
+      isValid: false,
       error: 'Local part exceeds 64 characters',
     };
   }
 
   if (domain.length > 253) {
     return {
-      is_valid: false,
+      isValid: false,
       error: 'Domain exceeds 253 characters',
     };
   }
@@ -96,7 +96,7 @@ export function validateEmailSyntax(email: string): EmailSyntaxResult {
   // Basic format check
   if (!emailRegex.test(emailLower)) {
     return {
-      is_valid: false,
+      isValid: false,
       error: 'Invalid email format',
     };
   }
@@ -104,22 +104,22 @@ export function validateEmailSyntax(email: string): EmailSyntaxResult {
   // Check for invalid characters/sequences
   if (localPart.startsWith('.') || localPart.endsWith('.')) {
     return {
-      is_valid: false,
+      isValid: false,
       error: 'Local part cannot start or end with a dot',
     };
   }
 
   if (localPart.includes('..')) {
     return {
-      is_valid: false,
+      isValid: false,
       error: 'Local part cannot contain consecutive dots',
     };
   }
 
   return {
-    is_valid: true,
+    isValid: true,
     email: emailLower,
-    local_part: localPart,
+    localPart: localPart,
     domain: domain,
   };
 }
@@ -253,7 +253,7 @@ export async function queryMxRecords(
         return {
           success: true,
           records,
-          lowest_priority: records[0],
+          lowestPriority: records[0],
         };
       }
     } catch (error) {
@@ -301,7 +301,7 @@ export async function queryMxRecords(
         exchange: record.exchange,
         priority: (record as any).preference || record.priority,
       })),
-      lowest_priority: {
+      lowestPriority: {
         exchange: firstRecord.exchange,
         priority: firstPriority,
       },
@@ -490,18 +490,18 @@ export async function verifySmtpConnection(
 
       return {
         ...result,
-        provider_used: providerType,
+        providerUsed: providerType,
       };
     } catch (error: any) {
       if (attempt === effectiveOptions.retries) {
         return {
-          can_connect_smtp: false,
-          has_full_inbox: false,
-          is_catch_all: false,
-          is_deliverable: false,
-          is_disabled: false,
+          canConnectSmtp: false,
+          hasFullInbox: false,
+          isCatchAll: false,
+          isDeliverable: false,
+          isDisabled: false,
           error: error.message,
-          provider_used: providerType,
+          providerUsed: providerType,
         };
       }
 
@@ -511,13 +511,13 @@ export async function verifySmtpConnection(
   }
 
   return {
-    can_connect_smtp: false,
-    has_full_inbox: false,
-    is_catch_all: false,
-    is_deliverable: false,
-    is_disabled: false,
+    canConnectSmtp: false,
+    hasFullInbox: false,
+    isCatchAll: false,
+    isDeliverable: false,
+    isDisabled: false,
     error: 'SMTP verification failed after all retries',
-    provider_used: providerType,
+    providerUsed: providerType,
   };
 }
 
@@ -607,21 +607,21 @@ async function performSmtpVerificationWithCatchAll(
     client.destroy();
 
     return {
-      can_connect_smtp: true,
-      has_full_inbox: hasFullInbox,
-      is_catch_all: isCatchAll,
-      is_deliverable: isDeliverable,
-      is_disabled: isDisabled,
+      canConnectSmtp: true,
+      hasFullInbox: hasFullInbox,
+      isCatchAll: isCatchAll,
+      isDeliverable: isDeliverable,
+      isDisabled: isDisabled,
     };
   } catch (error: any) {
     const parsed = parseLegacySmtpError(error.message);
 
     return {
-      can_connect_smtp: false,
-      has_full_inbox: parsed.hasFullInbox,
-      is_catch_all: false,
-      is_deliverable: !parsed.isInvalid && !parsed.isDisabled,
-      is_disabled: parsed.isDisabled,
+      canConnectSmtp: false,
+      hasFullInbox: parsed.hasFullInbox,
+      isCatchAll: false,
+      isDeliverable: !parsed.isInvalid && !parsed.isDisabled,
+      isDisabled: parsed.isDisabled,
       error: error.message,
     };
   }
@@ -742,7 +742,7 @@ async function checkEmailDeliverabilityWithClient(
  * Calculate overall reachability based on verification results
  */
 function calculateReachability(result: IsEmailExistsCoreResult): 'safe' | 'invalid' | 'risky' | 'unknown' {
-  if (!result.syntax.is_valid) {
+  if (!result.syntax.isValid) {
     return 'invalid';
   }
 
@@ -754,15 +754,15 @@ function calculateReachability(result: IsEmailExistsCoreResult): 'safe' | 'inval
     return 'invalid';
   }
 
-  if (!result.smtp || !result.smtp.can_connect_smtp) {
+  if (!result.smtp || !result.smtp.canConnectSmtp) {
     return 'unknown';
   }
 
-  if (result.misc && result.misc.is_disposable) {
+  if (result.misc && result.misc.isDisposable) {
     return 'risky';
   }
 
-  if (!result.smtp.is_deliverable) {
+  if (!result.smtp.isDeliverable) {
     return 'invalid';
   }
 
@@ -926,7 +926,7 @@ async function verifySmtpConnectionWithProviderOptimizations(
 
   // Add provider-specific context to result
   if (result) {
-    result.provider_used = provider;
+    result.providerUsed = provider;
   }
 
   return result;
@@ -940,10 +940,10 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
   if (!params) {
     return {
       email: 'unknown',
-      is_reachable: 'invalid',
+      isReachable: 'invalid',
       error: 'Parameters object is required',
       syntax: {
-        is_valid: false,
+        isValid: false,
         error: 'Parameters object is required',
       },
       mx: null,
@@ -978,12 +978,12 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
   try {
     // Step 1: Syntax validation
     const syntaxResult = validateEmailSyntax(emailAddress);
-    if (!syntaxResult.is_valid) {
+    if (!syntaxResult.isValid) {
       return {
         email: emailAddress,
-        is_reachable: 'invalid',
+        isReachable: 'invalid',
         syntax: {
-          is_valid: false,
+          isValid: false,
           error: syntaxResult.error,
         },
         mx: null,
@@ -995,11 +995,11 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
 
     const result: IsEmailExistsCoreResult = {
       email: syntaxResult.email!,
-      is_reachable: 'unknown',
+      isReachable: 'unknown',
       syntax: {
-        is_valid: true,
+        isValid: true,
         domain: syntaxResult.domain,
-        local_part: syntaxResult.local_part,
+        localPart: syntaxResult.localPart,
       },
       mx: null,
       smtp: null,
@@ -1014,7 +1014,7 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
       result.mx = mxResult;
 
       if (!mxResult.success) {
-        result.is_reachable = 'invalid';
+        result.isReachable = 'invalid';
         result.duration = Date.now() - startTime;
         return result;
       }
@@ -1022,8 +1022,8 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
 
     // Step 3: Provider detection from MX host
     let providerType = EmailProvider.EVERYTHING_ELSE;
-    if (mxResult && mxResult.success && mxResult.lowest_priority) {
-      providerType = getProviderFromMxHost(mxResult.lowest_priority.exchange);
+    if (mxResult && mxResult.success && mxResult.lowestPriority) {
+      providerType = getProviderFromMxHost(mxResult.lowestPriority.exchange);
     } else {
       providerType = getProviderType(syntaxResult.domain!);
     }
@@ -1038,9 +1038,9 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
       ]);
 
       result.misc = {
-        is_disposable: isDisposable.status === 'fulfilled' ? isDisposable.value : false,
-        is_free: isFree.status === 'fulfilled' ? isFree.value : false,
-        provider_type: providerType,
+        isDisposable: isDisposable.status === 'fulfilled' ? isDisposable.value : false,
+        isFree: isFree.status === 'fulfilled' ? isFree.value : false,
+        providerType: providerType,
       };
     }
 
@@ -1052,43 +1052,39 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
         try {
           const yahooResult = await verifyYahooApi(syntaxResult.email!, yahooApiOptions);
 
-          // Convert Yahoo API result to SMTP result format for compatibility
+          // Convert Yahoo API result to SMTP result format
           result.smtp = {
-            can_connect_smtp: true, // API connection worked
-            has_full_inbox: false,
-            is_catch_all: false,
-            is_deliverable: yahooResult.is_deliverable,
-            is_disabled: !yahooResult.is_valid,
+            canConnectSmtp: true, // API connection worked
+            hasFullInbox: false,
+            isCatchAll: false,
+            isDeliverable: yahooResult.isDeliverable,
+            isDisabled: !yahooResult.isValid,
             error: yahooResult.error,
-            provider_used: EmailProvider.YAHOO,
-            success: yahooResult.is_valid,
-            can_connect: yahooResult.is_valid,
+            providerUsed: EmailProvider.YAHOO,
           };
 
           // Determine reachability based on Yahoo API result
-          if (yahooResult.is_valid && yahooResult.is_deliverable) {
-            result.is_reachable = 'safe';
-          } else if (yahooResult.is_valid && !yahooResult.is_deliverable) {
-            result.is_reachable = 'invalid';
+          if (yahooResult.isValid && yahooResult.isDeliverable) {
+            result.isReachable = 'safe';
+          } else if (yahooResult.isValid && !yahooResult.isDeliverable) {
+            result.isReachable = 'invalid';
           } else {
-            result.is_reachable = 'unknown';
+            result.isReachable = 'unknown';
           }
 
-          log('Yahoo API result:', { is_valid: yahooResult.is_valid, is_deliverable: yahooResult.is_deliverable });
+          log('Yahoo API result:', { isValid: yahooResult.isValid, isDeliverable: yahooResult.isDeliverable });
         } catch (error: any) {
           log('Yahoo API verification failed:', error.message);
           result.smtp = {
-            can_connect_smtp: false,
-            has_full_inbox: false,
-            is_catch_all: false,
-            is_deliverable: false,
-            is_disabled: false,
+            canConnectSmtp: false,
+            hasFullInbox: false,
+            isCatchAll: false,
+            isDeliverable: false,
+            isDisabled: false,
             error: `Yahoo API error: ${error.message}`,
-            provider_used: EmailProvider.YAHOO,
-            success: false,
-            can_connect: false,
+            providerUsed: EmailProvider.YAHOO,
           };
-          result.is_reachable = 'unknown';
+          result.isReachable = 'unknown';
         }
       } else if (useYahooHeadless) {
         log('Using Yahoo headless verification for:', syntaxResult.email!);
@@ -1096,43 +1092,39 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
         try {
           const headlessResult = await verifyYahooHeadless(syntaxResult.email!, headlessOptions);
 
-          // Convert headless result to SMTP result format for compatibility
+          // Convert headless result to SMTP result format
           result.smtp = {
-            can_connect_smtp: headlessResult.success,
-            has_full_inbox: false,
-            is_catch_all: false,
-            is_deliverable: headlessResult.email_exists || false,
-            is_disabled: !headlessResult.success,
+            canConnectSmtp: headlessResult.success,
+            hasFullInbox: false,
+            isCatchAll: false,
+            isDeliverable: headlessResult.emailExists || false,
+            isDisabled: !headlessResult.success,
             error: headlessResult.error,
-            provider_used: EmailProvider.YAHOO,
-            success: headlessResult.success,
-            can_connect: headlessResult.success,
+            providerUsed: EmailProvider.YAHOO,
           };
 
           // Determine reachability based on headless result
-          if (headlessResult.success && headlessResult.email_exists) {
-            result.is_reachable = 'safe';
-          } else if (headlessResult.success && !headlessResult.email_exists) {
-            result.is_reachable = 'invalid';
+          if (headlessResult.success && headlessResult.emailExists) {
+            result.isReachable = 'safe';
+          } else if (headlessResult.success && !headlessResult.emailExists) {
+            result.isReachable = 'invalid';
           } else {
-            result.is_reachable = 'unknown';
+            result.isReachable = 'unknown';
           }
 
-          log('Yahoo headless result:', { success: headlessResult.success, email_exists: headlessResult.email_exists });
+          log('Yahoo headless result:', { success: headlessResult.success, emailExists: headlessResult.emailExists });
         } catch (error: any) {
           log('Yahoo headless verification failed:', error.message);
           result.smtp = {
-            can_connect_smtp: false,
-            has_full_inbox: false,
-            is_catch_all: false,
-            is_deliverable: false,
-            is_disabled: false,
+            canConnectSmtp: false,
+            hasFullInbox: false,
+            isCatchAll: false,
+            isDeliverable: false,
+            isDisabled: false,
             error: `Yahoo headless error: ${error.message}`,
-            provider_used: EmailProvider.YAHOO,
-            success: false,
-            can_connect: false,
+            providerUsed: EmailProvider.YAHOO,
           };
-          result.is_reachable = 'unknown';
+          result.isReachable = 'unknown';
         }
       }
     }
@@ -1143,47 +1135,43 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
       try {
         const headlessResult = await verifyGmailHeadless(syntaxResult.email!, headlessOptions);
 
-        // Convert headless result to SMTP result format for compatibility
+        // Convert headless result to SMTP result format
         result.smtp = {
-          can_connect_smtp: headlessResult.success,
-          has_full_inbox: false,
-          is_catch_all: false,
-          is_deliverable: headlessResult.email_exists || false,
-          is_disabled: !headlessResult.success,
+          canConnectSmtp: headlessResult.success,
+          hasFullInbox: false,
+          isCatchAll: false,
+          isDeliverable: headlessResult.emailExists || false,
+          isDisabled: !headlessResult.success,
           error: headlessResult.error,
-          provider_used: EmailProvider.GMAIL,
-          success: headlessResult.success,
-          can_connect: headlessResult.success,
+          providerUsed: EmailProvider.GMAIL,
         };
 
         // Determine reachability based on headless result
-        if (headlessResult.success && headlessResult.email_exists) {
-          result.is_reachable = 'safe';
-        } else if (headlessResult.success && !headlessResult.email_exists) {
-          result.is_reachable = 'invalid';
+        if (headlessResult.success && headlessResult.emailExists) {
+          result.isReachable = 'safe';
+        } else if (headlessResult.success && !headlessResult.emailExists) {
+          result.isReachable = 'invalid';
         } else {
-          result.is_reachable = 'unknown';
+          result.isReachable = 'unknown';
         }
 
-        log('Gmail headless result:', { success: headlessResult.success, email_exists: headlessResult.email_exists });
+        log('Gmail headless result:', { success: headlessResult.success, emailExists: headlessResult.emailExists });
       } catch (error: any) {
         log('Gmail headless verification failed:', error.message);
         result.smtp = {
-          can_connect_smtp: false,
-          has_full_inbox: false,
-          is_catch_all: false,
-          is_deliverable: false,
-          is_disabled: false,
+          canConnectSmtp: false,
+          hasFullInbox: false,
+          isCatchAll: false,
+          isDeliverable: false,
+          isDisabled: false,
           error: `Gmail headless error: ${error.message}`,
-          provider_used: EmailProvider.GMAIL,
-          success: false,
-          can_connect: false,
+          providerUsed: EmailProvider.GMAIL,
         };
-        result.is_reachable = 'unknown';
+        result.isReachable = 'unknown';
       }
     }
     // Step 7: SMTP verification (when not using API/headless)
-    else if (verifySmtp && mxResult && mxResult.success && mxResult.lowest_priority) {
+    else if (verifySmtp && mxResult && mxResult.success && mxResult.lowestPriority) {
       let smtpResult: SmtpVerificationResult;
 
       // Use provider-specific optimizations if enabled
@@ -1192,7 +1180,7 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
         smtpResult = await verifySmtpConnectionWithProviderOptimizations(
           syntaxResult.email!,
           syntaxResult.domain!,
-          mxResult.lowest_priority.exchange,
+          mxResult.lowestPriority.exchange,
           {
             timeout: smtpTimeout || timeout,
             fromEmail: fromEmail || CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL,
@@ -1205,7 +1193,7 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
         smtpResult = await verifySmtpConnection(
           syntaxResult.email!,
           syntaxResult.domain!,
-          mxResult.lowest_priority.exchange,
+          mxResult.lowestPriority.exchange,
           {
             timeout: smtpTimeout || timeout,
             fromEmail: fromEmail || CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL,
@@ -1218,7 +1206,7 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
       result.smtp = smtpResult;
 
       // Determine reachability based on all results
-      result.is_reachable = calculateReachability(result);
+      result.isReachable = calculateReachability(result);
     }
 
     result.duration = Date.now() - startTime;
@@ -1226,10 +1214,10 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
   } catch (error: any) {
     return {
       email: emailAddress,
-      is_reachable: 'unknown',
+      isReachable: 'unknown',
       error: error.message,
       syntax: {
-        is_valid: false,
+        isValid: false,
         error: 'Email validation skipped',
       },
       mx: null,
@@ -1248,8 +1236,8 @@ async function verifyYahooApi(
   email: string,
   options: YahooApiOptions = {}
 ): Promise<{
-  is_valid: boolean;
-  is_deliverable: boolean;
+  isValid: boolean;
+  isDeliverable: boolean;
   error?: string;
   details?: any;
 }> {
@@ -1263,8 +1251,8 @@ async function verifyYahooApi(
   const domain = email.split('@')[1];
   if (!domain || !CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS.includes(domain as any)) {
     return {
-      is_valid: false,
-      is_deliverable: false,
+      isValid: false,
+      isDeliverable: false,
       error: 'Not a Yahoo domain',
     };
   }
@@ -1303,8 +1291,8 @@ async function verifyYahooApi(
 
     if (!response.ok) {
       return {
-        is_valid: false,
-        is_deliverable: false,
+        isValid: false,
+        isDeliverable: false,
         error: `HTTP ${response.status}: ${response.statusText}`,
       };
     }
@@ -1320,8 +1308,8 @@ async function verifyYahooApi(
     const formDataMatch = html.match(/name="u"([^>]+)>/);
     if (!formDataMatch) {
       return {
-        is_valid: false,
-        is_deliverable: false,
+        isValid: false,
+        isDeliverable: false,
         error: 'Could not parse Yahoo form data',
       };
     }
@@ -1393,11 +1381,11 @@ async function verifyYahooApi(
     }
 
     return {
-      is_valid: true,
-      is_deliverable: isDeliverable,
+      isValid: true,
+      isDeliverable: isDeliverable,
       error,
       details: {
-        response_text: validateResult.slice(0, 500), // First 500 chars for debugging
+        responseText: validateResult.slice(0, 500), // First 500 chars for debugging
       },
     };
   } catch (error: any) {
@@ -1405,15 +1393,15 @@ async function verifyYahooApi(
 
     if (error.name === 'AbortError') {
       return {
-        is_valid: false,
-        is_deliverable: false,
+        isValid: false,
+        isDeliverable: false,
         error: 'Request timeout',
       };
     }
 
     return {
-      is_valid: false,
-      is_deliverable: false,
+      isValid: false,
+      isDeliverable: false,
       error: `Network error: ${error.message}`,
     };
   }
@@ -1425,7 +1413,7 @@ async function verifyYahooApi(
  */
 interface HeadlessBrowserResult {
   success: boolean;
-  email_exists?: boolean;
+  emailExists?: boolean;
   screenshot?: string; // Base64 encoded screenshot if requested
   error?: string;
   details?: any;
@@ -1676,7 +1664,7 @@ class HeadlessBrowser {
           if (step.successIndicators?.some((indicator) => pageText.includes(indicator))) {
             return {
               success: true,
-              email_exists: true,
+              emailExists: true,
               screenshot: screenshot ? await this.takeScreenshot(sessionId) : undefined,
             };
           }
@@ -1684,7 +1672,7 @@ class HeadlessBrowser {
           if (step.errorIndicators?.some((indicator) => pageText.includes(indicator))) {
             return {
               success: true,
-              email_exists: false,
+              emailExists: false,
               screenshot: screenshot ? await this.takeScreenshot(sessionId) : undefined,
             };
           }
@@ -2295,7 +2283,7 @@ function parseMimecastError(
 }
 
 /**
- * SmtpErrorParser object for backward compatibility
+ * SMTP error parser object with provider-specific error parsing
  */
 export const SmtpErrorParser = {
   parseError: parseSmtpError,
@@ -2331,22 +2319,22 @@ async function verifySmtpConnectionWithErrorParsing(
     // Enhance the result based on parsed error
     switch (parsedError.type) {
       case 'disabled':
-        basicResult.is_disabled = true;
-        basicResult.is_deliverable = false;
+        basicResult.isDisabled = true;
+        basicResult.isDeliverable = false;
         break;
       case 'full_inbox':
-        basicResult.has_full_inbox = true;
-        basicResult.is_deliverable = false;
+        basicResult.hasFullInbox = true;
+        basicResult.isDeliverable = false;
         break;
       case 'invalid':
-        basicResult.is_deliverable = false;
+        basicResult.isDeliverable = false;
         break;
       case 'rate_limited':
-        basicResult.is_deliverable = false;
+        basicResult.isDeliverable = false;
         // Rate limiting is temporary, so don't mark as permanently invalid
         break;
       case 'blocked':
-        basicResult.is_deliverable = false;
+        basicResult.isDeliverable = false;
         break;
     }
 

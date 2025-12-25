@@ -125,9 +125,9 @@ describe('isEmailExistsCore', () => {
     expect(result).toEqual(
       expect.objectContaining({
         email: 'test@gmail.com',
-        is_reachable: expect.any(String),
+        isReachable: expect.any(String),
         syntax: expect.objectContaining({
-          is_valid: true,
+          isValid: true,
           domain: 'gmail.com',
         }),
         mx: expect.objectContaining({
@@ -135,7 +135,7 @@ describe('isEmailExistsCore', () => {
           records: mockMxRecords,
         }),
         misc: expect.objectContaining({
-          provider_type: EmailProvider.GMAIL,
+          providerType: EmailProvider.GMAIL,
         }),
       })
     );
@@ -155,7 +155,7 @@ describe('isEmailExistsCore', () => {
     expect(result).toEqual(
       expect.objectContaining({
         email: 'test@nonexistentdomain.com',
-        is_reachable: 'invalid',
+        isReachable: 'invalid',
         mx: expect.objectContaining({
           success: false,
           records: [],
@@ -176,9 +176,9 @@ describe('isEmailExistsCore', () => {
     expect(result).toEqual(
       expect.objectContaining({
         email: 'invalid-email',
-        is_reachable: 'invalid',
+        isReachable: 'invalid',
         syntax: expect.objectContaining({
-          is_valid: false,
+          isValid: false,
         }),
         mx: null,
         smtp: null,
@@ -208,7 +208,7 @@ describe('isEmailExistsCore', () => {
       expect.objectContaining({
         email: 'test@gmail.com',
         syntax: expect.objectContaining({
-          is_valid: true,
+          isValid: true,
         }),
       })
     );
@@ -245,7 +245,7 @@ describe('isEmailExistsCore', () => {
 
       const result = await isEmailExistsCore(params);
 
-      expect(result.misc?.provider_type).toBe(testCase.expectedProvider);
+      expect(result.misc?.providerType).toBe(testCase.expectedProvider);
     }
 
     // Clean up mocks to prevent test contamination
@@ -276,8 +276,8 @@ describe('Integration Tests', () => {
 
     try {
       const result = await isEmailExistsCore(params);
-      expect(result).toHaveProperty('is_reachable');
-      expect(result.misc?.provider_type).toBe(EmailProvider.GMAIL);
+      expect(result).toHaveProperty('isReachable');
+      expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
     } catch (error) {
       // Network issues are acceptable in integration tests
       console.warn('Integration test skipped due to network issues:', error);

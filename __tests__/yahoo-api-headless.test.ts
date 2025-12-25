@@ -41,8 +41,8 @@ describe('Yahoo API Tests', () => {
 
       const result = await verifyYahooApi('existing@yahoo.com');
 
-      expect(result.is_valid).toBe(true);
-      expect(result.is_deliverable).toBe(true);
+      expect(result.isValid).toBe(true);
+      expect(result.isDeliverable).toBe(true);
       expect(result.error).toBeUndefined();
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
@@ -73,16 +73,16 @@ describe('Yahoo API Tests', () => {
 
       const result = await verifyYahooApi('available@yahoo.com');
 
-      expect(result.is_valid).toBe(true);
-      expect(result.is_deliverable).toBe(false);
+      expect(result.isValid).toBe(true);
+      expect(result.isDeliverable).toBe(false);
       expect(result.error).toBeUndefined();
     });
 
     test('should reject non-Yahoo domains', async () => {
       const result = await verifyYahooApi('test@gmail.com');
 
-      expect(result.is_valid).toBe(false);
-      expect(result.is_deliverable).toBe(false);
+      expect(result.isValid).toBe(false);
+      expect(result.isDeliverable).toBe(false);
       expect(result.error).toBe('Not a Yahoo domain');
       expect(mockFetch).not.toHaveBeenCalled();
     });
@@ -99,8 +99,8 @@ describe('Yahoo API Tests', () => {
 
       const result = await verifyYahooApi('test@yahoo.com');
 
-      expect(result.is_valid).toBe(false);
-      expect(result.is_deliverable).toBe(false);
+      expect(result.isValid).toBe(false);
+      expect(result.isDeliverable).toBe(false);
       expect(result.error).toBe('HTTP 500: Internal Server Error');
     });
 
@@ -110,8 +110,8 @@ describe('Yahoo API Tests', () => {
 
       const result = await verifyYahooApi('test@yahoo.com', { timeout: 1000 });
 
-      expect(result.is_valid).toBe(false);
-      expect(result.is_deliverable).toBe(false);
+      expect(result.isValid).toBe(false);
+      expect(result.isDeliverable).toBe(false);
       expect(result.error).toBe('Request timeout');
     });
   });
@@ -143,8 +143,8 @@ describe('Yahoo API Tests', () => {
 
       const result = await verifyYahooApi('taken@yahoo.com');
 
-      expect(result.is_valid).toBe(true);
-      expect(result.is_deliverable).toBe(true);
+      expect(result.isValid).toBe(true);
+      expect(result.isDeliverable).toBe(true);
     });
 
     test('should handle IDENTIFIER_EXISTS error', async () => {
@@ -173,8 +173,8 @@ describe('Yahoo API Tests', () => {
 
       const result = await verifyYahooApi('exists@yahoo.com');
 
-      expect(result.is_valid).toBe(true);
-      expect(result.is_deliverable).toBe(true);
+      expect(result.isValid).toBe(true);
+      expect(result.isDeliverable).toBe(true);
     });
 
     test('should handle unknown error codes', async () => {
@@ -203,8 +203,8 @@ describe('Yahoo API Tests', () => {
 
       const result = await verifyYahooApi('test@yahoo.com');
 
-      expect(result.is_valid).toBe(true);
-      expect(result.is_deliverable).toBe(false);
+      expect(result.isValid).toBe(true);
+      expect(result.isDeliverable).toBe(false);
       expect(result.error).toContain('UNKNOWN_ERROR');
     });
   });
@@ -236,8 +236,8 @@ describe('Yahoo API Tests', () => {
 
       const result = await verifyYahooApi('test@yahoo.com');
 
-      expect(result.is_valid).toBe(true);
-      expect(result.is_deliverable).toBe(false); // Default to false for malformed responses
+      expect(result.isValid).toBe(true);
+      expect(result.isDeliverable).toBe(false); // Default to false for malformed responses
     });
 
     test('should handle text-based error responses', async () => {
@@ -266,8 +266,8 @@ describe('Yahoo API Tests', () => {
 
       const result = await verifyYahooApi('taken@yahoo.com');
 
-      expect(result.is_valid).toBe(true);
-      expect(result.is_deliverable).toBe(true); // Should detect the text error
+      expect(result.isValid).toBe(true);
+      expect(result.isDeliverable).toBe(true); // Should detect the text error
     });
   });
 
@@ -361,8 +361,8 @@ describe('Yahoo API Tests', () => {
 
       for (const email of invalidEmails) {
         const result = await verifyYahooApi(email);
-        expect(result.is_valid).toBe(false);
-        expect(result.is_deliverable).toBe(false);
+        expect(result.isValid).toBe(false);
+        expect(result.isDeliverable).toBe(false);
         // Invalid emails without proper domain should return "Not a Yahoo domain" error
         if (!email.includes('@') || email.split('@')[1] === '') {
           expect(result.error).toBe('Not a Yahoo domain');

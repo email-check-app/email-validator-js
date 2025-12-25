@@ -45,22 +45,13 @@ export interface ProviderConfig {
  * SMTP verification result with enhanced typing
  */
 export interface SmtpVerificationResult {
-  can_connect_smtp: boolean;
-  has_full_inbox: boolean;
-  is_catch_all: boolean;
-  is_deliverable: boolean;
-  is_disabled: boolean;
+  canConnectSmtp: boolean;
+  hasFullInbox: boolean;
+  isCatchAll: boolean;
+  isDeliverable: boolean;
+  isDisabled: boolean;
   error?: string;
-  provider_used?: EmailProvider;
-  // Additional properties for compatibility
-  success?: boolean;
-  can_connect?: boolean;
-  response_code?: number;
-  provider_specific?: {
-    error_code?: string;
-    action_required?: string;
-    details?: string;
-  };
+  providerUsed?: EmailProvider;
 }
 
 /**
@@ -69,7 +60,7 @@ export interface SmtpVerificationResult {
 export interface MxLookupResult {
   success: boolean;
   records: Array<{ exchange: string; priority: number }>;
-  lowest_priority?: { exchange: string; priority: number };
+  lowestPriority?: { exchange: string; priority: number };
   error?: string;
   code?: string;
 }
@@ -78,28 +69,28 @@ export interface MxLookupResult {
  * Email syntax validation result
  */
 export interface EmailSyntaxResult {
-  is_valid: boolean;
+  isValid: boolean;
   email?: string;
-  local_part?: string;
+  localPart?: string;
   domain?: string;
   error?: string;
 }
 
 export interface IsEmailExistsCoreResult {
   email: string;
-  is_reachable: 'safe' | 'invalid' | 'risky' | 'unknown';
+  isReachable: 'safe' | 'invalid' | 'risky' | 'unknown';
   syntax: {
-    is_valid: boolean;
+    isValid: boolean;
     domain?: string;
-    local_part?: string;
+    localPart?: string;
     error?: string;
   };
   mx: MxLookupResult | null;
   smtp: SmtpVerificationResult | null;
   misc: {
-    is_disposable: boolean;
-    is_free: boolean;
-    provider_type: EmailProvider;
+    isDisposable: boolean;
+    isFree: boolean;
+    providerType: EmailProvider;
   } | null;
   duration: number;
   error?: string;
@@ -196,12 +187,12 @@ export interface EmailTestCase {
   email: string;
   expected: {
     syntax: {
-      is_valid: boolean;
+      isValid: boolean;
       domain?: string;
-      local_part?: string;
+      localPart?: string;
     };
     provider?: EmailProvider;
-    is_deliverable?: boolean;
+    isDeliverable?: boolean;
     error?: string;
   };
   description?: string;
@@ -226,6 +217,6 @@ export interface VerificationMetrics {
     smtp: number;
     misc: number;
   };
-  cache_hits: number;
-  cache_misses: number;
+  cacheHits: number;
+  cacheMisses: number;
 }

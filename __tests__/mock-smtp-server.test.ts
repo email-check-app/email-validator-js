@@ -3,8 +3,8 @@
  * Based on the original Rust implementation's testing patterns
  */
 
-import type { MockSmtpServer, ParsedSmtpError } from '../src/email-verifier-types';
-import { EmailProvider, isEmailExistsCore, SmtpErrorParser, validateEmailSyntax } from '../src/is-email-exists';
+import type { MockSmtpServer } from '../src/email-verifier-types';
+import { EmailProvider, SmtpErrorParser } from '../src/is-email-exists';
 
 // Mock SMTP Server implementation for testing
 class TestMockSmtpServer implements MockSmtpServer {

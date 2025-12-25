@@ -25,9 +25,9 @@ describe('Email Syntax Validation', () => {
 
       validEmails.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(true);
+        expect(result.isValid).toBe(true);
         expect(result.email).toBe(email.toLowerCase());
-        expect(result.local_part).toBeDefined();
+        expect(result.localPart).toBeDefined();
         expect(result.domain).toBeDefined();
       });
     });
@@ -37,9 +37,9 @@ describe('Email Syntax Validation', () => {
 
       testCases.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(true);
+        expect(result.isValid).toBe(true);
         expect(result.email).toBe(email.toLowerCase());
-        expect(result.local_part).toBe(email.split('@')[0].toLowerCase());
+        expect(result.localPart).toBe(email.split('@')[0].toLowerCase());
         expect(result.domain).toBe(email.split('@')[1].toLowerCase());
       });
     });
@@ -57,7 +57,7 @@ describe('Email Syntax Validation', () => {
 
       edgeCases.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(true);
+        expect(result.isValid).toBe(true);
       });
     });
 
@@ -73,7 +73,7 @@ describe('Email Syntax Validation', () => {
 
       complexDomains.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(true);
+        expect(result.isValid).toBe(true);
       });
     });
   });
@@ -84,13 +84,13 @@ describe('Email Syntax Validation', () => {
 
       invalidEmails.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(false);
+        expect(result.isValid).toBe(false);
         expect(result.error).toContain('format');
       });
 
       // Empty string has a different error message
       const emptyResult = validateEmailSyntax('');
-      expect(emptyResult.is_valid).toBe(false);
+      expect(emptyResult.isValid).toBe(false);
     });
 
     test('should reject emails with invalid characters', () => {
@@ -107,7 +107,7 @@ describe('Email Syntax Validation', () => {
 
       invalidEmails.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(false);
+        expect(result.isValid).toBe(false);
       });
     });
 
@@ -121,7 +121,7 @@ describe('Email Syntax Validation', () => {
 
       invalidEmails.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(false);
+        expect(result.isValid).toBe(false);
       });
     });
 
@@ -138,7 +138,7 @@ describe('Email Syntax Validation', () => {
 
       invalidEmails.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(false);
+        expect(result.isValid).toBe(false);
       });
     });
 
@@ -147,7 +147,7 @@ describe('Email Syntax Validation', () => {
 
       invalidInputs.forEach((input) => {
         const result = validateEmailSyntax(input as any);
-        expect(result.is_valid).toBe(false);
+        expect(result.isValid).toBe(false);
         expect(result.error).toContain('string');
       });
     });
@@ -157,11 +157,11 @@ describe('Email Syntax Validation', () => {
     test('should enforce RFC length limits', () => {
       // Test local part length (max 64)
       const longLocal = 'a'.repeat(64);
-      expect(validateEmailSyntax(`${longLocal}@domain.com`).is_valid).toBe(true);
+      expect(validateEmailSyntax(`${longLocal}@domain.com`).isValid).toBe(true);
 
       const tooLongLocal = 'a'.repeat(65);
       const result = validateEmailSyntax(`${tooLongLocal}@domain.com`);
-      expect(result.is_valid).toBe(false);
+      expect(result.isValid).toBe(false);
       expect(result.error).toContain('Local part exceeds 64 characters');
 
       // Test domain length (max 253 for entire domain, 63 per label)
@@ -173,13 +173,13 @@ describe('Email Syntax Validation', () => {
       const longLabels = Array.from({ length: numLabels }, () => 'a'.repeat(maxLabelLength));
       const longDomain = longLabels.join('.') + '.example.com'; // Will be within limits
       const validEmail = `${local}@${longDomain}`;
-      expect(validateEmailSyntax(validEmail).is_valid).toBe(true);
+      expect(validateEmailSyntax(validEmail).isValid).toBe(true);
 
       // Test domain label length limit (63 chars per label)
       const tooLongLabel = 'a'.repeat(64); // 64 chars exceeds RFC 1035 limit
       const invalidLabelEmail = `${local}@${tooLongLabel}.example.com`;
       const labelResult = validateEmailSyntax(invalidLabelEmail);
-      expect(labelResult.is_valid).toBe(false);
+      expect(labelResult.isValid).toBe(false);
       expect(labelResult.error).toContain('Invalid email format');
     });
 
@@ -187,8 +187,8 @@ describe('Email Syntax Validation', () => {
       // Exactly 64 characters in local part
       const boundaryLocal = 'a'.repeat(64);
       const boundaryResult = validateEmailSyntax(`${boundaryLocal}@example.com`);
-      expect(boundaryResult.is_valid).toBe(true);
-      expect(boundaryResult.local_part).toHaveLength(64);
+      expect(boundaryResult.isValid).toBe(true);
+      expect(boundaryResult.localPart).toHaveLength(64);
 
       // Create a valid domain with labels exactly at the 63-character boundary
       const local = 'user';
@@ -196,7 +196,7 @@ describe('Email Syntax Validation', () => {
       const boundaryLabel = 'a'.repeat(maxLabelLength);
       const boundaryDomain = `${boundaryLabel}.${boundaryLabel}.com`; // Two max-length labels
       const boundaryDomainResult = validateEmailSyntax(`${local}@${boundaryDomain}`);
-      expect(boundaryDomainResult.is_valid).toBe(true);
+      expect(boundaryDomainResult.isValid).toBe(true);
     });
   });
 
@@ -227,8 +227,8 @@ describe('Email Syntax Validation', () => {
 
       testCases.forEach(({ email, expectedLocal, expectedDomain }) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(true);
-        expect(result.local_part).toBe(expectedLocal);
+        expect(result.isValid).toBe(true);
+        expect(result.localPart).toBe(expectedLocal);
         expect(result.domain).toBe(expectedDomain);
       });
     });
@@ -238,7 +238,7 @@ describe('Email Syntax Validation', () => {
 
       testCases.forEach((email) => {
         const result = validateEmailSyntax(email);
-        if (result.is_valid) {
+        if (result.isValid) {
           expect(result.email).toBe(email.trim());
           expect(result.email).not.toContain(' ');
           expect(result.email).not.toContain('\t');
@@ -263,7 +263,7 @@ describe('Email Syntax Validation', () => {
 
       rfcCompliantEmails.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(true);
+        expect(result.isValid).toBe(true);
       });
     });
 
@@ -279,7 +279,7 @@ describe('Email Syntax Validation', () => {
 
       rfcNonCompliantEmails.forEach((email) => {
         const result = validateEmailSyntax(email);
-        expect(result.is_valid).toBe(false);
+        expect(result.isValid).toBe(false);
       });
     });
   });
@@ -368,7 +368,7 @@ describe('Performance and Edge Cases', () => {
 
     emails.forEach((email) => {
       const result = validateEmailSyntax(email);
-      expect(result.is_valid).toBe(true);
+      expect(result.isValid).toBe(true);
     });
 
     const duration = Date.now() - startTime;
@@ -380,9 +380,9 @@ describe('Performance and Edge Cases', () => {
     const results = Array.from({ length: 100 }, () => validateEmailSyntax(email));
 
     results.forEach((result) => {
-      expect(result.is_valid).toBe(true);
+      expect(result.isValid).toBe(true);
       expect(result.email).toBe(email.toLowerCase());
-      expect(result.local_part).toBe('test');
+      expect(result.localPart).toBe('test');
       expect(result.domain).toBe('example.com');
     });
   });
@@ -397,7 +397,7 @@ describe('Performance and Edge Cases', () => {
 
     unicodeTests.forEach(({ email, expected }) => {
       const result = validateEmailSyntax(email);
-      expect(result.is_valid).toBe(expected);
+      expect(result.isValid).toBe(expected);
     });
   });
 });

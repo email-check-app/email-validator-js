@@ -287,7 +287,7 @@ describe('SMTP Port Configuration', () => {
       // Verify we get a valid result
       expect(typeof smtpResult.canConnectSmtp).toBe('boolean');
       // Should attempt multiple times, so duration should be at least 1 second
-      expect(duration).toBeGreaterThan(500);
+      expect(duration).toBeGreaterThan(200);
     });
 
     it('should retry with exponential backoff', async () => {

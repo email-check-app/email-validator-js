@@ -1,6 +1,5 @@
 import { promises as dnsPromises, type MxRecord } from 'node:dns';
 import net, { Socket } from 'node:net';
-import * as trace_events from 'node:trace_events';
 import expect from 'expect';
 import sinon, { type SinonSandbox, type SinonStub } from 'sinon';
 import { clearDefaultCache, verifyEmail } from '../src';

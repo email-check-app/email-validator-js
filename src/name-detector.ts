@@ -486,13 +486,6 @@ function capitalizeName(str: string) {
 }
 
 /**
- * Capitalize first letter of a word (legacy compatibility)
- */
-function _capitalizeFirstLetter(str: string) {
-  return capitalizeName(str);
-}
-
-/**
  * Parse composite name parts that may contain numbers and special patterns
  * Intelligently strips numbers and special characters that are likely not part of the actual name
  * e.g., "john1" -> "john", "due2" -> "due", "test123" -> "test"

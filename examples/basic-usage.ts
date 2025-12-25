@@ -23,23 +23,23 @@ async function basicVerification() {
     });
 
     console.log(`Email: ${result.email}`);
-    console.log(`Reachable: ${result.is_reachable}`);
-    console.log(`Syntax: ${result.syntax.is_valid ? 'Valid ✅' : 'Invalid ❌'}`);
+    console.log(`Reachable: ${result.isReachable}`);
+    console.log(`Syntax: ${result.syntax.isValid ? 'Valid ✅' : 'Invalid ❌'}`);
     console.log(`Domain: ${result.syntax.domain}`);
-    console.log(`Local part: ${result.syntax.local_part}`);
+    console.log(`Local part: ${result.syntax.localPart}`);
 
     if (result.mx) {
       console.log(`MX Records: ${result.mx.success ? 'Found 📬' : 'Not found ❌'}`);
       if (result.mx.success) {
         console.log(`  - Count: ${result.mx.records.length}`);
-        console.log(`  - Primary: ${result.mx.lowest_priority?.exchange}`);
+        console.log(`  - Primary: ${result.mx.lowestPriority?.exchange}`);
       }
     }
 
     if (result.misc) {
-      console.log(`Provider: ${result.misc.provider_type}`);
-      console.log(`Disposable: ${result.misc.is_disposable ? 'Yes ⚠️' : 'No ✅'}`);
-      console.log(`Free provider: ${result.misc.is_free ? 'Yes 📧' : 'No'}`);
+      console.log(`Provider: ${result.misc.providerType}`);
+      console.log(`Disposable: ${result.misc.isDisposable ? 'Yes ⚠️' : 'No ✅'}`);
+      console.log(`Free provider: ${result.misc.isFree ? 'Yes 📧' : 'No'}`);
     }
 
     console.log(`Duration: ${result.duration}ms`);
@@ -65,12 +65,12 @@ async function syntaxValidation() {
 
   emailsToValidate.forEach((email) => {
     const result = validateEmailSyntax(email);
-    console.log(`${result.is_valid ? '✅' : '❌'} ${email}`);
+    console.log(`${result.isValid ? '✅' : '❌'} ${email}`);
 
-    if (!result.is_valid) {
+    if (!result.isValid) {
       console.log(`   Error: ${result.error}`);
     } else {
-      console.log(`   Domain: ${result.domain}, Local: ${result.local_part}`);
+      console.log(`   Domain: ${result.domain}, Local: ${result.localPart}`);
     }
   });
 }
@@ -160,15 +160,15 @@ async function fullVerification() {
       });
 
       console.log(`\n📊 Result:`);
-      console.log(`   Reachable: ${result.is_reachable.toUpperCase()}`);
+      console.log(`   Reachable: ${result.isReachable.toUpperCase()}`);
       console.log(`   Duration: ${result.duration}ms`);
 
       if (result.misc) {
-        console.log(`   Provider: ${result.misc.provider_type}`);
-        if (result.misc.is_disposable) {
+        console.log(`   Provider: ${result.misc.providerType}`);
+        if (result.misc.isDisposable) {
           console.log(`   ⚠️  Warning: Disposable email!`);
         }
-        if (result.misc.is_free) {
+        if (result.misc.isFree) {
           console.log(`   📧 Free email provider`);
         }
       }
@@ -265,7 +265,7 @@ async function errorHandling() {
       if (result.error) {
         console.log(`   ⚠️  Handled gracefully: ${result.error}`);
       } else {
-        console.log(`   📊 Result: ${result.is_reachable} (${result.duration}ms)`);
+        console.log(`   📊 Result: ${result.isReachable} (${result.duration}ms)`);
       }
     } catch (error) {
       console.log(`   ❌ Unexpected error: ${(error as Error).message}`);
