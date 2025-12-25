@@ -167,6 +167,20 @@ describe('SMTP Error Parsing Tests', () => {
       expect(parsed.providerSpecific?.code).toBe('GMAIL_QUOTA_EXCEEDED');
     });
 
+    test('should parse Gmail Postfix log full inbox errors (452 4.2.2)', () => {
+      // This test is based on actual Postfix log format for Gmail full inbox errors
+      // Log: dsn=4.2.2, status=deferred (host said: 452-4.2.2 The recipient's inbox is out of storage space. ... OverQuotaTemp)
+      const errorMessage =
+        "452-4.2.2 The recipient's inbox is out of storage space. Please direct the recipient to https://support.google.com/mail/?p=OverQuotaTemp";
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.GMAIL, 452);
+
+      expect(parsed.type).toBe('full_inbox');
+      expect(parsed.severity).toBe('temporary');
+      expect(parsed.message).toBe('Gmail storage quota exceeded');
+      expect(parsed.providerSpecific?.code).toBe('GMAIL_QUOTA_EXCEEDED');
+      expect(parsed.providerSpecific?.action).toBe('Free up storage space');
+    });
+
     test('should parse Gmail rate limiting errors', () => {
       const errorMessage = 'Gmail temporarily deferred: Rate limit exceeded';
       const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.GMAIL, 450);

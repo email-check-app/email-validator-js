@@ -2017,8 +2017,13 @@ function parseGmailError(normalizedMessage: string, originalMessage: string, res
       };
     }
 
-    // Gmail over quota
-    if (normalizedMessage.includes('over quota') || normalizedMessage.includes('storage quota')) {
+    // Gmail over quota (handles various Gmail error message formats)
+    if (
+      normalizedMessage.includes('over quota') ||
+      normalizedMessage.includes('storage quota') ||
+      normalizedMessage.includes('storage space') ||
+      normalizedMessage.includes('overquota')
+    ) {
       return {
         type: 'full_inbox',
         severity: 'temporary',
