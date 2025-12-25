@@ -1089,7 +1089,118 @@ Number of retry attempts for transient failures. Default: `1`.
 
 ## Examples
 
-### Basic Usage
+### Using the New `isEmailExistsCore` API (Recommended)
+
+```typescript
+import { isEmailExistsCore } from '@emailcheck/email-validator-js';
+
+// Basic verification
+const result = await isEmailExistsCore({
+  emailAddress: 'user@gmail.com',
+  verifyMx: true,
+  verifySmtp: false,
+  checkDisposable: true,
+  checkFree: true,
+});
+
+console.log(result.isReachable);    // 'safe' | 'invalid' | 'risky' | 'unknown'
+console.log(result.syntax.isValid); // true
+console.log(result.mx?.success);     // true
+console.log(result.misc?.providerType); // 'gmail'
+console.log(result.misc?.isDisposable); // false
+console.log(result.misc?.isFree);      // true
+
+// Full verification with SMTP
+const fullResult = await isEmailExistsCore({
+  emailAddress: 'user@company.com',
+  verifyMx: true,
+  verifySmtp: true,
+  checkDisposable: true,
+  checkFree: true,
+  enableProviderOptimizations: true,
+  fromEmail: 'verify@myapp.com',
+  helloName: 'myapp.com',
+});
+
+console.log(fullResult.smtp?.canConnectSmtp);    // true
+console.log(fullResult.smtp?.isDeliverable);     // true
+console.log(fullResult.smtp?.isCatchAll);        // false
+console.log(fullResult.smtp?.hasFullInbox);      // false
+console.log(fullResult.smtp?.isDisabled);        // false
+```
+
+### Provider-Specific Verification
+
+```typescript
+import { isEmailExistsCore, EmailProvider } from '@emailcheck/email-validator-js';
+
+// Gmail with provider optimizations
+const gmailResult = await isEmailExistsCore({
+  emailAddress: 'user@gmail.com',
+  verifySmtp: true,
+  enableProviderOptimizations: true, // Automatically uses Gmail-specific settings
+});
+
+// Yahoo with API verification
+const yahooResult = await isEmailExistsCore({
+  emailAddress: 'user@yahoo.com',
+  useYahooApi: true, // Uses Yahoo's signup API for accurate detection
+  yahooApiOptions: {
+    timeout: 5000,
+    retryAttempts: 2,
+  },
+});
+
+// Microsoft 365 (business email)
+const businessResult = await isEmailExistsCore({
+  emailAddress: 'contact@company.com',
+  verifySmtp: true,
+  enableProviderOptimizations: true,
+});
+```
+
+### Syntax-Only Validation (Fastest)
+
+```typescript
+import { validateEmailSyntax } from '@emailcheck/email-validator-js';
+
+const result = validateEmailSyntax('user@example.com');
+// Returns: { isValid: true, email: 'user@example.com', localPart: 'user', domain: 'example.com' }
+
+const invalid = validateEmailSyntax('not-an-email');
+// Returns: { isValid: false, error: 'Invalid email format' }
+```
+
+### MX Record Lookup
+
+```typescript
+import { queryMxRecords } from '@emailcheck/email-validator-js';
+
+const mxResult = await queryMxRecords('gmail.com');
+console.log(mxResult.success);  // true
+console.log(mxResult.records);  // Array of MX records
+console.log(mxResult.lowestPriority);  // Primary MX server
+```
+
+### Provider Detection
+
+```typescript
+import { getProviderType, getProviderFromMxHost, isGmail, isYahoo } from '@emailcheck/email-validator-js';
+
+// Detect from domain
+const provider = getProviderType('gmail.com');  // EmailProvider.GMAIL
+
+// Detect from MX record
+const provider2 = getProviderFromMxHost('gmail-smtp-in.l.google.com.');  // EmailProvider.GMAIL
+
+// Helper functions
+console.log(isGmail('gmail-smtp-in.l.google.com.'));  // true
+console.log(isYahoo('mta7.am0.yahoodns.net.'));  // true
+```
+
+### Legacy API (`verifyEmail`)
+
+#### Basic Usage
 ```typescript
 import { verifyEmail } from '@emailcheck/email-validator-js';
 
