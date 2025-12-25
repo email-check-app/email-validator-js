@@ -127,9 +127,27 @@ npm install @emailcheck/email-validator-js
 ## Quick Start
 
 ```typescript
-import { verifyEmail } from '@emailcheck/email-validator-js';
+import { isEmailExistsCore } from '@emailcheck/email-validator-js';
 
 // Basic usage
+const result = await isEmailExistsCore({
+  emailAddress: 'user@mydomain.com',
+  verifyMx: true,
+  verifySmtp: true,
+  timeout: 5000
+});
+
+console.log(result.isReachable);  // 'safe' | 'invalid' | 'risky' | 'unknown'
+console.log(result.syntax.isValid);  // true
+console.log(result.misc?.providerType);  // 'gmail' | 'yahoo' | etc.
+console.log(result.smtp?.isDeliverable);  // true or false
+```
+
+### Using the Legacy API
+
+```typescript
+import { verifyEmail } from '@emailcheck/email-validator-js';
+
 const result = await verifyEmail({
   emailAddress: 'user@mydomain.com',
   verifyMx: true,
@@ -144,7 +162,91 @@ console.log(result.validSmtp);    // true or false
 
 ## API Reference
 
-### Core Functions
+### Core Functions (New API - Recommended)
+
+#### `isEmailExistsCore(params: IIsEmailExistsCoreParams): Promise<IsEmailExistsCoreResult>`
+
+Comprehensive email verification with detailed results based on the Rust `check-if-email-exists` implementation.
+
+**Parameters:**
+- `emailAddress` (string, required): Email address to verify
+- `timeout` (number): Timeout in milliseconds (default: 5000)
+- `verifyMx` (boolean): Check MX records (default: true)
+- `verifySmtp` (boolean): Verify SMTP connection (default: false)
+- `checkDisposable` (boolean): Check for disposable emails (default: true)
+- `checkFree` (boolean): Check for free email providers (default: true)
+- `debug` (boolean): Enable debug logging (default: false)
+- `cache` (ICache): Optional custom cache instance
+- `smtpTimeout` (number): SMTP-specific timeout
+- `fromEmail` (string): Email address to use in MAIL FROM command
+- `helloName` (string): Hostname to use in EHLO/HELO command
+- `smtpOptions` (IsEmailExistsSmtpOptions): Advanced SMTP options
+- `enableProviderOptimizations` (boolean): Enable provider-specific optimizations
+- `useYahooApi` (boolean): Use Yahoo API for verification
+- `useYahooHeadless` (boolean): Use Yahoo headless browser verification
+- `yahooApiOptions` (YahooApiOptions): Yahoo API configuration
+- `useHeadless` (boolean): Use headless browser verification
+- `headlessOptions` (HeadlessOptions): Headless browser configuration
+
+**Returns:**
+```typescript
+{
+  email: string;
+  isReachable: 'safe' | 'invalid' | 'risky' | 'unknown';
+  syntax: {
+    isValid: boolean;
+    domain?: string;
+    localPart?: string;
+    error?: string;
+  };
+  mx: {
+    success: boolean;
+    records: Array<{ exchange: string; priority: number }>;
+    lowestPriority?: { exchange: string; priority: number };
+    error?: string;
+  } | null;
+  smtp: {
+    canConnectSmtp: boolean;
+    hasFullInbox: boolean;
+    isCatchAll: boolean;
+    isDeliverable: boolean;
+    isDisabled: boolean;
+    error?: string;
+    providerUsed?: EmailProvider;
+  } | null;
+  misc: {
+    isDisposable: boolean;
+    isFree: boolean;
+    providerType: EmailProvider;
+  } | null;
+  duration: number;
+  error?: string;
+}
+```
+
+**Example:**
+```typescript
+import { isEmailExistsCore } from '@emailcheck/email-validator-js';
+
+const result = await isEmailExistsCore({
+  emailAddress: 'user@gmail.com',
+  verifyMx: true,
+  verifySmtp: true,
+  checkDisposable: true,
+  checkFree: true,
+  enableProviderOptimizations: true,
+});
+
+if (result.isReachable === 'safe') {
+  console.log('Email is safe to send to');
+} else if (result.isReachable === 'invalid') {
+  console.log('Email is invalid');
+} else if (result.isReachable === 'risky') {
+  console.log('Email is risky (catch-all or disabled)');
+}
+```
+
+### Legacy API
 
 #### `verifyEmail(params: IVerifyEmailParams): Promise<VerificationResult>`
 
@@ -215,6 +317,144 @@ Verify multiple emails in parallel with concurrency control.
     processingTime: number;
   };
 }
+```
+
+### is-email-exists Functions
+
+These functions are ported from the Rust `check-if-email-exists` library and provide low-level email verification capabilities.
+
+#### `validateEmailSyntax(email: string): EmailSyntaxResult`
+
+Validate email address syntax (RFC 5321 compliant).
+
+```typescript
+const result = validateEmailSyntax('user@example.com');
+// Returns: { isValid: true, email: 'user@example.com', localPart: 'user', domain: 'example.com' }
+
+const invalid = validateEmailSyntax('invalid-email');
+// Returns: { isValid: false, error: 'Invalid email format' }
+```
+
+#### `queryMxRecords(domain: string, options?: { timeout?: number; cache?: ICache }): Promise<MxLookupResult>`
+
+Query MX records for a domain with caching support.
+
+```typescript
+const result = await queryMxRecords('gmail.com');
+// Returns:
+// {
+//   success: true,
+//   records: [
+//     { exchange: 'gmail-smtp-in.l.google.com.', priority: 5 },
+//     { exchange: 'alt1.gmail-smtp-in.l.google.com.', priority: 10 },
+//   ],
+//   lowestPriority: { exchange: 'gmail-smtp-in.l.google.com.', priority: 5 }
+// }
+```
+
+#### `verifySmtpConnection(email: string, domain: string, mxHost: string, options?: IsEmailExistsSmtpOptions, provider?: EmailProvider): Promise<SmtpVerificationResult>`
+
+Verify SMTP connection for an email address.
+
+```typescript
+const result = await verifySmtpConnection(
+  'user@gmail.com',
+  'gmail.com',
+  'gmail-smtp-in.l.google.com.',
+  { timeout: 5000, fromEmail: 'test@example.com', helloName: 'example.com' },
+  EmailProvider.GMAIL
+);
+// Returns:
+// {
+//   canConnectSmtp: true,
+//   hasFullInbox: false,
+//   isCatchAll: false,
+//   isDeliverable: true,
+//   isDisabled: false,
+//   providerUsed: 'gmail'
+// }
+```
+
+#### `getProviderType(domain: string): EmailProvider`
+
+Detect the email provider type from a domain.
+
+```typescript
+const provider = getProviderType('gmail.com'); // EmailProvider.GMAIL
+const provider2 = getProviderType('yahoo.com'); // EmailProvider.YAHOO
+const provider3 = getProviderType('outlook.com'); // EmailProvider.HOTMAIL_B2C
+const provider4 = getProviderType('unknown.com'); // EmailProvider.EVERYTHING_ELSE
+```
+
+#### `getProviderFromMxHost(mxHost: string): EmailProvider`
+
+Detect the email provider type from an MX record hostname.
+
+```typescript
+const provider = getProviderFromMxHost('gmail-smtp-in.l.google.com.'); // EmailProvider.GMAIL
+const provider2 = getProviderFromMxHost('mta7.am0.yahoodns.net.'); // EmailProvider.YAHOO
+```
+
+#### Provider Detection Helper Functions
+
+```typescript
+import { isGmail, isYahoo, isHotmailB2C, isHotmailB2B, isProofpoint, isMimecast } from '@emailcheck/email-validator-js';
+
+isGmail('gmail-smtp-in.l.google.com.'); // true
+isYahoo('mta7.am0.yahoodns.net.'); // true
+isHotmailB2C('hotmail-com.olc.protection.outlook.com.'); // true
+isHotmailB2B('mail.protection.outlook.com.'); // true
+isProofpoint('mail.pphosted.com.'); // true
+isMimecast('smtp.mimecast.com.'); // true
+```
+
+#### Constants
+
+```typescript
+import { isEmailExistConstants } from '@emailcheck/email-validator-js';
+
+console.log(isEmailExistConstants.gmailDomains);
+// ['gmail.com', 'googlemail.com']
+
+console.log(isEmailExistConstants.yahooDomains);
+// ['yahoo.com', 'ymail.com', 'rocketmail.com']
+
+console.log(isEmailExistConstants.hotmailDomains);
+// ['hotmail.com', 'outlook.com', 'live.com', 'msn.com']
+
+console.log(isEmailExistConstants.defaultTimeout);
+// 5000
+
+console.log(isEmailExistConstants.defaultSmtpPort);
+// 25
+
+console.log(isEmailExistConstants.defaultFromEmail);
+// 'test@example.com'
+
+console.log(isEmailExistConstants.defaultHelloName);
+// 'example.com'
+```
+
+#### SmtpErrorParser
+
+Parse SMTP error messages with provider-specific context.
+
+```typescript
+import { SmtpErrorParser } from '@emailcheck/email-validator-js';
+
+const parsed = SmtpErrorParser.parseError(
+  '550 5.2.1 The email account that you tried to reach is disabled.',
+  EmailProvider.GMAIL,
+  550
+);
+// Returns:
+// {
+//   type: 'disabled',
+//   severity: 'permanent',
+//   message: 'Account disabled',
+//   originalMessage: '550 5.2.1 The email account that you tried to reach is disabled.',
+//   providerSpecific: { code: 'DISABLED', action: 'Account is disabled' }
+// }
 ```
 
 ### Name Detection Functions
@@ -431,36 +671,56 @@ const status = await getDomainRegistrationStatus('mydomain.com');
 
 ### Utility Functions
 
-#### `isDisposableEmail(emailOrDomain: string, cache?: ICache, options?: { skipMxCheck?: boolean; skipDomain?: boolean }): boolean`
+#### `isDisposableEmail(params: IDisposableEmailParams): Promise<boolean>`
 Check if email uses a disposable provider.
 
 ```typescript
 // Basic usage
-isDisposableEmail('user@tempmail.com'); // true
-isDisposableEmail('tempmail.com'); // true
-isDisposableEmail('gmail.com'); // false
-
-// With options
-isDisposableEmail('user@tempmail.com', null, {
-  skipMxCheck: true,     // Skip MX record validation
-  skipDomain: true       // Skip domain validation
+const result = await isDisposableEmail({
+  emailOrDomain: 'user@tempmail.com'
 }); // true
+
+// Check domain directly
+await isDisposableEmail({
+  emailOrDomain: 'tempmail.com'
+}); // true
+
+await isDisposableEmail({
+  emailOrDomain: 'gmail.com'
+}); // false
+
+// With cache and logger
+await isDisposableEmail({
+  emailOrDomain: 'user@tempmail.com',
+  cache: myCache,
+  logger: (message) => console.log(message)
+});
 ```
 
-#### `isFreeEmail(emailOrDomain: string, cache?: ICache, options?: { skipMxCheck?: boolean; skipDomain?: boolean }): boolean`
+#### `isFreeEmail(params: IFreeEmailParams): Promise<boolean>`
 Check if email uses a free provider.
 
 ```typescript
 // Basic usage
-isFreeEmail('user@gmail.com'); // true
-isFreeEmail('yahoo.com'); // true
-isFreeEmail('corporate.com'); // false
-
-// With options
-isFreeEmail('user@gmail.com', null, {
-  skipMxCheck: true,     // Skip MX record validation
-  skipDomain: true       // Skip domain validation
+const result = await isFreeEmail({
+  emailOrDomain: 'user@gmail.com'
 }); // true
+
+// Check domain directly
+await isFreeEmail({
+  emailOrDomain: 'yahoo.com'
+}); // true
+
+await isFreeEmail({
+  emailOrDomain: 'corporate.com'
+}); // false
+
+// With cache and logger
+await isFreeEmail({
+  emailOrDomain: 'user@gmail.com',
+  cache: myCache,
+  logger: (message) => console.log(message)
+});
 ```
 
 #### `isValidEmail(emailAddress: string): boolean`
@@ -502,6 +762,205 @@ resetDefaultCache();
 ```
 
 ### Types and Interfaces
+
+#### `EmailProvider` (enum)
+
+Email provider types for provider-specific optimizations.
+
+```typescript
+enum EmailProvider {
+  GMAIL = 'gmail',
+  HOTMAIL_B2B = 'hotmail_b2b',      // Microsoft 365 business
+  HOTMAIL_B2C = 'hotmail_b2c',      // Microsoft consumer (Outlook, Hotmail)
+  PROOFPOINT = 'proofpoint',        // Proofpoint enterprise security
+  MIMECAST = 'mimecast',            // Mimecast enterprise security
+  YAHOO = 'yahoo',
+  EVERYTHING_ELSE = 'everything_else'
+}
+```
+
+#### `IsEmailExistsCoreResult`
+
+Result type from `isEmailExistsCore` verification.
+
+```typescript
+interface IsEmailExistsCoreResult {
+  email: string;
+  isReachable: 'safe' | 'invalid' | 'risky' | 'unknown';
+  syntax: {
+    isValid: boolean;
+    domain?: string;
+    localPart?: string;
+    error?: string;
+  };
+  mx: {
+    success: boolean;
+    records: Array<{ exchange: string; priority: number }>;
+    lowestPriority?: { exchange: string; priority: number };
+    error?: string;
+  } | null;
+  smtp: {
+    canConnectSmtp: boolean;
+    hasFullInbox: boolean;
+    isCatchAll: boolean;
+    isDeliverable: boolean;
+    isDisabled: boolean;
+    error?: string;
+    providerUsed?: EmailProvider;
+  } | null;
+  misc: {
+    isDisposable: boolean;
+    isFree: boolean;
+    providerType: EmailProvider;
+  } | null;
+  duration: number;
+  error?: string;
+}
+```
+
+#### `SmtpVerificationResult`
+
+Result type from SMTP verification.
+
+```typescript
+interface SmtpVerificationResult {
+  canConnectSmtp: boolean;
+  hasFullInbox: boolean;
+  isCatchAll: boolean;
+  isDeliverable: boolean;
+  isDisabled: boolean;
+  error?: string;
+  providerUsed?: EmailProvider;
+}
+```
+
+#### `MxLookupResult`
+
+Result type from MX record lookup.
+
+```typescript
+interface MxLookupResult {
+  success: boolean;
+  records: Array<{ exchange: string; priority: number }>;
+  lowestPriority?: { exchange: string; priority: number };
+  error?: string;
+  code?: string;
+}
+```
+
+#### `EmailSyntaxResult`
+
+Result type from email syntax validation.
+
+```typescript
+interface EmailSyntaxResult {
+  isValid: boolean;
+  email?: string;
+  localPart?: string;
+  domain?: string;
+  error?: string;
+}
+```
+
+#### `IIsEmailExistsCoreParams`
+
+Parameters for `isEmailExistsCore` function.
+
+```typescript
+interface IIsEmailExistsCoreParams {
+  emailAddress: string;
+  timeout?: number;
+  verifyMx?: boolean;
+  verifySmtp?: boolean;
+  debug?: boolean;
+  checkDisposable?: boolean;
+  checkFree?: boolean;
+  cache?: ICache | null;
+  smtpTimeout?: number;
+  fromEmail?: string;
+  helloName?: string;
+  smtpOptions?: IsEmailExistsSmtpOptions;
+  enableProviderOptimizations?: boolean;
+  useYahooApi?: boolean;
+  useYahooHeadless?: boolean;
+  yahooApiOptions?: YahooApiOptions;
+  useHeadless?: boolean;
+  headlessOptions?: HeadlessOptions;
+}
+```
+
+#### `IsEmailExistsSmtpOptions`
+
+Options for SMTP connection.
+
+```typescript
+interface IsEmailExistsSmtpOptions {
+  timeout?: number;
+  port?: number;
+  retries?: number;
+  fromEmail?: string;
+  helloName?: string;
+  useStartTls?: boolean;
+  useSsl?: boolean;
+  hostName?: string;
+  rejectUnauthorized?: boolean;
+}
+```
+
+#### `YahooApiOptions`
+
+Options for Yahoo API verification.
+
+```typescript
+interface YahooApiOptions {
+  timeout?: number;
+  userAgent?: string;
+  retryAttempts?: number;
+  proxyUrl?: string;
+  headers?: Record<string, string>;
+  apiUrl?: string;
+}
+```
+
+#### `HeadlessOptions`
+
+Options for headless browser verification.
+
+```typescript
+interface HeadlessOptions {
+  webdriverEndpoint?: string;
+  timeout?: number;
+  retryAttempts?: number;
+  screenshot?: boolean;
+  viewport?: { width: number; height: number };
+  userAgent?: string;
+  acceptInsecureCerts?: boolean;
+}
+```
+
+#### `IDisposableEmailParams`
+
+Parameters for `isDisposableEmail` function.
+
+```typescript
+interface IDisposableEmailParams {
+  emailOrDomain: string;
+  cache?: ICache;
+  logger?: (message: string) => void;
+}
+```
+
+#### `IFreeEmailParams`
+
+Parameters for `isFreeEmail` function.
+
+```typescript
+interface IFreeEmailParams {
+  emailOrDomain: string;
+  cache?: ICache;
+  logger?: (message: string) => void;
+}
+```
 
 #### `DetectedName`
 ```typescript
