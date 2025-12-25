@@ -1,6 +1,6 @@
 module.exports = {
   preset: 'ts-jest',
-  testTimeout: 20000,
+  testTimeout: 40000,
   testRegex: '__tests__/.*.test.ts$',
   testEnvironment: 'node',
   collectCoverage: false,

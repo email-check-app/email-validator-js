@@ -113,6 +113,9 @@ export class SMTPClient {
   // Store verification parameters
   private verifyParams: SMTPVerifyParams | null = null;
 
+  // Store connect resolve function to call when connect sequence completes
+  private connectResolve: (() => void) | null = null;
+
   // Callbacks
   public onMessage: (message: string) => void;
   private onConnect: () => void;
@@ -160,6 +163,9 @@ export class SMTPClient {
    */
   public connect(): Promise<void> {
     return new Promise((resolve, reject) => {
+      // Store resolve function to call when connect sequence completes
+      this.connectResolve = resolve;
+
       // Validate port
       if (this.port < 0 || this.port > 65535 || !Number.isInteger(this.port)) {
         reject(new Error(`Invalid port: ${this.port}`));
@@ -272,7 +278,13 @@ export class SMTPClient {
 
     return new Promise((resolve) => {
       this.resolved = false;
+
+      // Check if greeting has already been received during connect()
+      const greetingReceived = this.currentStepIndex > 0;
+
+      // Reset to start of verification sequence
       this.currentStepIndex = 0;
+      this.debug(`[verifyEmail] Starting verification, greetingReceived=${greetingReceived}`);
       this.verifyParams = params;
 
       // Override sequence with email verification specific steps
@@ -309,7 +321,9 @@ export class SMTPClient {
       // Override the processResponse method for this verification
       const originalProcessResponse = this.processResponse.bind(this);
       const customProcessResponse = (response: string) => {
+        this.debug(`[customProcessResponse] Processing: ${response}, currentStepIndex=${this.currentStepIndex}`);
         const result = originalProcessResponse(response);
+        this.debug(`[customProcessResponse] Result:`, result);
         if (result) {
           finish(result);
         }
@@ -338,9 +352,38 @@ export class SMTPClient {
       }
 
       // Start verification
+      this.debug(
+        `[verifyEmail] Starting verification, greetingReceived=${greetingReceived}, sequence.steps.length=${this.sequence.steps.length}`
+      );
       if (this.sequence.steps.length > 0) {
         const firstStep = this.sequence.steps[0];
-        if (firstStep !== Step.GREETING) {
+        this.debug(`[verifyEmail] First step is ${firstStep}`);
+        if (firstStep === Step.GREETING) {
+          // GREETING is always the first step - either wait for it or skip it
+          if (greetingReceived) {
+            // Greeting already received during connect(), skip to EHLO/HELO
+            this.currentStepIndex = 1; // Move past GREETING
+            const nextStep = this.sequence.steps[1];
+            this.debug(
+              `[verifyEmail] Skipping greeting, nextStep=${nextStep}, sequence.steps=${JSON.stringify(this.sequence.steps)}`
+            );
+            if (nextStep) {
+              this.debug(`[verifyEmail] Skipping greeting, executing ${nextStep}`);
+              this.executeStep(nextStep);
+            } else {
+              // No more steps after greeting
+              this.debug(`[verifyEmail] No more steps after greeting`);
+              finish({ success: true, reason: 'sequence_complete' });
+              return;
+            }
+          } else {
+            this.debug(`[verifyEmail] Greeting not received yet, waiting for it`);
+          }
+          // else: Greeting not received yet, wait for it via defaultHandler
+          // The greeting will be processed by customProcessResponse when received
+        } else {
+          // Sequence doesn't start with GREETING, execute first step
+          this.debug(`[verifyEmail] Executing first step ${firstStep}`);
           this.executeStep(firstStep);
         }
       } else {
@@ -413,13 +456,10 @@ export class SMTPClient {
       return null;
     }
 
-    // Check for recognized responses
-    if (
-      !response.includes('220') &&
-      !response.includes('250') &&
-      !response.includes('550') &&
-      !response.includes('552')
-    ) {
+    // Check for valid SMTP response codes (3-digit codes: 100-599)
+    // Allow all valid SMTP codes through - let step handlers decide
+    const hasValidResponseCode = /^\d{3}/.test(code) && parseInt(code, 10) >= 100 && parseInt(code, 10) < 600;
+    if (!hasValidResponseCode) {
       return { success: false, reason: 'unrecognized_response' };
     }
 
@@ -430,6 +470,14 @@ export class SMTPClient {
       case Step.GREETING:
         if (code.startsWith('220')) {
           this.nextStep();
+          // If this was the last step in the sequence and we're in connect() mode (no verifyParams), resolve
+          if (this.currentStepIndex >= this.sequence.steps.length && !this.verifyParams) {
+            // Sequence completed during connect() - resolve the promise
+            if (this.connectResolve) {
+              this.connectResolve();
+              this.connectResolve = null;
+            }
+          }
         } else {
           return { success: false, reason: 'no_greeting' };
         }
@@ -567,9 +615,14 @@ export class SMTPClient {
     this.currentStepIndex++;
     if (this.currentStepIndex >= this.sequence.steps.length) {
       // Sequence completed successfully
+      this.debug(
+        `[nextStep] Sequence completed, currentStepIndex=${this.currentStepIndex}, steps.length=${this.sequence.steps.length}`
+      );
       return;
     }
-    this.executeStep(this.sequence.steps[this.currentStepIndex]);
+    const nextStep = this.sequence.steps[this.currentStepIndex];
+    this.debug(`[nextStep] Executing step ${this.currentStepIndex}: ${nextStep}`);
+    this.executeStep(nextStep);
   }
 
   private upgradeToTLS(): void {

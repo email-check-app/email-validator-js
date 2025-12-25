@@ -72,10 +72,17 @@ function createMockSmtpSocketFactory(
       this.writeCount++;
 
       console.log('[MockSocket] write called:', dataStr.trim());
+      console.log('[MockSocket] Total writes so far:', this.writeCount);
 
       // Don't respond to QUIT
       if (dataStr.includes('QUIT')) {
+        console.log('[MockSocket] QUIT detected, not responding');
         return true;
+      }
+
+      // Check for RCPT TO
+      if (dataStr.includes('RCPT TO')) {
+        console.log('[MockSocket] RCPT TO was sent!');
       }
 
       // Check if we should emit error
@@ -266,6 +273,7 @@ describe('0032: Socket Mock Tests (Jest)', () => {
         verifySmtp: true,
         verifyMx: true,
         smtpPort: 587,
+        debug: true, // Enable debug output
       } as any);
 
       expect(result.validSmtp).toBe(true);
@@ -294,15 +302,16 @@ describe('0032: Socket Mock Tests (Jest)', () => {
     it('returns null on socket error', async () => {
       jest.spyOn(dnsPromises, 'resolveMx').mockResolvedValue([{ exchange: 'mx1.foo.com', priority: 10 }]);
 
-      const { mockConnect, getCurrentMockSocket } = createMockSmtpSocketFactory();
-      (net.connect as jest.Mock).mockImplementation(mockConnect);
-
-      setImmediate(() => {
-        const socket = getCurrentMockSocket();
-        if (socket) {
-          socket.destroyed = true;
-          socket.emit('error', new Error('Connection failed'));
-        }
+      const { mockConnect } = createMockSmtpSocketFactory();
+      (net.connect as jest.Mock).mockImplementation((options: any, callback?: () => void) => {
+        const socket = mockConnect(options, callback);
+        // Immediately emit error to simulate connection failure
+        const error = new Error('Connection refused');
+        (error as any).code = 'ECONNREFUSED';
+        setImmediate(() => {
+          socket.emit('error', error);
+        });
+        return socket;
       });
 
       const result = await verifyEmail({
@@ -327,7 +336,9 @@ describe('0032: Socket Mock Tests (Jest)', () => {
         const socket = getCurrentMockSocket();
         if (socket) {
           socket.destroyed = true;
-          socket.emit('error', new Error('Connection failed'));
+          const error = new Error('Connection failed');
+          (error as any).code = 'ECONNREFUSED';
+          socket.emit('error', error);
         }
       });
 
@@ -384,7 +395,7 @@ describe('0032: Socket Mock Tests (Jest)', () => {
       jest.spyOn(dnsPromises, 'resolveMx').mockResolvedValue([{ exchange: 'mx1.foo.com', priority: 10 }]);
 
       const { mockConnect } = createMockSmtpSocketFactory({
-        responses: new Map([['RCPT TO', '550-"JunkMail rejected\r\n']]),
+        responses: new Map([['RCPT TO', '550 JunkMail rejected\r\n']]),
       });
       (net.connect as jest.Mock).mockImplementation(mockConnect);
 

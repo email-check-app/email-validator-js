@@ -92,15 +92,32 @@ describe('0024: Detailed Email Verification', () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
       const socket = new Socket({});
-      sandbox.stub(socket, 'write').callsFake(function (data) {
-        if (!data.toString().includes('QUIT')) {
-          this.emit('data', '550 User not found');
+      let writeCount = 0;
+      sandbox.stub(socket, 'write').callsFake((data) => {
+        writeCount++;
+        const dataStr = data.toString();
+        console.log(`[0024 MOCK] write called (${writeCount}): ${dataStr}`);
+        // Only respond with 550 for RCPT TO, return 250 for other commands
+        if (dataStr.includes('RCPT TO')) {
+          console.log(`[0024 MOCK] responding with 550 for RCPT TO`);
+          socket.emit('data', '550 User not found');
+        } else if (!dataStr.includes('QUIT')) {
+          console.log(`[0024 MOCK] responding with 250 OK`);
+          socket.emit('data', '250 OK');
         }
         return true;
       });
-      sandbox.stub(net, 'connect').returns(socket);
-
-      setTimeout(() => socket.emit('data', '220 Welcome'), 10);
+      // Properly simulate net.connect with callback
+      sandbox.stub(net, 'connect').callsFake((options, callback) => {
+        console.log(`[0024 MOCK] connect called`);
+        setImmediate(() => {
+          console.log(`[0024 MOCK] firing connect callback, then sending greeting`);
+          if (callback) callback();
+          // Emit greeting after callback fires (so data handler is registered)
+          socket.emit('data', '220 Welcome');
+        });
+        return socket;
+      });
 
       const result = await verifyEmail({
         emailAddress: 'test@example.com',

@@ -308,19 +308,25 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<SmtpVer
   const portConfig = PORT_CONFIGS[port as keyof typeof PORT_CONFIGS] || { tls: false, starttls: false };
   const useTLS = tlsConfig !== false && (portConfig.tls || portConfig.starttls);
 
-  // Default sequence if not provided
+  // For connect(), use a sequence that includes GREETING
+  // The connect() will wait for greeting, then verifyEmail() will continue
+  const connectSequence: SMTPSequence = {
+    steps: [SMTPStep.GREETING],
+  };
+
+  // Default sequence for verifyEmail if not provided
   const defaultSequence: SMTPSequence = {
     steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
   };
-  const activeSequence = sequence || defaultSequence;
+  const verifySequence = sequence || defaultSequence;
 
   // For port 25, use HELO instead of EHLO (original behavior)
   if (port === 25) {
-    activeSequence.steps = activeSequence.steps.map((step) => (step === SMTPStep.EHLO ? SMTPStep.HELO : step));
+    verifySequence.steps = verifySequence.steps.map((step) => (step === SMTPStep.EHLO ? SMTPStep.HELO : step));
   }
 
   // Handle empty sequence - consider it successful
-  if (activeSequence.steps.length === 0) {
+  if (verifySequence.steps.length === 0) {
     log(`${port}: Empty sequence - returning success`);
     return {
       canConnectSmtp: true,
@@ -332,13 +338,13 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<SmtpVer
   }
 
   try {
-    // Create SMTP client with configuration
+    // Create SMTP client with configuration - use minimal connect sequence
     const client = new SMTPClient(mxHost, port, {
       timeout,
       tls: tlsConfig,
       hostname,
       useVRFY,
-      sequence: activeSequence,
+      sequence: connectSequence,
       debug: log,
       onConnect: () => {
         log(`Connected to ${mxHost}:${port}${portConfig.tls ? ' with TLS' : ''}`);
@@ -354,12 +360,12 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<SmtpVer
     // Connect to the server
     await client.connect();
 
-    // Verify the email address
+    // Verify the email address - use full verification sequence
     const verifyResult = await client.verifyEmail({
       local,
       domain,
-      from: activeSequence.from,
-      vrfyTarget: activeSequence.vrfyTarget,
+      from: verifySequence.from,
+      vrfyTarget: verifySequence.vrfyTarget,
     });
 
     log(`${port}: ${verifyResult.reason || (verifyResult.success ? 'valid' : 'invalid')}`);
@@ -380,8 +386,24 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<SmtpVer
 
     // Parse error for detailed information
     const errorMessage = verifyResult.reason || 'Unknown error';
+    console.log(`[DEBUG] verifyResult.reason = "${verifyResult.reason}"`);
+    console.log(`[DEBUG] errorMessage = "${errorMessage}"`);
     const parsed = parseSmtpError(errorMessage);
     const responseCode = extractResponseCode(errorMessage);
+
+    // Handle ambiguous errors - we can't determine if the mailbox exists
+    // Return canConnectSmtp: false so that validSmtp becomes null
+    if (errorMessage === 'ambiguous' || errorMessage.includes('ambiguous')) {
+      console.log(`[DEBUG] Handling ambiguous error`);
+      return {
+        canConnectSmtp: false,
+        hasFullInbox: false,
+        isCatchAll: false,
+        isDeliverable: false,
+        isDisabled: false,
+        error: errorMessage,
+      };
+    }
 
     return {
       canConnectSmtp: true,
@@ -412,7 +434,13 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<SmtpVer
       errorMessage.includes('ECONNREFUSED') ||
       errorMessage.includes('ENOTFOUND') ||
       errorMessage.includes('ECONNRESET') ||
-      errorMessage.includes('socket hang up');
+      errorMessage.includes('socket hang up') ||
+      // smtp-client.ts error reasons for connection failures
+      errorMessage === 'connection_error' ||
+      errorMessage === 'connection_timeout' ||
+      errorMessage === 'socket_timeout' ||
+      errorMessage === 'connection_closed' ||
+      errorMessage === 'Connection failed';
 
     if (isConnectionFailure) {
       return {
