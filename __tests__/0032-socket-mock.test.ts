@@ -16,6 +16,15 @@ type SelfMockType = {
   sandbox?: SinonSandbox;
 };
 
+// Helper to add all required socket methods for mocking
+function setupMockSocket(socket: Socket, sandbox: SinonSandbox): void {
+  socket.setTimeout = sandbox.stub().returns(socket);
+  socket.setEncoding = sandbox.stub().returns(socket);
+  socket.setKeepAlive = sandbox.stub().returns(socket);
+  socket.ref = sandbox.stub().returns(socket);
+  socket.unref = sandbox.stub().returns(socket);
+}
+
 function stubResolveMx(self: SelfMockType, domain = 'foo.com') {
   self.resolveMxStub = self.sandbox.stub(dnsPromises, 'resolveMx').callsFake(async (_hostname: string) => [
     { exchange: `mx1.${domain}`, priority: 30 },
@@ -26,6 +35,7 @@ function stubResolveMx(self: SelfMockType, domain = 'foo.com') {
 
 function stubSocket(self: SelfMockType) {
   self.socket = new Socket({});
+  setupMockSocket(self.socket, self.sandbox);
   let greetingSent = false;
 
   // Mock the connect function to emit the socket immediately with a greeting
@@ -122,6 +132,7 @@ describe('0032: Socket Mock Tests', () => {
         self.connectStub.restore(); // Restore previous stub
         const msg = '452-4.2.2 The email account that you tried to reach is over quota. Please direct';
         const socket = new Socket({});
+        setupMockSocket(socket, self.sandbox);
         let greetingSent = false;
 
         self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
@@ -165,6 +176,7 @@ describe('0032: Socket Mock Tests', () => {
       it('should return null on socket error', async () => {
         self.connectStub.restore(); // Restore previous stub
         const socket = new Socket({});
+        setupMockSocket(socket, self.sandbox);
 
         self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
           setTimeout(() => {
@@ -190,6 +202,7 @@ describe('0032: Socket Mock Tests', () => {
       it('dodges multiline spam detecting greetings', async () => {
         self.connectStub.restore(); // Restore previous stub
         const socket = new Socket({});
+        setupMockSocket(socket, self.sandbox);
         let greeted = false;
 
         self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
@@ -259,6 +272,7 @@ describe('0032: Socket Mock Tests', () => {
       it('should return null on unknown SMTP errors', async () => {
         self.connectStub.restore(); // Restore previous stub
         const socket = new Socket({});
+        setupMockSocket(socket, self.sandbox);
         let greetingSent = false;
 
         self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
@@ -295,6 +309,7 @@ describe('0032: Socket Mock Tests', () => {
       it('returns false on bad mailbox errors', async () => {
         self.connectStub.restore(); // Restore previous stub
         const socket = new Socket({});
+        setupMockSocket(socket, self.sandbox);
         let greetingSent = false;
 
         self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
@@ -331,6 +346,7 @@ describe('0032: Socket Mock Tests', () => {
       it('returns null on spam errors', async () => {
         const msg = '550-"JunkMail rejected - ec2-54-74-157-229.eu-west-1.compute.amazonaws.com';
         const socket = new Socket({});
+        setupMockSocket(socket, self.sandbox);
 
         self.sandbox.stub(socket, 'write').callsFake(function (data) {
           if (!data.toString().includes('QUIT')) this.emit('data', msg);
@@ -349,6 +365,7 @@ describe('0032: Socket Mock Tests', () => {
         const msg =
           '553 5.3.0 flpd575 DNSBL:RBL 521< 54.74.114.115 >_is_blocked.For assistance forward this email to abuse_rbl@abuse-att.net';
         const socket = new Socket({});
+        setupMockSocket(socket, self.sandbox);
 
         self.sandbox.stub(socket, 'write').callsFake(function (data) {
           if (!data.toString().includes('QUIT')) this.emit('data', msg);
