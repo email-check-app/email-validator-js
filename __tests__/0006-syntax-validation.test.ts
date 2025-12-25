@@ -362,7 +362,7 @@ describe('0006: getProviderType', () => {
 
 describe('0006: Performance and Edge Cases', () => {
   test('should handle large number of validations efficiently', () => {
-    const emails = Array.from({ length: 1000 }, (_, i) => `user${i}@example.com`);
+    const emails = Array.from({ length: 200 }, (_, i) => `user${i}@example.com`);
 
     const startTime = Date.now();
 

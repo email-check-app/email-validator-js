@@ -39,7 +39,6 @@ function stubSocket(self: SelfMockType) {
   self.socket = new Socket({});
   setupMockSocket(self.socket, self.sandbox);
   let greetingSent = false;
-  let commandQueue: Array<(socket: Socket) => void> = [];
 
   // Mock the connect function to emit the socket immediately with a greeting
   self.connectStub = self.sandbox.stub(net, 'connect').callsFake((_options, callback) => {
@@ -50,9 +49,6 @@ function stubSocket(self: SelfMockType) {
       setTimeout(() => {
         self.socket.emit('data', '220 test.example.com ESMTP\r\n');
         greetingSent = true;
-        // Process any queued commands
-        commandQueue.forEach((fn) => fn(self.socket));
-        commandQueue = [];
       }, 10);
     }, 5);
     return self.socket;
@@ -60,24 +56,19 @@ function stubSocket(self: SelfMockType) {
 
   self.sandbox.stub(self.socket, 'write').callsFake(function (data) {
     const command = data.toString().trim();
-    if (!command.includes('QUIT')) {
-      const respond = (socket: Socket) => {
+    if (!command.includes('QUIT') && greetingSent) {
+      // Respond to SMTP commands
+      setTimeout(() => {
         if (command.includes('EHLO') || command.includes('HELO')) {
-          socket.emit('data', '250-test.example.com Hello\r\n250 VRFY\r\n250 8BITMIME\r\n250 OK\r\n');
+          this.emit('data', '250-test.example.com Hello\r\n250 VRFY\r\n250 8BITMIME\r\n250 OK\r\n');
         } else if (command.includes('MAIL FROM')) {
-          socket.emit('data', '250 Mail OK\r\n');
+          this.emit('data', '250 Mail OK\r\n');
         } else if (command.includes('RCPT TO')) {
-          socket.emit('data', '250 Recipient OK\r\n');
+          this.emit('data', '250 Recipient OK\r\n');
         } else {
-          socket.emit('data', '250 Foo');
+          this.emit('data', '250 Foo');
         }
-      };
-
-      if (greetingSent) {
-        setTimeout(() => respond(self.socket), 10);
-      } else {
-        commandQueue.push(respond);
-      }
+      }, 10);
     }
     return true;
   });
@@ -133,6 +124,7 @@ describe('0032: Socket Mock Tests', () => {
       it('returns null if mailbox is yahoo', async () => {
         self.resolveMxStub.restore();
         stubResolveMx(self, 'yahoo.com');
+        stubSocket(self);
 
         const result = await verifyEmail({ emailAddress: 'bar@yahoo.com', verifySmtp: true, verifyMx: true });
 
