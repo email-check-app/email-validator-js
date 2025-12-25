@@ -117,24 +117,13 @@ describe('0024: Detailed Email Verification', () => {
     it('should handle SMTP connection failure', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
-      const socket = {
-        on: (event: string, callback: (error?: Error) => void) => {
-          if (event === 'error') {
-            setTimeout(() => callback(new Error('Connection failed')), 10);
-          }
-          if (event === 'connect') {
-            setTimeout(() => callback(), 5);
-          }
-          return socket;
-        },
-        write: () => true,
-        end: () => {},
-        destroyed: false,
-        removeAllListeners: () => {},
-        destroy: () => {},
-        setTimeout: () => socket,
-      };
-      sandbox.stub(net, 'connect').returns(socket as unknown as Socket);
+      // Create a socket that immediately emits error
+      const errorSocket = new Socket({});
+      const error = new Error('ECONNREFUSED');
+      (error as any).code = 'ECONNREFUSED';
+
+      // Stub connect to throw error immediately (simulating connection refused)
+      sandbox.stub(net, 'connect').throws(error);
 
       const result = await verifyEmail({
         emailAddress: 'test@example.com',
