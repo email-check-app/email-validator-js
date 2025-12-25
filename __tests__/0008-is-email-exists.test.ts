@@ -1,6 +1,6 @@
-/**
- * Comprehensive test suite for is-email-exists functionality
- */
+// 0008: Comprehensive Email Verification Tests
+//
+// Comprehensive test suite for is-email-exists functionality
 
 import {
   EmailProvider,

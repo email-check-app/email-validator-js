@@ -1,7 +1,6 @@
-/**
- * Mock SMTP Server Tests
- * Based on the original Rust implementation's testing patterns
- */
+// 0012: Mock SMTP Server Tests
+//
+// Mock SMTP Server tests based on the original Rust implementation
 
 import type { MockSmtpServer } from '../src/email-verifier-types';
 import { EmailProvider, SmtpErrorParser } from '../src/is-email-exists';

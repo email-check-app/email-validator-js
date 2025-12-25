@@ -1,7 +1,6 @@
-/**
- * Edge Cases and Integration Tests
- * Based on the original Rust implementation's comprehensive test suite
- */
+// 0013: Edge Cases and Integration Tests
+//
+// Edge cases and integration tests based on the original Rust implementation
 
 import type { EmailTestCase } from '../src/email-verifier-types';
 import { EmailProvider, getProviderType, isEmailExistsCore, validateEmailSyntax } from '../src/is-email-exists';

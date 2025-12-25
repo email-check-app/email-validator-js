@@ -1,6 +1,6 @@
-/**
- * Isolated test for network timeout handling
- */
+// 0014: Network Timeout Handling Tests
+//
+// Isolated test for network timeout handling
 
 import { isEmailExistsCore } from '../src/is-email-exists';
 

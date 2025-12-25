@@ -1,6 +1,6 @@
-/**
- * Comprehensive tests for email syntax validation
- */
+// 0006: Email Syntax Validation Tests
+//
+// Comprehensive tests for email syntax validation
 
 import { EmailProvider, getProviderType, validateEmailSyntax } from '../src/is-email-exists';
 

@@ -1,3 +1,7 @@
+// 0015: Name Detection Tests
+//
+// Tests for name detection from email addresses
+
 import { cleanNameForAlgrothin, detectName, detectNameForAlgrothin } from '../src/name-detector';
 
 describe('Name Detection for Algrothin', () => {

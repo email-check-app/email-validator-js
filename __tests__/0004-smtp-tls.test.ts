@@ -1,12 +1,11 @@
-// SMTP Custom Sequence Tests
+// 0004: SMTP TLS Configuration Tests
 //
-// Tests custom SMTP step sequences and protocol control
+// Tests TLS/SSL configurations and security settings
 
 import { clearDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
 import type { SmtpVerificationResult } from '../src/types';
-import { SMTPStep } from '../src/types';
-import { createTestParams, TEST_SEQUENCES, TestUtils } from './smtp.test.config';
+import { createTestParams, TEST_CONFIGS, TestUtils } from './smtp.test.config';
 
 // Helper to map SmtpVerificationResult to boolean|null for legacy assertions
 function toBooleanResult(result: SmtpVerificationResult): boolean | null {
@@ -16,126 +15,49 @@ function toBooleanResult(result: SmtpVerificationResult): boolean | null {
   return result.isDeliverable;
 }
 
-describe('SMTP Custom Sequences', () => {
+describe('SMTP TLS Configuration', () => {
   beforeEach(() => {
     clearDefaultCache();
   });
-  describe('Predefined Sequences', () => {
+  describe('TLS Enable/Disable', () => {
     it(
-      'should execute minimal sequence',
+      'should work with TLS enabled (default)',
       async () => {
         const params = createTestParams({
           options: {
-            sequence: TEST_SEQUENCES.MINIMAL,
-            ports: [587],
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-        console.log(`Minimal sequence result: ${toBooleanResult(smtpResult)}`);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-
-    it(
-      'should execute default sequence',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: TEST_SEQUENCES.DEFAULT,
-            ports: [25],
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-        console.log(`Default sequence result: ${toBooleanResult(smtpResult)}`);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-
-    it(
-      'should execute sequence with STARTTLS',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: TEST_SEQUENCES.WITH_STARTTLS,
-            ports: [587],
+            ports: [587, 465],
             tls: true,
           },
         });
 
         const smtpResult = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-        console.log(`STARTTLS sequence result: ${toBooleanResult(smtpResult)}`);
+        console.log(`TLS enabled result: ${toBooleanResult(smtpResult)}`);
       },
       TestUtils.getTestTimeout('integration')
     );
 
     it(
-      'should execute sequence with VRFY fallback',
+      'should work with TLS disabled',
       async () => {
         const params = createTestParams({
-          options: {
-            sequence: TEST_SEQUENCES.WITH_VRFY,
-            ports: [25],
-            useVRFY: true,
-          },
+          options: TEST_CONFIGS.TLS_DISABLED,
         });
 
         const smtpResult = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-        console.log(`VRFY sequence result: ${toBooleanResult(smtpResult)}`);
+        console.log(`TLS disabled result: ${toBooleanResult(smtpResult)}`);
       },
       TestUtils.getTestTimeout('integration')
     );
 
     it(
-      'should execute full sequence',
+      'should work with TLS on port 25 (STARTTLS)',
       async () => {
         const params = createTestParams({
           options: {
-            sequence: TEST_SEQUENCES.FULL,
-            ports: [587],
+            ports: [25],
             tls: true,
-            useVRFY: true,
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-        console.log(`Full sequence result: ${toBooleanResult(smtpResult)}`);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-  });
-
-  describe('Custom Sequences', () => {
-    it(
-      'should execute EHLO-only sequence',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: TEST_SEQUENCES.EHLO_ONLY,
-            ports: [587],
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        // EHLO-only should complete successfully but not validate email
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-
-    it(
-      'should execute sequence without greeting',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: TEST_SEQUENCES.NO_GREETING,
-            ports: [587],
           },
         });
 
@@ -146,219 +68,10 @@ describe('SMTP Custom Sequences', () => {
     );
 
     it(
-      'should execute VRFY-only test',
+      'should work with TLS on port 587 (STARTTLS)',
       async () => {
         const params = createTestParams({
           options: {
-            sequence: TEST_SEQUENCES.VRFY_ONLY,
-            ports: [25], // VRFY more likely on port 25
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-  });
-
-  describe('Sequence Step Control', () => {
-    it(
-      'should handle single step sequences',
-      async () => {
-        const singleStepSequences = [
-          { steps: [SMTPStep.GREETING], name: 'greeting-only' },
-          { steps: [SMTPStep.EHLO], name: 'ehlo-only' },
-          { steps: [SMTPStep.QUIT], name: 'quit-only' },
-        ];
-
-        for (const seq of singleStepSequences) {
-          const params = createTestParams({
-            options: {
-              sequence: {
-                steps: seq.steps,
-              },
-              ports: [587],
-              timeout: 2000,
-            },
-          });
-
-          const smtpResult = await verifyMailboxSMTP(params);
-          expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-          console.log(`${seq.name} result: ${toBooleanResult(smtpResult)}`);
-        }
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-
-    it(
-      'should handle repeated steps',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: {
-              steps: [SMTPStep.EHLO, SMTPStep.EHLO, SMTPStep.QUIT],
-            },
-            ports: [587],
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-
-    it(
-      'should handle empty sequence gracefully',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: {
-              steps: [],
-            },
-            ports: [587],
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(toBooleanResult(smtpResult)).toBe(true); // Should complete sequence
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-  });
-
-  describe('Custom MAIL FROM Configuration', () => {
-    it(
-      'should use null sender by default',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
-              from: '<>',
-            },
-            ports: [587],
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-
-    it(
-      'should use custom sender email',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
-              from: '<sender@example.com>',
-            },
-            ports: [587],
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-
-    it(
-      'should use sender without brackets',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
-              from: 'sender@example.com',
-            },
-            ports: [587],
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-  });
-
-  describe('Custom VRFY Configuration', () => {
-    it(
-      'should use local part as VRFY target',
-      async () => {
-        const params = createTestParams({
-          local: 'testuser',
-          options: {
-            sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
-              vrfyTarget: 'testuser',
-            },
-            ports: [25],
-            useVRFY: true,
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-
-    it(
-      'should use full email as VRFY target',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
-              vrfyTarget: 'test@gmail.com',
-            },
-            ports: [25],
-            useVRFY: true,
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-
-    it(
-      'should automatically use local part if VRFY target not specified',
-      async () => {
-        const params = createTestParams({
-          local: 'username',
-          options: {
-            sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
-            },
-            ports: [25],
-            useVRFY: true,
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-  });
-
-  describe('STARTTLS in Sequences', () => {
-    it(
-      'should handle STARTTLS when included in sequence',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.STARTTLS, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
-            },
             ports: [587],
             tls: true,
           },
@@ -371,32 +84,10 @@ describe('SMTP Custom Sequences', () => {
     );
 
     it(
-      'should ignore STARTTLS when TLS is disabled',
+      'should work with TLS on port 465 (implicit)',
       async () => {
         const params = createTestParams({
           options: {
-            sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.STARTTLS, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
-            },
-            ports: [587],
-            tls: false,
-          },
-        });
-
-        const smtpResult = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
-      },
-      TestUtils.getTestTimeout('integration')
-    );
-
-    it(
-      'should handle STARTTLS on port 465',
-      async () => {
-        const params = createTestParams({
-          options: {
-            sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.STARTTLS, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
-            },
             ports: [465],
             tls: true,
           },
@@ -409,23 +100,262 @@ describe('SMTP Custom Sequences', () => {
     );
   });
 
-  describe('Sequence Performance', () => {
+  describe('TLS Certificate Validation', () => {
     it(
-      'should compare performance of different sequences',
+      'should work with certificate validation disabled (default)',
       async () => {
-        const sequences = [
-          { name: 'Minimal', seq: TEST_SEQUENCES.MINIMAL },
-          { name: 'Default', seq: TEST_SEQUENCES.DEFAULT },
-          { name: 'With STARTTLS', seq: TEST_SEQUENCES.WITH_STARTTLS },
+        const params = createTestParams({
+          options: {
+            ports: [587],
+            tls: {
+              rejectUnauthorized: false,
+            },
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+
+    it(
+      'should work with certificate validation enabled',
+      async () => {
+        const params = createTestParams({
+          options: {
+            ports: [465], // More likely to have valid certs
+            tls: {
+              rejectUnauthorized: true,
+            },
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+
+    it(
+      'should handle certificate validation errors gracefully',
+      async () => {
+        const params = createTestParams({
+          options: {
+            ports: [587],
+            tls: {
+              rejectUnauthorized: true,
+            },
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        // May fail due to cert validation, but should handle gracefully
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+  });
+
+  describe('TLS Version Configuration', () => {
+    it(
+      'should work with TLS 1.2 minimum',
+      async () => {
+        const params = createTestParams({
+          options: {
+            ports: [587],
+            tls: {
+              minVersion: 'TLSv1.2',
+            },
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+
+    it(
+      'should work with TLS 1.3 minimum',
+      async () => {
+        const params = createTestParams({
+          options: {
+            ports: [465], // More likely to support TLS 1.3
+            tls: {
+              minVersion: 'TLSv1.3',
+            },
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+
+    it(
+      'should handle unsupported TLS version gracefully',
+      async () => {
+        const params = createTestParams({
+          options: {
+            ports: [587],
+            tls: {
+              minVersion: 'TLSv1.2', // Most servers support this
+            },
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+  });
+
+  describe('TLS Configuration Combinations', () => {
+    it(
+      'should work with strict TLS settings',
+      async () => {
+        const params = createTestParams({
+          options: TEST_CONFIGS.TLS_STRICT,
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+        console.log(`Strict TLS result: ${toBooleanResult(smtpResult)}`);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+
+    it(
+      'should work with lenient TLS settings',
+      async () => {
+        const params = createTestParams({
+          options: TEST_CONFIGS.TLS_LENIENT,
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+        console.log(`Lenient TLS result: ${toBooleanResult(smtpResult)}`);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+
+    it(
+      'should work with custom TLS configuration',
+      async () => {
+        const params = createTestParams({
+          options: {
+            ports: [587],
+            tls: {
+              rejectUnauthorized: false,
+              minVersion: 'TLSv1.2',
+            },
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+  });
+
+  describe('STARTTLS Behavior', () => {
+    it(
+      'should upgrade to TLS on port 25 when STARTTLS is available',
+      async () => {
+        const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+        const params = createTestParams({
+          options: {
+            ports: [25],
+            tls: true,
+            debug: true,
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+
+        // Check for TLS upgrade logs
+        const logs = consoleSpy.mock.calls.flat().join(' ');
+        consoleSpy.mockRestore();
+
+        // TLS upgrade might be mentioned in logs
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+
+    it(
+      'should upgrade to TLS on port 587',
+      async () => {
+        const params = createTestParams({
+          options: {
+            ports: [587],
+            tls: true,
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+
+    it(
+      'should not attempt STARTTLS on port 465 (implicit TLS)',
+      async () => {
+        const params = createTestParams({
+          options: {
+            ports: [465],
+            tls: true,
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+
+    it(
+      'should continue without TLS if STARTTLS fails',
+      async () => {
+        const params = createTestParams({
+          options: {
+            ports: [25],
+            tls: true,
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+  });
+
+  describe('TLS Performance', () => {
+    it(
+      'should compare TLS vs non-TLS performance',
+      async () => {
+        const testCases = [
+          { name: 'No TLS', tls: false, port: 25 },
+          { name: 'TLS Port 25', tls: true, port: 25 },
+          { name: 'TLS Port 587', tls: true, port: 587 },
+          { name: 'TLS Port 465', tls: true, port: 465 },
         ];
 
         const results: { [key: string]: { result: boolean | null; duration: number } } = {};
 
-        for (const { name, seq } of sequences) {
+        for (const testCase of testCases) {
           const params = createTestParams({
             options: {
-              sequence: seq,
-              ports: [587],
+              ports: [testCase.port],
+              tls: testCase.tls,
               debug: false,
             },
           });
@@ -434,30 +364,46 @@ describe('SMTP Custom Sequences', () => {
           const smtpResult = await verifyMailboxSMTP(params);
           const duration = Date.now() - start;
 
-          results[name] = { result: toBooleanResult(smtpResult), duration };
-          console.log(`${name} sequence: ${duration}ms, result: ${toBooleanResult(smtpResult)}`);
+          results[testCase.name] = { result: toBooleanResult(smtpResult), duration };
+          console.log(`${testCase.name}: ${duration}ms`);
         }
 
-        // Verify all sequences complete successfully
+        // Verify all results are valid
         Object.values(results).forEach(({ result }) => {
           expect(TestUtils.isValidResult(result)).toBe(true);
         });
       },
       TestUtils.getTestTimeout('slow')
     );
+
+    it(
+      'should handle TLS handshake timeout',
+      async () => {
+        const params = createTestParams({
+          options: {
+            ports: [465],
+            tls: {
+              rejectUnauthorized: true,
+            },
+            timeout: 1000, // Short timeout for TLS handshake
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
   });
 
-  describe('Error Handling in Sequences', () => {
+  describe('TLS Security Scenarios', () => {
     it(
-      'should handle invalid step in sequence',
+      'should prefer secure ports when TLS is enabled',
       async () => {
         const params = createTestParams({
           options: {
-            sequence: {
-              steps: [SMTPStep.QUIT, SMTPStep.EHLO], // Invalid order
-            },
-            ports: [587],
-            timeout: 2000,
+            ports: [465, 587, 25], // Secure ports first
+            tls: true,
           },
         });
 
@@ -468,14 +414,12 @@ describe('SMTP Custom Sequences', () => {
     );
 
     it(
-      'should handle sequence without MAIL_FROM',
+      'should work with mixed secure/unsecure ports',
       async () => {
         const params = createTestParams({
           options: {
-            sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.RCPT_TO], // Missing MAIL_FROM
-            },
-            ports: [587],
+            ports: [25, 587, 465], // Mixed order
+            tls: true,
           },
         });
 
@@ -486,15 +430,53 @@ describe('SMTP Custom Sequences', () => {
     );
 
     it(
-      'should handle sequence with only QUIT',
+      'should handle TLS on servers that dont support it',
       async () => {
         const params = createTestParams({
           options: {
-            sequence: {
-              steps: [SMTPStep.QUIT],
-            },
+            ports: [25],
+            tls: true,
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        // Should either succeed with TLS or fall back to plain text
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+  });
+
+  describe('TLS with Custom Sequences', () => {
+    it(
+      'should handle STARTTLS in custom sequence',
+      async () => {
+        const params = createTestParams({
+          options: {
             ports: [587],
-            timeout: 1000,
+            tls: true,
+            sequence: {
+              steps: ['GREETING', 'EHLO', 'STARTTLS', 'MAIL_FROM', 'RCPT_TO'] as any,
+            },
+          },
+        });
+
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(toBooleanResult(smtpResult))).toBe(true);
+      },
+      TestUtils.getTestTimeout('integration')
+    );
+
+    it(
+      'should not use STARTTLS if not in sequence',
+      async () => {
+        const params = createTestParams({
+          options: {
+            ports: [587],
+            tls: true,
+            sequence: {
+              steps: ['GREETING', 'EHLO', 'MAIL_FROM', 'RCPT_TO'] as any, // No STARTTLS
+            },
           },
         });
 

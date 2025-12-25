@@ -1,7 +1,6 @@
-/**
- * Provider-specific email verification tests
- * Based on the original Rust implementation's test patterns
- */
+// 0009: Provider-Specific Email Verification Tests
+//
+// Provider-specific email verification tests based on the original Rust implementation
 
 import type { EmailTestCase } from '../src/email-verifier-types';
 import {

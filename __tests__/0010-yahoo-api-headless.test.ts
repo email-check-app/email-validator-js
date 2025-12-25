@@ -1,6 +1,6 @@
-/**
- * Simple Yahoo API Tests - focusing on the core functionality
- */
+// 0010: Yahoo API and Headless Browser Tests
+//
+// Tests Yahoo API verification and headless browser functionality
 
 import type { YahooApiOptions } from '../src/email-verifier-types';
 import { EmailProvider, verifyYahooApi } from '../src/is-email-exists';

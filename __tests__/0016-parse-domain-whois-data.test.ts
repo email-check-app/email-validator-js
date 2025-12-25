@@ -1,3 +1,7 @@
+// 0016: WHOIS Data Parsing Tests
+//
+// Tests for parsing WHOIS domain data
+
 import { parseWhoisData } from '../src/whois-parser';
 import { amazonCaData } from './domain-whois-data/amazon-ca-data';
 import { bbcCoUkData } from './domain-whois-data/bbc-co-uk-data';

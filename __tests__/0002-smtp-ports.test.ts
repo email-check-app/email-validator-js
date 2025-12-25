@@ -1,4 +1,4 @@
-// SMTP Port Configuration Tests
+// 0002: SMTP Port Configuration Tests
 //
 // Tests different port configurations and behaviors
 

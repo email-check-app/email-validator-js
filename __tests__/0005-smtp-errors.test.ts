@@ -1,4 +1,4 @@
-// SMTP Error Handling Tests
+// 0005: SMTP Error Handling Tests
 //
 // Tests error scenarios and edge cases
 

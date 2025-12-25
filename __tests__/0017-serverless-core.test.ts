@@ -1,6 +1,6 @@
-/**
- * Tests for serverless core functionality
- */
+// 0017: Serverless Core Tests
+//
+// Tests for serverless core functionality
 
 import { clearCache, EdgeCache, suggestDomain, validateEmailBatch, validateEmailCore } from '../src/serverless/core';
 

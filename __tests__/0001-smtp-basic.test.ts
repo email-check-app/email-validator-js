@@ -1,4 +1,4 @@
-// Basic SMTP Verification Tests
+// 0001: Basic SMTP Verification Tests
 //
 // Tests core SMTP verification functionality
 

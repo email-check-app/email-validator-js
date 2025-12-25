@@ -1,6 +1,6 @@
-/**
- * Tests for Vercel Edge Functions adapter
- */
+// 0019: Vercel Edge Functions Tests
+//
+// Tests for Vercel Edge Functions adapter
 
 // Mock the serverless core module
 jest.mock('../src/serverless/core', () => ({

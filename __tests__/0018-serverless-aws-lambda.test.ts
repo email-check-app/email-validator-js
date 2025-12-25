@@ -1,6 +1,6 @@
-/**
- * Tests for AWS Lambda serverless adapter
- */
+// 0018: AWS Lambda Serverless Tests
+//
+// Tests for AWS Lambda serverless adapter
 
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { handler } from '../src/serverless/adapters/aws-lambda';

@@ -1,3 +1,7 @@
+// 0007: Core Email Verification Tests
+//
+// Tests the core is-email-exists functionality ported from Rust
+
 import dns from 'node:dns';
 import {
   EmailProvider,

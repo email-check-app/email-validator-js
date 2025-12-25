@@ -1,6 +1,6 @@
-/**
- * Simplified tests for SMTP verification functionality
- */
+// 0011: SMTP Verification Tests
+//
+// Tests SMTP verification functionality and provider optimizations
 
 import { EmailProvider } from '../src/is-email-exists';
 
