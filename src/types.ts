@@ -164,6 +164,36 @@ export interface VerifyMailboxSMTPParams {
 }
 
 /**
+ * SMTP verification result with rich data points
+ * Matches the structure from check-if-email-exists.ts SmtpVerificationResult
+ * Using camelCase naming convention
+ */
+export interface SmtpVerificationResult {
+  /** Whether SMTP connection was successful */
+  canConnectSmtp: boolean;
+  /** Whether the recipient's inbox is full */
+  hasFullInbox: boolean;
+  /** Whether the domain has catch-all email enabled */
+  isCatchAll: boolean;
+  /** Whether the email is deliverable */
+  isDeliverable: boolean;
+  /** Whether the email account is disabled */
+  isDisabled: boolean;
+  /** Optional error message if verification failed */
+  error?: string;
+  /** Email provider used for verification (if detected) */
+  providerUsed?: string;
+  /** Optional response code from SMTP server */
+  responseCode?: number;
+  /** Additional provider-specific details */
+  providerSpecific?: {
+    errorCode?: string;
+    actionRequired?: string;
+    details?: string;
+  };
+}
+
+/**
  * Connection pool configuration
  */
 export interface ConnectionPoolConfig {

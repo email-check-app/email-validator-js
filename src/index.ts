@@ -349,12 +349,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
             }
           }
 
-          const {
-            result: smtpResult,
-            cached,
-            portCached,
-            port,
-          } = await verifyMailboxSMTP({
+          const smtpResult = await verifyMailboxSMTP({
             local,
             domain,
             mxRecords,
@@ -367,9 +362,10 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
             },
           });
 
-          await smtpCacheInstance.set(cacheKey, smtpResult);
-          result.validSmtp = smtpResult;
-          if (result.metadata) result.metadata.cached = cached;
+          // Map SmtpVerificationResult to the legacy boolean|null format
+          const smtpBooleanResult = smtpResult.canConnectSmtp ? smtpResult.isDeliverable : null;
+          await smtpCacheInstance.set(cacheKey, smtpBooleanResult);
+          result.validSmtp = smtpBooleanResult;
 
           log(
             `[verifyEmail] SMTP verification result: ${result.validSmtp} for ${emailAddress} (cached for future use)`

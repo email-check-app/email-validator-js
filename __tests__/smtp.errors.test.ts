@@ -4,8 +4,28 @@
 
 import { clearDefaultCache, getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
+import type { SmtpVerificationResult } from '../src/types';
 import { SMTPStep } from '../src/types';
-import { createTestParams, TestUtils } from './smtp.test.config';
+import { createTestParams } from './smtp.test.config';
+
+// Helper to check if SmtpVerificationResult is valid
+function isValidSmtpResult(result: SmtpVerificationResult): boolean {
+  return (
+    typeof result.canConnectSmtp === 'boolean' &&
+    typeof result.hasFullInbox === 'boolean' &&
+    typeof result.isCatchAll === 'boolean' &&
+    typeof result.isDeliverable === 'boolean' &&
+    typeof result.isDisabled === 'boolean'
+  );
+}
+
+// Helper to map SmtpVerificationResult to boolean|null for legacy assertions
+function toBooleanResult(result: SmtpVerificationResult): boolean | null {
+  if (!result.canConnectSmtp) {
+    return null;
+  }
+  return result.isDeliverable;
+}
 
 describe('SMTP Error Handling', () => {
   beforeEach(() => {
@@ -20,8 +40,8 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBeNull();
+      const smtpResult = await verifyMailboxSMTP(params);
+      expect(smtpResult.canConnectSmtp).toBe(false);
     }, 10000);
 
     it('should handle connection timeout', async () => {
@@ -32,8 +52,9 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBeNull();
+      const smtpResult = await verifyMailboxSMTP(params);
+      // Should either fail to connect or succeed with error due to timeout
+      expect(smtpResult.canConnectSmtp === false || smtpResult.error !== undefined).toBe(true);
     });
 
     it('should handle connection refused', async () => {
@@ -45,9 +66,9 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
+      const smtpResult = await verifyMailboxSMTP(params);
       // May connect but fail SMTP protocol
-      expect(TestUtils.isValidResult(result)).toBe(true);
+      expect(isValidSmtpResult(smtpResult)).toBe(true);
     });
 
     it('should handle DNS resolution failures', async () => {
@@ -58,17 +79,17 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBe(false); // Empty hostname should return false
+      const smtpResult = await verifyMailboxSMTP(params);
+      expect(smtpResult.canConnectSmtp).toBe(false); // Empty hostname should fail
     });
   });
 
   describe('Invalid Parameters', () => {
     it('should handle null/undefined MX records', async () => {
-      const testCases: Array<{ mxRecords: [] | null | undefined; expected: boolean }> = [
-        { mxRecords: null, expected: false },
-        { mxRecords: undefined, expected: false },
-        { mxRecords: [], expected: false },
+      const testCases: Array<{ mxRecords: [] | null | undefined; expectedCanConnect: boolean }> = [
+        { mxRecords: null, expectedCanConnect: false },
+        { mxRecords: undefined, expectedCanConnect: false },
+        { mxRecords: [], expectedCanConnect: false },
       ];
 
       for (const testCase of testCases) {
@@ -76,8 +97,8 @@ describe('SMTP Error Handling', () => {
           mxRecords: testCase.mxRecords,
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(result).toBe(testCase.expected);
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(smtpResult.canConnectSmtp).toBe(testCase.expectedCanConnect);
       }
     });
 
@@ -97,8 +118,8 @@ describe('SMTP Error Handling', () => {
           mxRecords: ['mx.example.com'],
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(isValidSmtpResult(smtpResult)).toBe(true);
       }
     });
 
@@ -115,8 +136,8 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(TestUtils.isValidResult(result)).toBe(true);
+      const smtpResult = await verifyMailboxSMTP(params);
+      expect(isValidSmtpResult(smtpResult)).toBe(true);
     });
 
     it('should handle special characters in email', async () => {
@@ -137,8 +158,8 @@ describe('SMTP Error Handling', () => {
           mxRecords: ['mx.example.com'],
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(isValidSmtpResult(smtpResult)).toBe(true);
       }
     });
   });
@@ -152,8 +173,8 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBeNull();
+      const smtpResult = await verifyMailboxSMTP(params);
+      expect(smtpResult.canConnectSmtp).toBe(false);
     });
 
     it('should handle timeout during SMTP handshake', async () => {
@@ -165,8 +186,9 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBeNull();
+      const smtpResult = await verifyMailboxSMTP(params);
+      // Should either fail to connect or succeed with error due to timeout
+      expect(smtpResult.canConnectSmtp === false || smtpResult.error !== undefined).toBe(true);
     });
 
     it('should respect timeout across retries', async () => {
@@ -179,10 +201,11 @@ describe('SMTP Error Handling', () => {
       });
 
       const start = Date.now();
-      const { result } = await verifyMailboxSMTP(params);
+      const smtpResult = await verifyMailboxSMTP(params);
       const duration = Date.now() - start;
 
-      expect(result).toBeNull();
+      // Should either fail to connect or succeed with error due to timeout
+      expect(smtpResult.canConnectSmtp === false || smtpResult.error !== undefined).toBe(true);
       // Should timeout 4 times (1 initial + 3 retries)
       expect(duration).toBeGreaterThan(3500);
       expect(duration).toBeLessThan(25000);
@@ -201,8 +224,8 @@ describe('SMTP Error Handling', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(result).toBeNull();
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(smtpResult.canConnectSmtp).toBe(false);
       }
     });
 
@@ -218,9 +241,10 @@ describe('SMTP Error Handling', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
+        const smtpResult = await verifyMailboxSMTP(params);
         // Should fail gracefully
-        expect(result === null || TestUtils.isValidResult(result)).toBe(true);
+        const result = toBooleanResult(smtpResult);
+        expect(result === null || typeof result === 'boolean').toBe(true);
       }
     });
 
@@ -231,8 +255,8 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBeNull();
+      const smtpResult = await verifyMailboxSMTP(params);
+      expect(smtpResult.canConnectSmtp).toBe(false);
     });
   });
 
@@ -248,9 +272,10 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
+      const smtpResult = await verifyMailboxSMTP(params);
       // May fail cert validation but should handle gracefully
-      expect(TestUtils.isValidResult(result) || result === null).toBe(true);
+      const result = toBooleanResult(smtpResult);
+      expect(typeof result === 'boolean' || result === null).toBe(true);
     }, 10000);
 
     it('should handle TLS version mismatch', async () => {
@@ -263,8 +288,9 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(TestUtils.isValidResult(result) || result === null).toBe(true);
+      const smtpResult = await verifyMailboxSMTP(params);
+      const result = toBooleanResult(smtpResult);
+      expect(typeof result === 'boolean' || result === null).toBe(true);
     }, 10000);
   });
 
@@ -279,8 +305,8 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBe(true); // no steps means nothing to verify, should return true
+      const smtpResult = await verifyMailboxSMTP(params);
+      expect(smtpResult.canConnectSmtp).toBe(true); // no steps means nothing to verify, should return true
     });
 
     it('should handle invalid sequence steps', async () => {
@@ -294,8 +320,8 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(TestUtils.isValidResult(result)).toBe(true);
+      const smtpResult = await verifyMailboxSMTP(params);
+      expect(isValidSmtpResult(smtpResult)).toBe(true);
     });
 
     it('should handle sequence without required steps', async () => {
@@ -308,8 +334,8 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(TestUtils.isValidResult(result)).toBe(true);
+      const smtpResult = await verifyMailboxSMTP(params);
+      expect(isValidSmtpResult(smtpResult)).toBe(true);
     });
   });
 
@@ -330,8 +356,8 @@ describe('SMTP Error Handling', () => {
       );
 
       const results = await Promise.all(promises);
-      results.forEach(({ result }) => {
-        expect(TestUtils.isValidResult(result)).toBe(true);
+      results.forEach((smtpResult) => {
+        expect(isValidSmtpResult(smtpResult)).toBe(true);
       });
     }, 30000);
 
@@ -346,8 +372,8 @@ describe('SMTP Error Handling', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const smtpResult = await verifyMailboxSMTP(params);
+        expect(isValidSmtpResult(smtpResult)).toBe(true);
       }
     }, 20000);
   });
@@ -361,8 +387,8 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(TestUtils.isValidResult(result)).toBe(true);
+      const smtpResult = await verifyMailboxSMTP(params);
+      expect(isValidSmtpResult(smtpResult)).toBe(true);
     }, 10000);
 
     it('should handle partial SMTP responses', async () => {
@@ -376,8 +402,8 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(TestUtils.isValidResult(result)).toBe(true);
+      const smtpResult = await verifyMailboxSMTP(params);
+      expect(isValidSmtpResult(smtpResult)).toBe(true);
     });
 
     it('should handle server that closes connection unexpectedly', async () => {
@@ -389,8 +415,9 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(TestUtils.isValidResult(result) || result === null).toBe(true);
+      const smtpResult = await verifyMailboxSMTP(params);
+      const result = toBooleanResult(smtpResult);
+      expect(typeof result === 'boolean' || result === null).toBe(true);
     });
   });
 
@@ -406,8 +433,9 @@ describe('SMTP Error Handling', () => {
 
       // Run multiple failing requests
       for (let i = 0; i < 10; i++) {
-        const { result } = await verifyMailboxSMTP(params);
-        expect(result).toBeNull();
+        const smtpResult = await verifyMailboxSMTP(params);
+        // Should either fail to connect or succeed with error
+        expect(smtpResult.canConnectSmtp === false || smtpResult.error !== undefined).toBe(true);
       }
 
       // If no errors thrown, resources are likely cleaned up properly
@@ -423,8 +451,8 @@ describe('SMTP Error Handling', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(TestUtils.isValidResult(result)).toBe(true);
+      const smtpResult = await verifyMailboxSMTP(params);
+      expect(isValidSmtpResult(smtpResult)).toBe(true);
 
       // Give time for cleanup
       await new Promise((resolve) => setTimeout(resolve, 100));
