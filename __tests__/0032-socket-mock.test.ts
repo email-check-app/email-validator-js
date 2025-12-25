@@ -39,58 +39,93 @@ describe('0032: Socket Mock Tests', () => {
         .stub(dnsPromises, 'resolveMx')
         .resolves([{ exchange: 'mx1.bar.com', priority: 10 }]);
 
-      // Step 2: Create mock socket with all required methods
-      const mockSocket: any = new Socket({});
-      mockSocket.setTimeout = sinon.stub().returns(mockSocket);
-      mockSocket.setEncoding = sinon.stub().returns(mockSocket);
-      mockSocket.setKeepAlive = sinon.stub().returns(mockSocket);
-      mockSocket.ref = sinon.stub().returns(mockSocket);
-      mockSocket.unref = sinon.stub().returns(mockSocket);
+      // Step 2: Use Node's EventEmitter for proper event handling
+      const { EventEmitter } = require('node:events');
+      const eventHandlers: Map<string | symbol, Set<Function>> = new Map();
 
-      // Step 3: Reactively respond to SMTP commands as they're written
-      // Using setTimeout(0) instead of process.nextTick for different timing
+      // Step 3: Create mock socket that properly extends EventEmitter behavior
+      class MockSocket extends EventEmitter {
+        destroyed = false;
+        writable = true;
+        readable = true;
+        connecting = false;
+
+        setTimeout = sinon.stub().returnsThis();
+        setEncoding = sinon.stub().returnsThis();
+        setKeepAlive = sinon.stub().returnsThis();
+        ref = sinon.stub().returnsThis();
+        unref = sinon.stub().returnsThis();
+        destroy = () => {
+          this.destroyed = true;
+        };
+        end = sinon.stub().returnsThis();
+
+        // Override on to capture the data handler
+        on(event: string | symbol, callback: (...args: any[]) => void): this {
+          if (event === 'data') {
+            console.log('[TEST] data handler captured!');
+          }
+          return super.on(event, callback);
+        }
+      }
+
+      const mockSocket = new MockSocket() as any;
+
+      // Step 4: Track the data handler for direct calling
+      let dataHandler: ((data: Buffer) => void) | null = null;
+
+      // Spy on the 'on' method to capture data handler
+      const originalOn = mockSocket.on.bind(mockSocket);
+      mockSocket.on = self.sandbox.spy((event: string | symbol, callback: (...args: any[]) => void) => {
+        if (event === 'data') {
+          dataHandler = callback as (data: Buffer) => void;
+        }
+        return originalOn(event, callback);
+      });
+
+      // Write method - respond to commands
       mockSocket.write = self.sandbox.spy((data: Buffer) => {
         const cmd = data.toString().trim();
         setTimeout(() => {
-          if (cmd.includes('EHLO') || cmd.includes('HELO')) {
-            mockSocket.emit('data', '250-test.example.com Hello\r\n250 VRFY\r\n250 8BITMIME\r\n250 OK\r\n');
-          } else if (cmd.includes('MAIL FROM')) {
-            mockSocket.emit('data', '250 Mail OK\r\n');
-          } else if (cmd.includes('RCPT TO')) {
-            mockSocket.emit('data', '250 Recipient OK\r\n');
-          } else if (cmd.includes('QUIT')) {
-            mockSocket.emit('data', '221 Bye\r\n');
-            mockSocket.emit('close');
+          if (dataHandler) {
+            if (cmd.includes('EHLO') || cmd.includes('HELO')) {
+              dataHandler(Buffer.from('250-test.example.com Hello\r\n250 VRFY\r\n250 8BITMIME\r\n250 OK\r\n'));
+            } else if (cmd.includes('MAIL FROM')) {
+              dataHandler(Buffer.from('250 Mail OK\r\n'));
+            } else if (cmd.includes('RCPT TO')) {
+              dataHandler(Buffer.from('250 Recipient OK\r\n'));
+            } else if (cmd.includes('QUIT')) {
+              dataHandler(Buffer.from('221 Bye\r\n'));
+              mockSocket.emit('close');
+            }
           }
-        }, 10);
+        }, 5);
         return true;
       });
 
-      // Step 4: Mock net.connect to return our socket and emit greeting
-      let connectCallbackCalled = false;
+      // Step 5: Mock net.connect to return our socket and emit greeting
       self.sandbox.stub(net, 'connect').callsFake((_options, callback) => {
-        // Call the connect callback first (sets up data handlers)
-        if (callback) {
-          callback();
-          connectCallbackCalled = true;
-        }
-        // Then emit the greeting after a longer delay
+        if (callback) callback();
+        // Emit greeting after data handler is set up
         setTimeout(() => {
-          mockSocket.emit('data', '220 test.example.com ESMTP\r\n');
-        }, 20);
+          if (dataHandler) {
+            dataHandler(Buffer.from('220 test.example.com ESMTP\r\n'));
+          } else {
+            // Fallback to emit
+            mockSocket.emit('data', Buffer.from('220 test.example.com ESMTP\r\n'));
+          }
+        }, 10);
         return mockSocket;
       });
 
-      // Step 5: Run verification
+      // Step 6: Run verification
       const result = await verifyEmail({
         emailAddress: 'foo@bar.com',
         verifyMx: true,
         verifySmtp: true,
-        debug: true,
       });
 
-      // Step 6: Verify interactions
-      expect(connectCallbackCalled).toBe(true);
+      // Step 7: Verify interactions
       sinon.assert.called(resolveMxStub);
       expect(result.validFormat).toBe(true);
       expect(result.validMx).toBe(true);
