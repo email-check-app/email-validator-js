@@ -1,16 +1,16 @@
 /**
- * Comprehensive test suite for check-if-email-exists functionality
+ * Comprehensive test suite for is-email-exists functionality
  */
 
 import {
   CHECK_IF_EMAIL_EXISTS_CONSTANTS,
-  checkIfEmailExistsCore,
   EmailProvider,
   getProviderType,
+  isEmailExistsCore,
   queryMxRecords,
   validateEmailSyntax,
   verifySmtpConnection,
-} from '../src/check-if-email-exists';
+} from '../src/is-email-exists';
 
 // Mock DNS module
 jest.mock('dns', () => ({
@@ -226,13 +226,13 @@ describe('verifySmtpConnection', () => {
   });
 });
 
-describe('checkIfEmailExists', () => {
+describe('isEmailExists', () => {
   beforeEach(() => {
     mockResolveMx.mockClear();
   });
 
   test('should reject invalid email syntax', async () => {
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: 'invalid-email',
     });
 
@@ -245,7 +245,7 @@ describe('checkIfEmailExists', () => {
   test('should handle domains with no MX records', async () => {
     mockResolveMx.mockResolvedValue([]);
 
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: 'test@no-mx.com',
       verifyMx: true,
       verifySmtp: true,
@@ -258,7 +258,7 @@ describe('checkIfEmailExists', () => {
   });
 
   test('should skip MX/SMTP verification when disabled', async () => {
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: 'test@example.com',
       verifyMx: false,
       verifySmtp: false,
@@ -281,7 +281,7 @@ describe('checkIfEmailExists', () => {
       retries: 1,
     };
 
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: 'test@example.com',
       verifyMx: true,
       verifySmtp: true,
@@ -296,7 +296,7 @@ describe('checkIfEmailExists', () => {
   test('should handle debug logging', async () => {
     const consoleSpy = jest.spyOn(console, 'debug');
 
-    await checkIfEmailExistsCore({
+    await isEmailExistsCore({
       emailAddress: 'test@example.com',
       verifyMx: false,
       verifySmtp: false,
@@ -311,7 +311,7 @@ describe('checkIfEmailExists', () => {
   test('should handle disposable and free email detection', async () => {
     mockResolveMx.mockResolvedValue([{ exchange: 'mail.gmail.com', preference: 10 }]);
 
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: 'test@gmail.com',
       verifyMx: true,
       verifySmtp: false,
@@ -328,7 +328,7 @@ describe('checkIfEmailExists', () => {
   test('should apply provider optimizations when enabled', async () => {
     mockResolveMx.mockResolvedValue([{ exchange: 'gmail-smtp-in.l.google.com', preference: 10 }]);
 
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: 'test@gmail.com',
       verifyMx: true,
       verifySmtp: false,
@@ -369,7 +369,7 @@ describe('error handling', () => {
       });
     });
 
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: 'test@slow-domain.com',
       verifyMx: true,
       verifySmtp: false,
@@ -385,7 +385,7 @@ describe('error handling', () => {
     const testCases = [null as any, undefined as any, 123 as any, { emailAddress: null } as any];
 
     for (const testCase of testCases) {
-      const result = await checkIfEmailExistsCore(testCase);
+      const result = await isEmailExistsCore(testCase);
       expect(result.is_reachable).toBe('invalid');
       expect(result.syntax?.is_valid).toBe(false);
     }
@@ -403,7 +403,7 @@ describe('performance considerations', () => {
 
     const results = await Promise.all(
       emails.map((email) =>
-        checkIfEmailExistsCore({
+        isEmailExistsCore({
           emailAddress: email,
           verifyMx: true,
           verifySmtp: false, // Skip SMTP for speed
@@ -431,7 +431,7 @@ describe('integration tests', () => {
       return;
     }
 
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: 'test@gmail.com',
       verifyMx: true,
       verifySmtp: false, // Skip SMTP to avoid issues

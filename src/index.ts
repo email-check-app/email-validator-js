@@ -21,21 +21,29 @@ export * from './adapters/redis-adapter';
 export { verifyEmailBatch } from './batch';
 export * from './cache';
 export * from './cache-interface';
-// Export check-if-email-exists types
+export {
+  COMMON_EMAIL_DOMAINS,
+  defaultDomainSuggestionMethod,
+  getDomainSimilarity,
+  isCommonDomain,
+  suggestDomain,
+  suggestEmailDomain,
+} from './domain-suggester';
+// Export is-email-exists types
 export type {
-  CheckIfEmailExistsCoreResult,
   EmailProvider as EmailProviderType,
-  ICheckIfEmailExistsCoreParams,
+  IIsEmailExistsCoreParams,
+  IsEmailExistsCoreResult,
   MxLookupResult,
   SmtpVerificationResult,
-} from './check-if-email-exists';
-// Export check-if-email-exists functionality
+} from './is-email-exists';
+// Export is-email-exists functionality
 export {
   CHECK_IF_EMAIL_EXISTS_CONSTANTS,
-  checkIfEmailExistsCore,
   EmailProvider,
   getProviderFromMxHost,
   getProviderType,
+  isEmailExistsCore,
   isGmail,
   isHotmailB2B,
   isHotmailB2C,
@@ -46,15 +54,7 @@ export {
   SmtpErrorParser,
   validateEmailSyntax,
   verifySmtpConnection,
-} from './check-if-email-exists';
-export {
-  COMMON_EMAIL_DOMAINS,
-  defaultDomainSuggestionMethod,
-  getDomainSimilarity,
-  isCommonDomain,
-  suggestDomain,
-  suggestEmailDomain,
-} from './domain-suggester';
+} from './is-email-exists';
 export {
   cleanNameForAlgrothin,
   defaultNameDetectionMethod,

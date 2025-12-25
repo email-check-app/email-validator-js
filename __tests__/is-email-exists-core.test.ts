@@ -1,16 +1,16 @@
 import dns from 'node:dns';
 import {
-  checkIfEmailExistsCore,
   EmailProvider,
   getProviderFromMxHost,
-  type ICheckIfEmailExistsCoreParams,
+  type IIsEmailExistsCoreParams,
+  isEmailExistsCore,
   isGmail,
   isHotmailB2B,
   isHotmailB2C,
   isMimecast,
   isProofpoint,
   isYahoo,
-} from '../src/check-if-email-exists';
+} from '../src/is-email-exists';
 
 // Mock the dependencies
 jest.mock('dns', () => ({
@@ -104,7 +104,7 @@ describe('Email Provider Detection', () => {
   });
 });
 
-describe('checkIfEmailExistsCore', () => {
+describe('isEmailExistsCore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -113,14 +113,14 @@ describe('checkIfEmailExistsCore', () => {
     const mockMxRecords = [{ exchange: 'gmail-smtp-in.l.google.com.', priority: 5 }];
     mockResolveMx.mockResolvedValue(mockMxRecords);
 
-    const params: ICheckIfEmailExistsCoreParams = {
+    const params: IIsEmailExistsCoreParams = {
       emailAddress: 'test@gmail.com',
       fromEmail: 'test@example.com',
       helloName: 'example.com',
       verifySmtp: false, // Keep false for unit tests to avoid actual SMTP connections
     };
 
-    const result = await checkIfEmailExistsCore(params);
+    const result = await isEmailExistsCore(params);
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -144,13 +144,13 @@ describe('checkIfEmailExistsCore', () => {
   it('should handle MX record lookup failures', async () => {
     mockResolveMx.mockRejectedValue(new Error('DNS lookup failed'));
 
-    const params: ICheckIfEmailExistsCoreParams = {
+    const params: IIsEmailExistsCoreParams = {
       emailAddress: 'test@nonexistentdomain.com',
       fromEmail: 'test@example.com',
       helloName: 'example.com',
     };
 
-    const result = await checkIfEmailExistsCore(params);
+    const result = await isEmailExistsCore(params);
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -165,13 +165,13 @@ describe('checkIfEmailExistsCore', () => {
   });
 
   it('should handle invalid email format', async () => {
-    const params: ICheckIfEmailExistsCoreParams = {
+    const params: IIsEmailExistsCoreParams = {
       emailAddress: 'invalid-email',
       fromEmail: 'test@example.com',
       helloName: 'example.com',
     };
 
-    const result = await checkIfEmailExistsCore(params);
+    const result = await isEmailExistsCore(params);
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -194,14 +194,14 @@ describe('checkIfEmailExistsCore', () => {
       },
     };
 
-    const params: ICheckIfEmailExistsCoreParams = {
+    const params: IIsEmailExistsCoreParams = {
       emailAddress: 'test@gmail.com',
       fromEmail: 'test@example.com',
       helloName: 'example.com',
       cache: mockCache as any,
     };
 
-    const result = await checkIfEmailExistsCore(params);
+    const result = await isEmailExistsCore(params);
 
     expect(mockCache.mx.get).toHaveBeenCalled();
     expect(result).toEqual(
@@ -236,14 +236,14 @@ describe('checkIfEmailExistsCore', () => {
     for (const testCase of testCases) {
       mockResolveMx.mockResolvedValue(testCase.mxRecords);
 
-      const params: ICheckIfEmailExistsCoreParams = {
+      const params: IIsEmailExistsCoreParams = {
         emailAddress: testCase.email,
         fromEmail: 'test@example.com',
         helloName: 'example.com',
         verifySmtp: false,
       };
 
-      const result = await checkIfEmailExistsCore(params);
+      const result = await isEmailExistsCore(params);
 
       expect(result.misc?.provider_type).toBe(testCase.expectedProvider);
     }
@@ -266,7 +266,7 @@ describe('Integration Tests', () => {
     // Restore original DNS resolution for integration test
     mockResolveMx.mockRestore();
 
-    const params: ICheckIfEmailExistsCoreParams = {
+    const params: IIsEmailExistsCoreParams = {
       emailAddress: 'support@gmail.com', // This is a known valid Gmail address
       fromEmail: 'test@example.com',
       helloName: 'example.com',
@@ -275,7 +275,7 @@ describe('Integration Tests', () => {
     };
 
     try {
-      const result = await checkIfEmailExistsCore(params);
+      const result = await isEmailExistsCore(params);
       expect(result).toHaveProperty('is_reachable');
       expect(result.misc?.provider_type).toBe(EmailProvider.GMAIL);
     } catch (error) {

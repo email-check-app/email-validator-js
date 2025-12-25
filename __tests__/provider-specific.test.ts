@@ -3,14 +3,14 @@
  * Based on the original Rust implementation's test patterns
  */
 
+import type { EmailTestCase } from '../src/email-verifier-types';
 import {
   CHECK_IF_EMAIL_EXISTS_CONSTANTS,
-  checkIfEmailExistsCore,
   EmailProvider,
   getProviderType,
+  isEmailExistsCore,
   validateEmailSyntax,
-} from '../src/check-if-email-exists';
-import type { EmailTestCase } from '../src/email-verifier-types';
+} from '../src/is-email-exists';
 
 describe('Provider-specific Email Verification', () => {
   // Test cases based on original repository patterns
@@ -383,7 +383,7 @@ describe('Provider-specific Email Verification', () => {
       const testEmails = ['user@gmail.com', 'user@yahoo.com', 'user@outlook.com', 'user@example.com'];
 
       for (const email of testEmails) {
-        const result = await checkIfEmailExistsCore({
+        const result = await isEmailExistsCore({
           emailAddress: email,
           verifyMx: false,
           verifySmtp: false,
@@ -399,7 +399,7 @@ describe('Provider-specific Email Verification', () => {
 
     test('should handle Yahoo API verification when enabled', async () => {
       // Note: This test would need mocking for the actual HTTP calls
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: 'test@yahoo.com',
         useYahooApi: true,
         verifyMx: false,
@@ -416,7 +416,7 @@ describe('Provider-specific Email Verification', () => {
     });
 
     test('should handle provider optimizations when enabled', async () => {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: 'test@gmail.com',
         enableProviderOptimizations: true,
         verifyMx: false,

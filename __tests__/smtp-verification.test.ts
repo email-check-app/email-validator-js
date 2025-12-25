@@ -2,7 +2,7 @@
  * Simplified tests for SMTP verification functionality
  */
 
-import { EmailProvider } from '../src/check-if-email-exists';
+import { EmailProvider } from '../src/is-email-exists';
 
 // Test the provider optimizations logic without actual network calls
 describe('SMTP Provider Optimizations', () => {

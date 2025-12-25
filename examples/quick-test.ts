@@ -8,7 +8,7 @@
  *   npx ts-node examples/quick-test.ts user@example.com --retries 2 --timeout 10000
  */
 
-import { checkIfEmailExistsCore, EmailProvider } from '../src/check-if-email-exists';
+import { EmailProvider, isEmailExistsCore } from '../src/is-email-exists';
 
 const args = process.argv.slice(2);
 const email = args[0];
@@ -62,7 +62,7 @@ async function quickTest() {
   const startTime = Date.now();
 
   try {
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: email,
       ...options,
     });

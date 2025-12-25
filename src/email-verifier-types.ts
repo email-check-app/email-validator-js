@@ -85,7 +85,7 @@ export interface EmailSyntaxResult {
   error?: string;
 }
 
-export interface CheckIfEmailExistsCoreResult {
+export interface IsEmailExistsCoreResult {
   email: string;
   is_reachable: 'safe' | 'invalid' | 'risky' | 'unknown';
   syntax: {
@@ -108,7 +108,7 @@ export interface CheckIfEmailExistsCoreResult {
 /**
  * SMTP connection options with enhanced typing
  */
-export interface CheckIfEmailExistsSmtpOptions {
+export interface IsEmailExistsSmtpOptions {
   timeout?: number;
   port?: number;
   retries?: number;
@@ -166,7 +166,7 @@ export interface ParsedSmtpError {
 /**
  * Enhanced verification parameters
  */
-export interface ICheckIfEmailExistsCoreParams {
+export interface IIsEmailExistsCoreParams {
   emailAddress: string;
   timeout?: number;
   verifyMx?: boolean;
@@ -178,7 +178,7 @@ export interface ICheckIfEmailExistsCoreParams {
   smtpTimeout?: number;
   fromEmail?: string;
   helloName?: string;
-  smtpOptions?: CheckIfEmailExistsSmtpOptions;
+  smtpOptions?: IsEmailExistsSmtpOptions;
   enableProviderOptimizations?: boolean;
   // Yahoo-specific options
   useYahooApi?: boolean;

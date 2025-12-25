@@ -1,5 +1,5 @@
 /**
- * Example demonstrating the usage of check-if-email-exists-core functionality
+ * Example demonstrating the usage of is-email-exists-core functionality
  *
  * This example shows how to:
  * - Basic email verification
@@ -9,20 +9,19 @@
  * - Handling different types of results
  */
 
+// Import the existing disposable and free email checkers
+import { isDisposableEmail, isFreeEmail } from '../src/index';
 import {
-  type CheckIfEmailExistsCoreResult,
-  checkIfEmailExistsCore,
   EmailProvider,
   getProviderFromMxHost,
-  type ICheckIfEmailExistsCoreParams,
+  type IIsEmailExistsCoreParams,
+  type IsEmailExistsCoreResult,
+  isEmailExistsCore,
   isGmail,
   isHotmailB2B,
   isHotmailB2C,
   isYahoo,
-} from '../src/check-if-email-exists';
-
-// Import the existing disposable and free email checkers
-import { isDisposableEmail, isFreeEmail } from '../src/index';
+} from '../src/is-email-exists';
 
 async function basicEmailVerification() {
   console.log('=== Basic Email Verification ===\n');
@@ -39,7 +38,7 @@ async function basicEmailVerification() {
     console.log(`Checking: ${email}`);
 
     try {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: email,
         fromEmail: 'verify@example.com',
         helloName: 'example.com',
@@ -68,7 +67,7 @@ async function advancedEmailVerification() {
   const email = 'user@business-company.com';
 
   // Advanced configuration with provider-specific settings
-  const config: ICheckIfEmailExistsCoreParams = {
+  const config: IIsEmailExistsCoreParams = {
     emailAddress: email,
     fromEmail: 'verification@myservice.com',
     helloName: 'myservice.com',
@@ -79,7 +78,7 @@ async function advancedEmailVerification() {
   };
 
   try {
-    const result = await checkIfEmailExistsCore(config);
+    const result = await isEmailExistsCore(config);
 
     console.log(`Email: ${result.email}`);
     console.log(`Provider: ${result.misc?.provider_type}`);
@@ -162,7 +161,7 @@ async function catchAllDetectionExample() {
     console.log(`Testing catch-all for: ${testEmail}`);
 
     try {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: testEmail,
         fromEmail: 'verify@example.com',
         helloName: 'example.com',
@@ -199,11 +198,11 @@ async function bulkEmailVerification() {
 
   // Simple sequential processing (in production, you'd want to use Promise.all
   // with proper rate limiting and error handling)
-  const results: { email: string; result: CheckIfEmailExistsCoreResult | null }[] = [];
+  const results: { email: string; result: IsEmailExistsCoreResult | null }[] = [];
 
   for (const email of emailList) {
     try {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: email,
         fromEmail: 'bulk-verify@example.com',
         helloName: 'example.com',

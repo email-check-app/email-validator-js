@@ -2,7 +2,7 @@
  * Comprehensive tests for email syntax validation
  */
 
-import { EmailProvider, getProviderType, validateEmailSyntax } from '../src/check-if-email-exists';
+import { EmailProvider, getProviderType, validateEmailSyntax } from '../src/is-email-exists';
 
 describe('Email Syntax Validation', () => {
   describe('valid email formats', () => {

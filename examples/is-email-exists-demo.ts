@@ -1,24 +1,24 @@
 /**
- * Comprehensive demo for check-if-email-exists functionality
+ * Comprehensive demo for is-email-exists functionality
  */
 
 import {
   CHECK_IF_EMAIL_EXISTS_CONSTANTS,
-  type CheckIfEmailExistsCoreResult,
-  type CheckIfEmailExistsSmtpOptions,
-  checkIfEmailExistsCore,
   EmailProvider,
   getProviderType,
+  type IsEmailExistsCoreResult,
+  type IsEmailExistsSmtpOptions,
+  isEmailExistsCore,
   queryMxRecords,
   validateEmailSyntax,
   verifySmtpConnection,
-} from '../src/check-if-email-exists';
+} from '../src/is-email-exists';
 
 /**
- * Demo 1: Basic check-if-email-exists functionality
+ * Demo 1: Basic is-email-exists functionality
  */
 async function basicCheckIfExistsDemo() {
-  console.log('🔍 Basic Check-if-Email-Exists Demo');
+  console.log('🔍 Basic Is-email-Exists Demo');
   console.log('='.repeat(50));
 
   const testEmails = [
@@ -34,7 +34,7 @@ async function basicCheckIfExistsDemo() {
     console.log('─'.repeat(40));
 
     try {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: email,
         timeout: 15000,
         verifyMx: true,
@@ -146,7 +146,7 @@ async function providerOptimizationsDemo() {
 
     // Run verification with optimizations
     try {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: test.email,
         verifyMx: true,
         verifySmtp: false,
@@ -190,7 +190,7 @@ async function customSmtpVerificationDemo() {
   console.log(`📬 Using MX server: ${mxResult.lowest_priority.exchange}\n`);
 
   // Test different SMTP configurations
-  const smtpConfigs: Array<{ name: string; options: CheckIfEmailExistsSmtpOptions }> = [
+  const smtpConfigs: Array<{ name: string; options: IsEmailExistsSmtpOptions }> = [
     {
       name: 'Default settings',
       options: {},
@@ -287,7 +287,7 @@ async function performanceComparisonDemo() {
       const startTime = Date.now();
 
       try {
-        const result = await checkIfEmailExistsCore({
+        const result = await isEmailExistsCore({
           emailAddress: testEmail,
           timeout: 10000,
           ...test.options,
@@ -355,7 +355,7 @@ async function errorHandlingDemo() {
     console.log(`   Input: ${testCase.email}`);
 
     try {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: testCase.email,
         verifyMx: true,
         verifySmtp: false,
@@ -430,7 +430,7 @@ async function realWorldScenariosDemo() {
 
     for (const email of scenario.emails) {
       try {
-        const result = await checkIfEmailExistsCore({
+        const result = await isEmailExistsCore({
           emailAddress: email,
           ...scenario.options,
         });
@@ -464,9 +464,9 @@ async function realWorldScenariosDemo() {
 /**
  * Main demo runner
  */
-async function runCheckIfEmailExistsDemo() {
-  console.log('🚀 Check-if-Email-Exists - Complete Demo');
-  console.log('🔄 Port of check-if-email-exists core functionality\n');
+async function runIsEmailExistsDemo() {
+  console.log('🚀 Is-email-Exists - Complete Demo');
+  console.log('🔄 Port of is-email-exists core functionality\n');
 
   try {
     await basicCheckIfExistsDemo();
@@ -491,7 +491,7 @@ async function runCheckIfEmailExistsDemo() {
 
 // Run demo if this file is executed directly
 if (require.main === module) {
-  runCheckIfEmailExistsDemo().catch(console.error);
+  runIsEmailExistsDemo().catch(console.error);
 }
 
 // Export for use in other modules
@@ -502,5 +502,5 @@ export {
   performanceComparisonDemo,
   errorHandlingDemo,
   realWorldScenariosDemo,
-  runCheckIfEmailExistsDemo,
+  runIsEmailExistsDemo,
 };

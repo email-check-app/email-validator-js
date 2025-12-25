@@ -1,12 +1,12 @@
 import { promises as dns } from 'node:dns';
 import type { ICache } from './cache-interface';
 import {
-  CheckIfEmailExistsCoreResult,
-  CheckIfEmailExistsSmtpOptions,
   EmailProvider,
   type EmailSyntaxResult,
   HeadlessOptions,
-  ICheckIfEmailExistsCoreParams,
+  IIsEmailExistsCoreParams,
+  IsEmailExistsCoreResult,
+  IsEmailExistsSmtpOptions,
   MxLookupResult,
   SmtpVerificationResult,
   YahooApiOptions,
@@ -29,22 +29,22 @@ export {
   EmailProvider,
   SmtpVerificationResult,
   MxLookupResult,
-  CheckIfEmailExistsCoreResult,
-  CheckIfEmailExistsSmtpOptions,
+  IsEmailExistsCoreResult,
+  IsEmailExistsSmtpOptions,
   YahooApiOptions,
   HeadlessOptions,
-  ICheckIfEmailExistsCoreParams,
+  IIsEmailExistsCoreParams,
 };
 
 /**
  * Extended interface for our implementation
  */
-export interface ICheckIfEmailExistsCoreParamsExtended extends ICheckIfEmailExistsCoreParams {
+export interface IIsEmailExistsCoreParamsExtended extends IIsEmailExistsCoreParams {
   cache?: ICache | null;
   smtpTimeout?: number;
   fromEmail?: string;
   helloName?: string;
-  smtpOptions?: CheckIfEmailExistsSmtpOptions;
+  smtpOptions?: IsEmailExistsSmtpOptions;
   enableProviderOptimizations?: boolean;
   // Yahoo-specific options
   useYahooApi?: boolean;
@@ -741,7 +741,7 @@ async function checkEmailDeliverabilityWithClient(
 /**
  * Calculate overall reachability based on verification results
  */
-function calculateReachability(result: CheckIfEmailExistsCoreResult): 'safe' | 'invalid' | 'risky' | 'unknown' {
+function calculateReachability(result: IsEmailExistsCoreResult): 'safe' | 'invalid' | 'risky' | 'unknown' {
   if (!result.syntax.is_valid) {
     return 'invalid';
   }
@@ -904,7 +904,7 @@ async function verifySmtpConnectionWithProviderOptimizations(
   email: string,
   domain: string,
   mxHost: string,
-  options: CheckIfEmailExistsSmtpOptions,
+  options: IsEmailExistsSmtpOptions,
   provider: EmailProvider
 ): Promise<SmtpVerificationResult> {
   // Get provider-specific configurations
@@ -935,9 +935,7 @@ async function verifySmtpConnectionWithProviderOptimizations(
 /**
  * Main function to check if an email
  */
-export async function checkIfEmailExistsCore(
-  params: ICheckIfEmailExistsCoreParamsExtended
-): Promise<CheckIfEmailExistsCoreResult> {
+export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended): Promise<IsEmailExistsCoreResult> {
   // Handle null/undefined params
   if (!params) {
     return {
@@ -995,7 +993,7 @@ export async function checkIfEmailExistsCore(
       };
     }
 
-    const result: CheckIfEmailExistsCoreResult = {
+    const result: IsEmailExistsCoreResult = {
       email: syntaxResult.email!,
       is_reachable: 'unknown',
       syntax: {
@@ -2316,7 +2314,7 @@ async function verifySmtpConnectionWithErrorParsing(
   email: string,
   domain: string,
   mxHost: string,
-  options: CheckIfEmailExistsSmtpOptions,
+  options: IsEmailExistsSmtpOptions,
   provider: EmailProvider
 ): Promise<SmtpVerificationResult> {
   // First, get the basic SMTP verification result

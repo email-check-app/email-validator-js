@@ -1,13 +1,8 @@
 /**
- * Basic usage examples for check-if-email-exists functionality
+ * Basic usage examples for is-email-exists functionality
  */
 
-import {
-  checkIfEmailExistsCore,
-  EmailProvider,
-  getProviderType,
-  validateEmailSyntax,
-} from '../src/check-if-email-exists';
+import { EmailProvider, getProviderType, isEmailExistsCore, validateEmailSyntax } from '../src/is-email-exists';
 
 /**
  * Example 1: Basic email verification
@@ -19,7 +14,7 @@ async function basicVerification() {
   const email = 'user@example.com';
 
   try {
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: email,
       verifyMx: true,
       verifySmtp: false, // Start without SMTP for speed
@@ -159,7 +154,7 @@ async function fullVerification() {
     console.log(`   Settings: ${JSON.stringify(options, null, 6).replace(/\n/g, ' ')}`);
 
     try {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: email,
         ...options,
       });
@@ -209,7 +204,7 @@ async function performanceComparison() {
   const startTime2 = Date.now();
   for (let i = 0; i < Math.min(iterations, 3); i++) {
     // Limit to avoid rate limiting
-    await checkIfEmailExistsCore({
+    await isEmailExistsCore({
       emailAddress: testEmail,
       verifyMx: true,
       verifySmtp: false,
@@ -221,7 +216,7 @@ async function performanceComparison() {
   // Test 3: Full verification (just one time)
   console.log('\n3️⃣  Full verification:');
   const startTime3 = Date.now();
-  await checkIfEmailExistsCore({
+  await isEmailExistsCore({
     emailAddress: testEmail,
     verifyMx: true,
     verifySmtp: false, // Skip SMTP for demo
@@ -260,7 +255,7 @@ async function errorHandling() {
   for (const { name, email, options = {} } of testCases) {
     console.log(`\n${name}:`);
     try {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: email,
         verifyMx: true,
         verifySmtp: false,
@@ -282,7 +277,7 @@ async function errorHandling() {
  * Run all examples
  */
 async function runAllExamples() {
-  console.log('🚀 Check-if-Email-Exists - Basic Usage Examples\n');
+  console.log('🚀 Is-email-Exists - Basic Usage Examples\n');
 
   try {
     await basicVerification();

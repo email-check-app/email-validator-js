@@ -3,14 +3,14 @@
  * Based on the original Rust implementation's comprehensive test suite
  */
 
+import type { EmailTestCase, VerificationMetrics } from '../src/email-verifier-types';
 import {
   CHECK_IF_EMAIL_EXISTS_CONSTANTS,
-  checkIfEmailExistsCore,
   EmailProvider,
   getProviderType,
+  isEmailExistsCore,
   validateEmailSyntax,
-} from '../src/check-if-email-exists';
-import type { EmailTestCase, VerificationMetrics } from '../src/email-verifier-types';
+} from '../src/is-email-exists';
 
 describe('Edge Cases and Integration Tests', () => {
   // Comprehensive edge case test data
@@ -383,7 +383,7 @@ describe('Edge Cases and Integration Tests', () => {
       const testEmails = ['test@gmail.com', 'test@yahoo.com', 'test@outlook.com', 'test@example.com'];
 
       const promises = testEmails.map((email) =>
-        checkIfEmailExistsCore({
+        isEmailExistsCore({
           emailAddress: email,
           verifyMx: false,
           verifySmtp: false,
@@ -402,7 +402,7 @@ describe('Edge Cases and Integration Tests', () => {
 
   describe('Integration Tests with Different Configurations', () => {
     test('should work with minimal configuration', async () => {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: 'test@example.com',
       });
 
@@ -411,7 +411,7 @@ describe('Edge Cases and Integration Tests', () => {
     });
 
     test('should work with all verification enabled', async () => {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: 'test@example.com',
         verifyMx: false, // Disable for test speed
         verifySmtp: false, // Disable for test speed
@@ -428,7 +428,7 @@ describe('Edge Cases and Integration Tests', () => {
     });
 
     test('should handle Yahoo API configuration', async () => {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: 'test@yahoo.com',
         useYahooApi: true,
         yahooApiOptions: {
@@ -448,7 +448,7 @@ describe('Edge Cases and Integration Tests', () => {
     });
 
     test('should handle headless browser configuration', async () => {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: 'test@gmail.com',
         headlessOptions: {
           webdriverEndpoint: 'http://localhost:9515',
@@ -478,7 +478,7 @@ describe('Edge Cases and Integration Tests', () => {
 
       for (const input of malformedInputs) {
         try {
-          const result = await checkIfEmailExistsCore(input);
+          const result = await isEmailExistsCore(input);
           expect(result.is_reachable).toBe('invalid');
           expect(result.syntax?.is_valid).toBe(false);
         } catch (error) {
@@ -489,7 +489,7 @@ describe('Edge Cases and Integration Tests', () => {
     });
 
     test('should handle timeout scenarios', async () => {
-      const result = await checkIfEmailExistsCore({
+      const result = await isEmailExistsCore({
         emailAddress: 'test@example.com',
         timeout: 1, // Very short timeout
         verifyMx: false,

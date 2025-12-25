@@ -2,7 +2,7 @@
  * Isolated test for network timeout handling
  */
 
-import { checkIfEmailExistsCore } from '../src/check-if-email-exists';
+import { isEmailExistsCore } from '../src/is-email-exists';
 
 // Mock DNS module
 jest.mock('dns', () => ({
@@ -30,7 +30,7 @@ describe('Network Timeout Handling', () => {
       });
     });
 
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: 'test@slow-domain.com',
       verifyMx: true,
       verifySmtp: false,
@@ -45,7 +45,7 @@ describe('Network Timeout Handling', () => {
   test('should handle MX lookup success', async () => {
     mockResolveMx.mockResolvedValue([{ exchange: 'mail.example.com', preference: 10 }]);
 
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: 'test@example.com',
       verifyMx: true,
       verifySmtp: false,
@@ -59,7 +59,7 @@ describe('Network Timeout Handling', () => {
   test('should handle MX lookup failure', async () => {
     mockResolveMx.mockRejectedValue(new Error('DNS lookup failed'));
 
-    const result = await checkIfEmailExistsCore({
+    const result = await isEmailExistsCore({
       emailAddress: 'test@example.com',
       verifyMx: true,
       verifySmtp: false,
