@@ -5,9 +5,9 @@
 
 import type { EmailTestCase } from '../src/email-verifier-types';
 import {
-  CHECK_IF_EMAIL_EXISTS_CONSTANTS,
   EmailProvider,
   getProviderType,
+  isEmailExistConstants,
   isEmailExistsCore,
   validateEmailSyntax,
 } from '../src/is-email-exists';
@@ -357,24 +357,24 @@ describe('Provider-specific Email Verification', () => {
 
   describe('Constants Validation', () => {
     test('should have correct provider domains in constants', () => {
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.GMAIL_DOMAINS).toContain('gmail.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.GMAIL_DOMAINS).toContain('googlemail.com');
+      expect(isEmailExistConstants.gmailDomains).toContain('gmail.com');
+      expect(isEmailExistConstants.gmailDomains).toContain('googlemail.com');
 
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS).toContain('yahoo.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS).toContain('ymail.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS).toContain('rocketmail.com');
+      expect(isEmailExistConstants.yahooDomains).toContain('yahoo.com');
+      expect(isEmailExistConstants.yahooDomains).toContain('ymail.com');
+      expect(isEmailExistConstants.yahooDomains).toContain('rocketmail.com');
 
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.HOTMAIL_DOMAINS).toContain('hotmail.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.HOTMAIL_DOMAINS).toContain('outlook.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.HOTMAIL_DOMAINS).toContain('live.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.HOTMAIL_DOMAINS).toContain('msn.com');
+      expect(isEmailExistConstants.hotmailDomains).toContain('hotmail.com');
+      expect(isEmailExistConstants.hotmailDomains).toContain('outlook.com');
+      expect(isEmailExistConstants.hotmailDomains).toContain('live.com');
+      expect(isEmailExistConstants.hotmailDomains).toContain('msn.com');
     });
 
     test('should have correct default values', () => {
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT).toBe(30000);
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_SMTP_PORT).toBe(25);
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL).toBe('test@example.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME).toBe('example.com');
+      expect(isEmailExistConstants.defaultTimeout).toBe(30000);
+      expect(isEmailExistConstants.defaultSmtpPort).toBe(25);
+      expect(isEmailExistConstants.defaultFromEmail).toBe('test@example.com');
+      expect(isEmailExistConstants.defaultHelloName).toBe('example.com');
     });
   });
 

@@ -3,9 +3,9 @@
  */
 
 import {
-  CHECK_IF_EMAIL_EXISTS_CONSTANTS,
   EmailProvider,
   type IsEmailExistsSmtpOptions,
+  isEmailExistConstants,
   isEmailExistsCore,
   queryMxRecords,
   verifySmtpConnection,
@@ -114,8 +114,8 @@ async function providerOptimizationsDemo() {
       port: number;
       retries: number;
     } = {
-      timeout: CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT,
-      port: CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_SMTP_PORT,
+      timeout: isEmailExistConstants.defaultTimeout,
+      port: isEmailExistConstants.defaultSmtpPort,
       retries: 2,
     };
 

@@ -3,9 +3,9 @@
  */
 
 import {
-  CHECK_IF_EMAIL_EXISTS_CONSTANTS,
   EmailProvider,
   getProviderType,
+  isEmailExistConstants,
   isEmailExistsCore,
   queryMxRecords,
   validateEmailSyntax,
@@ -341,16 +341,16 @@ describe('isEmailExists', () => {
 
 describe('constants', () => {
   test('should have correct default values', () => {
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT).toBe(30000);
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_SMTP_PORT).toBe(25);
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL).toBe('test@example.com');
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME).toBe('example.com');
+    expect(isEmailExistConstants.defaultTimeout).toBe(30000);
+    expect(isEmailExistConstants.defaultSmtpPort).toBe(25);
+    expect(isEmailExistConstants.defaultFromEmail).toBe('test@example.com');
+    expect(isEmailExistConstants.defaultHelloName).toBe('example.com');
   });
 
   test('should have correct provider domains', () => {
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.GMAIL_DOMAINS).toContain('gmail.com');
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS).toContain('yahoo.com');
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.HOTMAIL_DOMAINS).toContain('outlook.com');
+    expect(isEmailExistConstants.gmailDomains).toContain('gmail.com');
+    expect(isEmailExistConstants.yahooDomains).toContain('yahoo.com');
+    expect(isEmailExistConstants.hotmailDomains).toContain('outlook.com');
   });
 });
 

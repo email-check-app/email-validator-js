@@ -14,14 +14,14 @@ import {
 import { isDisposableEmail, isFreeEmail } from './index';
 import { SMTPClient } from './smtp-client';
 // Constants for common providers
-export const CHECK_IF_EMAIL_EXISTS_CONSTANTS = {
-  GMAIL_DOMAINS: ['gmail.com', 'googlemail.com'] as const,
-  YAHOO_DOMAINS: ['yahoo.com', 'ymail.com', 'rocketmail.com'] as const,
-  HOTMAIL_DOMAINS: ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'] as const,
-  DEFAULT_TIMEOUT: 30000,
-  DEFAULT_SMTP_PORT: 25,
-  DEFAULT_FROM_EMAIL: 'test@example.com',
-  DEFAULT_HELLO_NAME: 'example.com',
+export const isEmailExistConstants = {
+  gmailDomains: ['gmail.com', 'googlemail.com'] as const,
+  yahooDomains: ['yahoo.com', 'ymail.com', 'rocketmail.com'] as const,
+  hotmailDomains: ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'] as const,
+  defaultTimeout: 5000,
+  defaultSmtpPort: 25,
+  defaultFromEmail: 'test@example.com',
+  defaultHelloName: 'example.com',
 } as const;
 
 // Re-export commonly used types
@@ -218,13 +218,13 @@ export function getProviderFromMxHost(host: string): EmailProvider {
  * Get provider type for known email providers (legacy function)
  */
 export function getProviderType(domain: string): EmailProvider {
-  const { GMAIL_DOMAINS, YAHOO_DOMAINS, HOTMAIL_DOMAINS } = CHECK_IF_EMAIL_EXISTS_CONSTANTS;
+  const { gmailDomains, yahooDomains, hotmailDomains } = isEmailExistConstants;
 
   const lowerDomain = domain.toLowerCase();
 
-  if (GMAIL_DOMAINS.some((d) => lowerDomain === d)) return EmailProvider.GMAIL;
-  if (YAHOO_DOMAINS.some((d) => lowerDomain === d)) return EmailProvider.YAHOO;
-  if (HOTMAIL_DOMAINS.some((d) => lowerDomain === d)) return EmailProvider.HOTMAIL_B2C;
+  if (gmailDomains.some((d) => lowerDomain === d)) return EmailProvider.GMAIL;
+  if (yahooDomains.some((d) => lowerDomain === d)) return EmailProvider.YAHOO;
+  if (hotmailDomains.some((d) => lowerDomain === d)) return EmailProvider.HOTMAIL_B2C;
   return EmailProvider.EVERYTHING_ELSE;
 }
 
@@ -238,7 +238,7 @@ export async function queryMxRecords(
     cache?: ICache | null;
   } = {}
 ): Promise<MxLookupResult> {
-  const { timeout = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT, cache } = options;
+  const { timeout = isEmailExistConstants.defaultTimeout, cache } = options;
 
   // Check cache first
   if (cache && cache.mx) {
@@ -465,10 +465,10 @@ export async function verifySmtpConnection(
   providerType: EmailProvider = EmailProvider.EVERYTHING_ELSE
 ): Promise<SmtpVerificationResult> {
   const {
-    timeout = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT,
-    fromEmail = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL,
-    helloName = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME,
-    port = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_SMTP_PORT,
+    timeout = isEmailExistConstants.defaultTimeout,
+    fromEmail = isEmailExistConstants.defaultFromEmail,
+    helloName = isEmailExistConstants.defaultHelloName,
+    port = isEmailExistConstants.defaultSmtpPort,
     retries = 2,
     useStartTls = true,
   } = options;
@@ -955,7 +955,7 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
 
   const {
     emailAddress,
-    timeout = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT,
+    timeout = isEmailExistConstants.defaultTimeout,
     verifyMx = true,
     verifySmtp = false, // Default to false for safety
     debug = false,
@@ -1183,8 +1183,8 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
           mxResult.lowestPriority.exchange,
           {
             timeout: smtpTimeout || timeout,
-            fromEmail: fromEmail || CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL,
-            helloName: helloName || CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME,
+            fromEmail: fromEmail || isEmailExistConstants.defaultFromEmail,
+            helloName: helloName || isEmailExistConstants.defaultHelloName,
           },
           providerType
         );
@@ -1196,8 +1196,8 @@ export async function isEmailExistsCore(params: IIsEmailExistsCoreParamsExtended
           mxResult.lowestPriority.exchange,
           {
             timeout: smtpTimeout || timeout,
-            fromEmail: fromEmail || CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL,
-            helloName: helloName || CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME,
+            fromEmail: fromEmail || isEmailExistConstants.defaultFromEmail,
+            helloName: helloName || isEmailExistConstants.defaultHelloName,
           },
           providerType
         );
@@ -1249,7 +1249,7 @@ async function verifyYahooApi(
   } = options;
 
   const domain = email.split('@')[1];
-  if (!domain || !CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS.includes(domain as any)) {
+  if (!domain || !isEmailExistConstants.yahooDomains.includes(domain as any)) {
     return {
       isValid: false,
       isDeliverable: false,

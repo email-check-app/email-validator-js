@@ -39,10 +39,10 @@ export type {
 } from './is-email-exists';
 // Export is-email-exists functionality
 export {
-  CHECK_IF_EMAIL_EXISTS_CONSTANTS,
   EmailProvider,
   getProviderFromMxHost,
   getProviderType,
+  isEmailExistConstants,
   isEmailExistsCore,
   isGmail,
   isHotmailB2B,
