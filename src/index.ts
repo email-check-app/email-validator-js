@@ -59,10 +59,10 @@ export {
   suggestEmailDomain,
 } from './domain-suggester';
 export {
-  cleanNameForAlgrothin,
+  cleanNameForAlgorithm,
   defaultNameDetectionMethod,
   detectName,
-  detectNameForAlgrothin,
+  detectNameForAlgorithm,
   detectNameFromEmail,
 } from './name-detector';
 // Re-export types

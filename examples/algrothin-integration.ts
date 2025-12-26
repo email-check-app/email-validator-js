@@ -1,14 +1,14 @@
 /**
- * Example: Integration of Algrothin name cleaning in a real-world scenario
+ * Example: Integration of Algorithm name cleaning in a real-world scenario
  *
- * This example demonstrates how to use the Algrothin name cleaning functions
+ * This example demonstrates how to use the Algorithm name cleaning functions
  * in a typical application where you need to clean user names from emails.
  */
 
-import { cleanNameForAlgrothin, detectNameForAlgrothin, verifyEmail } from '../src/index';
+import { cleanNameForAlgorithm, detectNameForAlgorithm, verifyEmail } from '../src/index';
 import type { VerificationResult } from '../src/types';
 
-// Example 1: Email verification with Algrothin name detection
+// Example 1: Email verification with Algorithm name detection
 async function processUserRegistration(email: string): Promise<void> {
   console.log(`Processing registration for: ${email}`);
 
@@ -19,7 +19,7 @@ async function processUserRegistration(email: string): Promise<void> {
     verifySmtp: false, // Skip SMTP for demo purposes
     checkDisposable: true,
     detectName: true,
-    nameDetectionMethod: detectNameForAlgrothin, // Use Algrothin cleaning
+    nameDetectionMethod: detectNameForAlgorithm, // Use Algorithm cleaning
   });
 
   if (verificationResult.validFormat && verificationResult.validMx !== false) {
@@ -44,10 +44,10 @@ async function processUserRegistration(email: string): Promise<void> {
 
 // Example 2: Batch processing of user emails
 async function processBatchUserEmails(emails: string[]): Promise<void> {
-  console.log('\n=== Batch Processing with Algrothin Cleaning ===');
+  console.log('\n=== Batch Processing with Algorithm Cleaning ===');
 
   for (const email of emails) {
-    const detectedName = detectNameForAlgrothin(email);
+    const detectedName = detectNameForAlgorithm(email);
 
     if (detectedName) {
       const { firstName, lastName, confidence } = detectedName;
@@ -63,7 +63,7 @@ function cleanExistingNames(names: string[]): string[] {
   console.log('\n=== Cleaning Existing Names ===');
 
   return names.map((name) => {
-    const cleaned = cleanNameForAlgrothin(name);
+    const cleaned = cleanNameForAlgorithm(name);
     console.log(`"${name}" -> "${cleaned}"`);
     return cleaned;
   });
@@ -79,7 +79,7 @@ interface UserProfile {
 }
 
 async function updateUserProfileWithCleanName(profile: UserProfile): Promise<UserProfile> {
-  const detectedName = detectNameForAlgrothin(profile.email);
+  const detectedName = detectNameForAlgorithm(profile.email);
 
   if (detectedName && !profile.firstName && !profile.lastName) {
     // Auto-populate name fields if they're empty
@@ -99,7 +99,7 @@ async function updateUserProfileWithCleanName(profile: UserProfile): Promise<Use
 
 // Main execution
 async function main() {
-  console.log('=== Algrothin Name Cleaning Integration Examples ===\n');
+  console.log('=== Algorithm Name Cleaning Integration Examples ===\n');
 
   // Example 1: User registration
   await processUserRegistration('john.doe.smith@company.com');
