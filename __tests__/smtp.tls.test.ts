@@ -21,9 +21,9 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
-        console.log(`TLS enabled result: ${result}`);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
+        console.log(`TLS enabled result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -52,8 +52,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -68,8 +68,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -84,8 +84,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -104,8 +104,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -122,8 +122,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -161,8 +161,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -179,8 +179,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -197,8 +197,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -246,8 +246,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -290,8 +290,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -306,8 +306,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -322,8 +322,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -352,10 +352,10 @@ describe('SMTP TLS Configuration', () => {
           });
 
           const start = Date.now();
-          const { result } = await verifyMailboxSMTP(params);
+          const { smtpResult } = await verifyMailboxSMTP(params);
           const duration = Date.now() - start;
 
-          results[testCase.name] = { result, duration };
+          results[testCase.name] = { result: smtpResult.isDeliverable, duration };
           console.log(`${testCase.name}: ${duration}ms`);
         }
 
@@ -380,8 +380,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -398,8 +398,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -414,8 +414,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -452,8 +452,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -471,8 +471,8 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );

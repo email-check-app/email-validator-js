@@ -22,9 +22,9 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
-        console.log(`Minimal sequence result: ${result}`);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
+        console.log(`Minimal sequence result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -39,8 +39,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
         console.log(`Default sequence result: ${result}`);
       },
       TestUtils.getTestTimeout('integration')
@@ -57,8 +57,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
         console.log(`STARTTLS sequence result: ${result}`);
       },
       TestUtils.getTestTimeout('integration')
@@ -75,8 +75,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
         console.log(`VRFY sequence result: ${result}`);
       },
       TestUtils.getTestTimeout('integration')
@@ -94,8 +94,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
         console.log(`Full sequence result: ${result}`);
       },
       TestUtils.getTestTimeout('integration')
@@ -130,8 +130,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -146,8 +146,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -194,8 +194,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -212,8 +212,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(result).toBe(true); // Should complete sequence
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(smtpResult.isDeliverable).toBe(true); // Should complete sequence
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -233,8 +233,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -252,8 +252,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -271,8 +271,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -294,8 +294,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -314,8 +314,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -334,8 +334,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -355,8 +355,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -374,8 +374,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -393,8 +393,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -410,7 +410,7 @@ describe('SMTP Custom Sequences', () => {
           { name: 'With STARTTLS', seq: TEST_SEQUENCES.WITH_STARTTLS },
         ];
 
-        const results: { [key: string]: { result: boolean; duration: number } } = {};
+        const results: { [key: string]: { result: boolean | null; duration: number } } = {};
 
         for (const { name, seq } of sequences) {
           const params = createTestParams({
@@ -422,11 +422,11 @@ describe('SMTP Custom Sequences', () => {
           });
 
           const start = Date.now();
-          const { result } = await verifyMailboxSMTP(params);
+          const { smtpResult } = await verifyMailboxSMTP(params);
           const duration = Date.now() - start;
 
-          results[name] = { result, duration };
-          console.log(`${name} sequence: ${duration}ms, result: ${result}`);
+          results[name] = { result: smtpResult.isDeliverable, duration };
+          console.log(`${name} sequence: ${duration}ms, result: ${smtpResult.isDeliverable}`);
         }
 
         // Verify all sequences complete successfully
@@ -452,8 +452,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -470,8 +470,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -489,8 +489,8 @@ describe('SMTP Custom Sequences', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
