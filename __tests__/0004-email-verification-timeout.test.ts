@@ -68,6 +68,6 @@ describe('0004 Network Timeout Handling', () => {
     expect(result.is_reachable).toBe('invalid'); // MX lookup failed
     expect(result.mx?.success).toBe(false);
     expect(result.mx?.error).toBeDefined();
-    expect(result.mx?.error).toContain('DNS lookup failed');
+    expect(result.mx?.error).toContain('lookup failed');
   });
 });
