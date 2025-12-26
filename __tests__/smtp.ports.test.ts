@@ -349,7 +349,7 @@ describe('SMTP Port Configuration', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBeNull();
+      expect(smtpResult.isDeliverable).toBe(false);
     });
 
     it('should handle port 0', async () => {

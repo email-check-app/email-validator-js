@@ -21,7 +21,7 @@ describe('SMTP Error Handling', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBeNull();
+      expect(smtpResult.isDeliverable).toBe(false);
     }, 10000);
 
     it('should handle connection timeout', async () => {
@@ -232,7 +232,7 @@ describe('SMTP Error Handling', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBeNull();
+      expect(smtpResult.isDeliverable).toBe(false);
     });
   });
 

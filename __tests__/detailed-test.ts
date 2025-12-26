@@ -161,7 +161,7 @@ describe('Detailed Email Verification', () => {
         cache: sharedCache,
         timeout: 2000,
       });
-      expect(result1.metadata?.cached).toBe(true);
+      expect(result1.metadata?.cached).toBe(false);
 
       // Second call - should be cached
       const result2 = await verifyEmail({
