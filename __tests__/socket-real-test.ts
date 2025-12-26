@@ -42,7 +42,7 @@ describe('verifyEmailRealTest', () => {
     expect(result.validMx).toBe(null);
     expect(result.validSmtp).toBe(null);
   });
-  it.only('should use custom port with mapped domain: ovh.ca -> mx ovh.net', async () => {
+  it('should use custom port with mapped domain: ovh.ca -> mx ovh.net', async () => {
     const result = await verifyEmail({
       emailAddress: 'support@ovh.com',
       debug: true,

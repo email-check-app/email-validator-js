@@ -386,7 +386,15 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
 
           // Cache the rich SmtpVerificationResult
           await smtpCacheInstance.set(cacheKey, smtpResult);
-          result.validSmtp = smtpResult.isDeliverable ?? null;
+
+          // If we couldn't connect to SMTP, return null (unable to verify)
+          // If we connected but verification failed, return false (verified as invalid)
+          if (!smtpResult.canConnectSmtp) {
+            result.validSmtp = null;
+          } else {
+            result.validSmtp = smtpResult.isDeliverable;
+          }
+
           if (result.metadata) result.metadata.cached = cached;
 
           log(
