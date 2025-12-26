@@ -3,8 +3,8 @@ import type { DetectedName, NameDetectionParams } from './types';
 /**
  * Common name separators and patterns
  */
-const NAME_SEPARATORS = ['.', '_', '-'];
-const COMMON_NAME_SUFFIXES = [
+const nameSeparator = ['.', '_', '-'];
+const commonNameSuffixes = [
   'mail',
   'email',
   'contact',
@@ -21,7 +21,7 @@ const COMMON_NAME_SUFFIXES = [
 ];
 
 // Additional suffixes that might appear in email addresses
-const CONTEXTUAL_SUFFIXES = [
+const contextualSuffixes = [
   'dev',
   'company',
   'team',
@@ -57,7 +57,7 @@ const COMMON_TITLES = [
 ];
 
 // Common middle name indicators
-const MIDDLE_NAME_INDICATORS = [
+const middleNameIndicators = [
   'van',
   'von',
   'de',
@@ -75,7 +75,7 @@ const MIDDLE_NAME_INDICATORS = [
 ];
 
 // Extended list of common first names (top 500 most common from multiple cultures)
-const COMMON_FIRST_NAMES = new Set([
+const commonFirstName = new Set([
   // English names
   'james',
   'john',
@@ -260,7 +260,7 @@ const COMMON_FIRST_NAMES = new Set([
 ]);
 
 // Extended list of common last names
-const COMMON_LAST_NAMES = new Set([
+const commonLastName = new Set([
   // English surnames
   'smith',
   'johnson',
@@ -387,12 +387,12 @@ function isYearLike(str: string) {
 
 // Check if a string is a known first name
 function isKnownFirstName(str: string) {
-  return COMMON_FIRST_NAMES.has(str.toLowerCase());
+  return commonFirstName.has(str.toLowerCase());
 }
 
 // Check if a string is a known last name
 function isKnownLastName(str: string) {
-  return COMMON_LAST_NAMES.has(str.toLowerCase());
+  return commonLastName.has(str.toLowerCase());
 }
 
 // Check if a string is a title/honorific
@@ -402,14 +402,14 @@ function isTitle(str: string) {
 
 // Check if a string is a middle name indicator
 function _isMiddleNameIndicator(str: string) {
-  return MIDDLE_NAME_INDICATORS.includes(str.toLowerCase());
+  return middleNameIndicators.includes(str.toLowerCase());
 }
 
 // Score how likely a string is to be a first name
 function getFirstNameScore(str: string) {
   const lower = str.toLowerCase();
-  if (COMMON_FIRST_NAMES.has(lower)) return 1.0;
-  if (COMMON_LAST_NAMES.has(lower)) return 0.3; // Some overlap
+  if (commonFirstName.has(lower)) return 1.0;
+  if (commonLastName.has(lower)) return 0.3; // Some overlap
   if (str.length >= 2 && str.length <= 15 && /^[a-zA-Z]+$/.test(str)) return 0.5;
   return 0;
 }
@@ -417,8 +417,8 @@ function getFirstNameScore(str: string) {
 // Score how likely a string is to be a last name
 function getLastNameScore(str: string) {
   const lower = str.toLowerCase();
-  if (COMMON_LAST_NAMES.has(lower)) return 1.0;
-  if (COMMON_FIRST_NAMES.has(lower)) return 0.3; // Some overlap
+  if (commonLastName.has(lower)) return 1.0;
+  if (commonFirstName.has(lower)) return 0.3; // Some overlap
   if (str.length >= 2 && str.length <= 20 && /^[a-zA-Z]+$/.test(str)) return 0.5;
   return 0;
 }
@@ -593,7 +593,7 @@ function isLikelyName(str: string, allowNumbers = false, allowSingleLetter = fal
   if (str.length === 1 && allowSingleLetter && /^[a-zA-Z]$/.test(str)) return true;
 
   // Check if it's a common email prefix that's not a name
-  if (COMMON_NAME_SUFFIXES.includes(str.toLowerCase())) return false;
+  if (commonNameSuffixes.includes(str.toLowerCase())) return false;
 
   // If allowing numbers (for composite names), be more lenient
   if (allowNumbers) {
@@ -682,7 +682,7 @@ export function defaultNameDetectionMethod(email: string): DetectedName | null {
 
   // If no CamelCase match, try different separator patterns
   if (!firstName && !lastName) {
-    for (const separator of NAME_SEPARATORS) {
+    for (const separator of nameSeparator) {
       if (cleanedLocal.includes(separator)) {
         const parts = cleanedLocal.split(separator).filter((p) => p.length > 0);
 
@@ -790,8 +790,8 @@ export function defaultNameDetectionMethod(email: string): DetectedName | null {
 
           // Check if last part is likely a suffix (mail, email, etc.)
           const isLastSuffix =
-            COMMON_NAME_SUFFIXES.includes(last.toLowerCase()) ||
-            CONTEXTUAL_SUFFIXES.includes(last.toLowerCase()) ||
+            commonNameSuffixes.includes(last.toLowerCase()) ||
+            contextualSuffixes.includes(last.toLowerCase()) ||
             isYearLike(last);
 
           if (isLastSuffix) {
@@ -836,8 +836,8 @@ export function defaultNameDetectionMethod(email: string): DetectedName | null {
           // Check if last part is a suffix to ignore
           const lastPartLower = parts[parts.length - 1].toLowerCase();
           const isLastPartSuffix =
-            COMMON_NAME_SUFFIXES.includes(lastPartLower) ||
-            CONTEXTUAL_SUFFIXES.includes(lastPartLower) ||
+            commonNameSuffixes.includes(lastPartLower) ||
+            contextualSuffixes.includes(lastPartLower) ||
             isYearLike(parts[parts.length - 1]);
           const effectiveLastIndex = isLastPartSuffix ? parts.length - 2 : parts.length - 1;
           const lastToUse = effectiveLastIndex >= 0 ? parts[effectiveLastIndex] : null;
