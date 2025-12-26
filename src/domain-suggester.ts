@@ -1,7 +1,7 @@
 import { stringSimilarity } from 'string-similarity-js';
 import { getCacheStore } from './cache';
-import type { ICache } from './cache-interface';
-import type { DomainSuggestion, ISuggestDomainParams } from './types';
+import type { Cache } from './cache-interface';
+import type { DomainSuggestion, DomainSuggestionParams } from './types';
 
 /**
  * List of common email domains for typo detection
@@ -217,7 +217,7 @@ export function defaultDomainSuggestionMethod(domain: string, commonDomains?: st
 export async function defaultDomainSuggestionMethodAsync(
   domain: string,
   commonDomains?: string[],
-  cache?: ICache
+  cache?: Cache
 ): Promise<DomainSuggestion | null> {
   return defaultDomainSuggestionMethodImpl(domain, commonDomains, cache);
 }
@@ -228,7 +228,7 @@ export async function defaultDomainSuggestionMethodAsync(
 async function defaultDomainSuggestionMethodImpl(
   domain: string,
   commonDomains?: string[],
-  cache?: ICache
+  cache?: Cache
 ): Promise<DomainSuggestion | null> {
   if (!domain || domain.length < 3) {
     return null;
@@ -327,7 +327,7 @@ async function defaultDomainSuggestionMethodImpl(
  * @param params - Parameters including domain and optional custom method
  * @returns Domain suggestion with confidence score, or null if no suggestion
  */
-export function suggestDomain(params: ISuggestDomainParams): DomainSuggestion | null {
+export function suggestDomain(params: DomainSuggestionParams): DomainSuggestion | null {
   const { domain, customMethod, commonDomains } = params;
 
   if (!domain || domain.length < 3) {
@@ -358,7 +358,7 @@ export function suggestDomain(params: ISuggestDomainParams): DomainSuggestion | 
 export async function suggestEmailDomain(
   email: string,
   commonDomains?: string[],
-  cache?: ICache
+  cache?: Cache
 ): Promise<DomainSuggestion | null> {
   if (!email || !email.includes('@')) {
     return null;

@@ -5,7 +5,7 @@
 // and multiple domain handling.
 
 import { clearDefaultCache, getDefaultCache } from '../src';
-import { verifyMailboxSMTP } from '../src/smtp';
+import { verifyMailboxSMTP } from '../src/smtp-verifier';
 import { createTestParams, measureTime, TEST_DATA, TestUtils } from './utils/smtp.test.config';
 
 describe('0100 SMTP Basic', () => {

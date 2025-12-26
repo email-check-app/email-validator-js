@@ -1,4 +1,4 @@
-import type { DetectedName, IDetectNameParams } from './types';
+import type { DetectedName, NameDetectionParams } from './types';
 
 /**
  * Common name separators and patterns
@@ -934,7 +934,7 @@ export function defaultNameDetectionMethod(email: string): DetectedName | null {
  * @param params - Detection parameters including email and optional custom method
  * @returns Detected name with confidence score, or null if no name detected
  */
-export function detectNameFromEmail(params: IDetectNameParams): DetectedName | null {
+export function detectNameFromEmail(params: NameDetectionParams): DetectedName | null {
   const { email, customMethod } = params;
 
   if (!email || !email.includes('@')) {

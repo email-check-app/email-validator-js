@@ -4,7 +4,7 @@
  */
 
 import type { EmailValidationResult, ValidateEmailOptions } from '../../types';
-import { EdgeCache, validateEmailBatch, validateEmailCore } from '../core';
+import { EdgeCache, validateEmailBatch, validateEmailCore } from '../verifier';
 
 // Cloudflare Workers types
 

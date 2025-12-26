@@ -2,7 +2,7 @@ import { promises as dnsPromises, type MxRecord } from 'node:dns';
 import net, { Socket } from 'node:net';
 import sinon, { type SinonSandbox, type SinonStub } from 'sinon';
 import { clearDefaultCache, verifyEmail } from '../src';
-import { resolveMxRecords } from '../src/dns';
+import { resolveMxRecords } from '../src/mx-resolver';
 
 type SelfMockType = {
   resolveMxStub?: SinonStub<[string], Promise<MxRecord[]>>;

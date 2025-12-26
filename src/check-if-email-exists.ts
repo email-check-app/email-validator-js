@@ -1,19 +1,19 @@
 import { promises as dns } from 'node:dns';
 import { Socket } from 'node:net';
-import type { ICache } from './cache-interface';
-import { resolveMxRecords } from './dns';
+import type { Cache } from './cache-interface';
 import {
+  CheckIfEmailExistsCoreParams,
   CheckIfEmailExistsCoreResult,
   CheckIfEmailExistsSmtpOptions,
   EmailProvider,
   type EmailSyntaxResult,
   HeadlessOptions,
-  ICheckIfEmailExistsCoreParams,
   MxLookupResult,
   SmtpVerificationResult,
   YahooApiOptions,
 } from './email-verifier-types';
 import { isDisposableEmail, isFreeEmail } from './index';
+import { resolveMxRecords } from './mx-resolver';
 // Constants for common providers
 export const checkIfEmailExistsConstants = {
   gmailDomains: ['gmail.com', 'googlemail.com'],
@@ -34,14 +34,14 @@ export {
   CheckIfEmailExistsSmtpOptions,
   YahooApiOptions,
   HeadlessOptions,
-  ICheckIfEmailExistsCoreParams,
+  CheckIfEmailExistsCoreParams,
 };
 
 /**
  * Extended interface for our implementation
  */
-export interface ICheckIfEmailExistsCoreParamsExtended extends ICheckIfEmailExistsCoreParams {
-  cache?: ICache | null;
+export interface CheckIfEmailExistsCoreParamsExtended extends CheckIfEmailExistsCoreParams {
+  cache?: Cache | null;
   smtpTimeout?: number;
   fromEmail?: string;
   helloName?: string;
@@ -236,7 +236,7 @@ export async function queryMxRecords(
   domain: string,
   options: {
     timeout?: number;
-    cache?: ICache | null;
+    cache?: Cache | null;
   } = {}
 ): Promise<MxLookupResult> {
   const { timeout = checkIfEmailExistsConstants.defaultTimeout, cache } = options;
@@ -1069,7 +1069,7 @@ async function verifySmtpConnectionWithProviderOptimizations(
  * Main function to check if an email
  */
 export async function checkIfEmailExistsCore(
-  params: ICheckIfEmailExistsCoreParamsExtended
+  params: CheckIfEmailExistsCoreParamsExtended
 ): Promise<CheckIfEmailExistsCoreResult> {
   // Handle null/undefined params
   if (!params) {

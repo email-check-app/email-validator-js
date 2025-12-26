@@ -1,4 +1,4 @@
-import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, ICache, SmtpVerificationResult } from '../src';
+import type { Cache, DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from '../src';
 import { DEFAULT_CACHE_OPTIONS, isDisposableEmail, isFreeEmail, LRUAdapter } from '../src';
 
 describe('0202 Custom Cache', () => {
@@ -34,8 +34,8 @@ describe('0202 Custom Cache', () => {
   });
 
   describe('Custom Cache Creation', () => {
-    it('should create a complete ICache instance using LRU adapters', () => {
-      const cache: ICache = {
+    it('should create a complete Cache instance using LRU adapters', () => {
+      const cache: Cache = {
         mx: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.mx, DEFAULT_CACHE_OPTIONS.ttl.mx),
         disposable: new LRUAdapter<DisposableEmailResult>(
           DEFAULT_CACHE_OPTIONS.maxSize.disposable,
@@ -69,7 +69,7 @@ describe('0202 Custom Cache', () => {
     });
 
     it('should use custom cache instances for email validation', async () => {
-      const customCache: ICache = {
+      const customCache: Cache = {
         mx: new LRUAdapter<string[]>(5, 60000), // 1 minute
         disposable: new LRUAdapter<DisposableEmailResult>(5, 60000),
         free: new LRUAdapter<FreeEmailResult>(5, 60000),
@@ -111,7 +111,7 @@ describe('0202 Custom Cache', () => {
 
   describe('Cache Isolation', () => {
     it('should maintain isolation between separate cache instances', async () => {
-      const cache1: ICache = {
+      const cache1: Cache = {
         mx: new LRUAdapter<string[]>(10, 60000),
         disposable: new LRUAdapter<DisposableEmailResult>(10, 60000),
         free: new LRUAdapter<FreeEmailResult>(10, 60000),
@@ -122,7 +122,7 @@ describe('0202 Custom Cache', () => {
         whois: new LRUAdapter<any>(10, 60000),
       };
 
-      const cache2: ICache = {
+      const cache2: Cache = {
         mx: new LRUAdapter<string[]>(10, 60000),
         disposable: new LRUAdapter<DisposableEmailResult>(10, 60000),
         free: new LRUAdapter<FreeEmailResult>(10, 60000),

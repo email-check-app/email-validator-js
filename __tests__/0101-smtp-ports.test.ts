@@ -4,7 +4,7 @@
 // configurations, port-specific TLS behavior, retry logic, and edge cases.
 
 import { clearDefaultCache } from '../src';
-import { verifyMailboxSMTP } from '../src/smtp';
+import { verifyMailboxSMTP } from '../src/smtp-verifier';
 import { createTestParams, measureTime, TEST_CONFIGS, TEST_DATA, TestUtils } from './utils/smtp.test.config';
 
 describe('0101 SMTP Ports', () => {

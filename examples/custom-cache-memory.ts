@@ -5,13 +5,13 @@
 
 import { getDefaultCache, verifyEmail } from '../src';
 import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
-import type { ICache, ICacheStore } from '../src/cache-interface';
+import type { Cache, CacheStore } from '../src/cache-interface';
 import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from '../src/types';
 
 /**
  * Custom in-memory cache with time-based expiration and statistics
  */
-class CustomMemoryCache<T> implements ICacheStore<T> {
+class CustomMemoryCache<T> implements CacheStore<T> {
   private cache = new Map<string, { value: T; expiresAt: number }>();
   private maxSize: number;
   private defaultTtl: number;
@@ -118,9 +118,9 @@ class CustomMemoryCache<T> implements ICacheStore<T> {
   }
 }
 
-function createCustomCache(): ICache {
+function createCustomCache(): Cache {
   // Create custom cache instances with different configurations
-  const customCache: ICache = {
+  const customCache: Cache = {
     // SMTP cache: smaller size, shorter TTL
     smtp: new CustomMemoryCache<SmtpVerificationResult>(200, DEFAULT_CACHE_OPTIONS.ttl.smtp),
     // SMTP port cache: small size, longer TTL for port performance

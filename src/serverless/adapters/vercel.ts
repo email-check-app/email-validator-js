@@ -4,7 +4,7 @@
  */
 
 import type { ValidateEmailOptions } from '../../types';
-import { validateEmailBatch, validateEmailCore } from '../core';
+import { validateEmailBatch, validateEmailCore } from '../verifier';
 
 // Vercel Request/Response types
 export interface VercelRequest {

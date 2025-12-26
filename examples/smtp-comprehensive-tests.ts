@@ -2,9 +2,8 @@
 //
 // Tests for different configurations, ports, and custom sequences
 
-import { getDefaultCache } from '../src/cache';
-import { verifyMailboxSMTP } from '../src/smtp';
-import { SMTPStep } from '../src/types';
+import { getDefaultCache, SMTPStep } from '../src';
+import { verifyMailboxSMTP } from '../src/smtp-verifier';
 
 // Test data - use real MX records for actual testing
 const testMX = {

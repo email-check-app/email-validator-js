@@ -1,5 +1,5 @@
 import { LRUAdapter } from './adapters/lru-adapter';
-import type { ICache, ICacheStore } from './cache-interface';
+import type { Cache, CacheStore } from './cache-interface';
 import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from './types';
 import type { ParsedWhoisResult } from './whois-parser';
 
@@ -8,14 +8,14 @@ import type { ParsedWhoisResult } from './whois-parser';
  */
 export const DEFAULT_CACHE_OPTIONS = {
   ttl: {
-    mx: 3600000, // 1 hour
-    disposable: 86400000, // 24 hours
-    free: 86400000, // 24 hours
-    domainValid: 86400000, // 24 hours
-    smtp: 1800000, // 30 minutes
-    smtpPort: 86400000, // 1 hour
-    domainSuggestion: 86400000, // 24 hours
-    whois: 3600000, // 1 hour
+    mx: 3600000,
+    disposable: 86400000,
+    free: 86400000,
+    domainValid: 86400000,
+    smtp: 1800000,
+    smtpPort: 86400000,
+    domainSuggestion: 86400000,
+    whois: 3600000,
   },
   maxSize: {
     mx: 10000,
@@ -32,13 +32,13 @@ export const DEFAULT_CACHE_OPTIONS = {
 /**
  * Lazy-loaded default cache instance
  */
-let defaultCacheInstance: ICache | null = null;
+let defaultCacheInstance: Cache | null = null;
 
 /**
  * Get the default in-memory cache singleton using LRU
  * This is created on first access and reused for all subsequent calls
  */
-export function getDefaultCache(): ICache {
+export function getDefaultCache(): Cache {
   if (!defaultCacheInstance) {
     defaultCacheInstance = {
       mx: new LRUAdapter<string[]>(DEFAULT_CACHE_OPTIONS.maxSize.mx, DEFAULT_CACHE_OPTIONS.ttl.mx),
@@ -65,10 +65,10 @@ export function getDefaultCache(): ICache {
 
 /**
  * Helper function to get cache store from cache parameter
- * Follows the same pattern as logging - use passed cache or default
+ * Follows same pattern as logging - use passed cache or default
  */
-export function getCacheStore<T>(cache: ICache | null | undefined, key: keyof ICache): ICacheStore<T> {
-  return (cache?.[key] || getDefaultCache()[key]) as ICacheStore<T>;
+export function getCacheStore<T>(cache: Cache | null | undefined, key: keyof Cache): CacheStore<T> {
+  return (cache?.[key] || getDefaultCache()[key]) as CacheStore<T>;
 }
 
 /**
@@ -96,4 +96,4 @@ export function resetDefaultCache(): void {
 }
 
 // Export types for external use
-export type { ICache, ICacheStore } from './cache-interface';
+export type { Cache, CacheStore } from './cache-interface';

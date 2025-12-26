@@ -1,11 +1,11 @@
 import { verifyEmail } from './index';
-import type { BatchVerificationResult, IBatchVerifyParams, VerificationResult } from './types';
+import type { BatchVerificationResult, BatchVerifyParams, VerificationResult } from './types';
 import { VerificationErrorCode } from './types';
 
 /**
  * Verify multiple email addresses in parallel with concurrency control
  */
-export async function verifyEmailBatch(params: IBatchVerifyParams): Promise<BatchVerificationResult> {
+export async function verifyEmailBatch(params: BatchVerifyParams): Promise<BatchVerificationResult> {
   const {
     emailAddresses,
     concurrency = 5,

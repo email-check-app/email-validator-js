@@ -1,4 +1,4 @@
-import type { ICache } from './cache-interface';
+import type { Cache } from './cache-interface';
 
 /**
  * Error codes for email verification failures
@@ -40,7 +40,7 @@ export interface VerificationResult {
 /**
  * Parameters for email verification
  */
-export interface IVerifyEmailParams {
+export interface VerifyEmailParams {
   emailAddress: string;
   timeout?: number;
   verifyMx?: boolean;
@@ -58,15 +58,15 @@ export interface IVerifyEmailParams {
   checkDomainAge?: boolean;
   checkDomainRegistration?: boolean;
   whoisTimeout?: number;
-  skipMxForDisposable?: boolean; // Skip MX check if disposable email detected
-  skipDomainWhoisForDisposable?: boolean; // Skip domain age/registration if disposable email detected
-  cache?: ICache; // Optional custom cache instance
+  skipMxForDisposable?: boolean;
+  skipDomainWhoisForDisposable?: boolean;
+  cache?: Cache;
 }
 
 /**
  * Parameters for batch verification
  */
-export interface IBatchVerifyParams {
+export interface BatchVerifyParams {
   emailAddresses: string[];
   concurrency?: number;
   timeout?: number;
@@ -79,9 +79,9 @@ export interface IBatchVerifyParams {
   suggestDomain?: boolean;
   domainSuggestionMethod?: DomainSuggestionMethod;
   commonDomains?: string[];
-  skipMxForDisposable?: boolean; // Skip MX check if disposable email detected
-  skipDomainWhoisForDisposable?: boolean; // Skip domain age/registration if disposable email detected
-  cache?: ICache; // Optional custom cache instance
+  skipMxForDisposable?: boolean;
+  skipDomainWhoisForDisposable?: boolean;
+  cache?: Cache;
 }
 
 /**
@@ -383,7 +383,7 @@ export interface SMTPVerifyOptions {
   tls?: boolean | SMTPTLSConfig;
   hostname?: string;
   useVRFY?: boolean;
-  cache?: ICache | null; // Cache instance or null/undefined for no caching
+  cache?: Cache | null; // Cache instance or null/undefined for no caching
   debug?: boolean;
   sequence?: SMTPSequence; // Custom step sequence
 }
@@ -433,11 +433,11 @@ export type DomainSuggestionMethod = (domain: string) => DomainSuggestion | null
 /**
  * Parameters for domain suggestion
  */
-export interface ISuggestDomainParams {
+export interface DomainSuggestionParams {
   domain: string;
   customMethod?: DomainSuggestionMethod;
   commonDomains?: string[];
-  cache?: ICache;
+  cache?: Cache;
 }
 
 /**
@@ -457,7 +457,7 @@ export type NameDetectionMethod = (email: string) => DetectedName | null;
 /**
  * Parameters for name detection
  */
-export interface IDetectNameParams {
+export interface NameDetectionParams {
   email: string;
   customMethod?: NameDetectionMethod;
 }
@@ -516,27 +516,27 @@ export interface DomainSuggesterOptions {
 /**
  * Parameters for isDisposableEmail function
  */
-export interface IDisposableEmailParams {
+export interface DisposableEmailCheckParams {
   emailOrDomain: string;
-  cache?: ICache | null;
+  cache?: Cache | null;
   logger?: (...args: unknown[]) => void;
 }
 
 /**
  * Parameters for isFreeEmail function
  */
-export interface IFreeEmailParams {
+export interface FreeEmailCheckParams {
   emailOrDomain: string;
-  cache?: ICache | null;
+  cache?: Cache | null;
   logger?: (...args: unknown[]) => void;
 }
 
 /**
  * Parameters for resolveMxRecords function
  */
-export interface IResolveMxParams {
+export interface ResolveMxParams {
   domain: string;
-  cache?: ICache | null;
+  cache?: Cache | null;
   logger?: (...args: unknown[]) => void;
 }
 
@@ -581,4 +581,4 @@ export interface ValidatorResult {
 }
 
 // Re-export cache interfaces
-export type { ICache, ICacheStore } from './cache-interface';
+export type { Cache, CacheStore } from './cache-interface';

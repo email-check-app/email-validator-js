@@ -3,7 +3,7 @@
  * Based on the original Rust implementation's type structure
  */
 
-import type { ICache } from './cache-interface';
+import type { Cache } from './cache-interface';
 
 /**
  * Email providers with enhanced type safety
@@ -169,7 +169,7 @@ export interface ParsedSmtpError {
 /**
  * Enhanced verification parameters
  */
-export interface ICheckIfEmailExistsCoreParams {
+export interface CheckIfEmailExistsCoreParams {
   emailAddress: string;
   timeout?: number;
   verifyMx?: boolean;
@@ -177,7 +177,7 @@ export interface ICheckIfEmailExistsCoreParams {
   debug?: boolean;
   checkDisposable?: boolean;
   checkFree?: boolean;
-  cache?: ICache | null;
+  cache?: Cache | null;
   smtpTimeout?: number;
   fromEmail?: string;
   helloName?: string;

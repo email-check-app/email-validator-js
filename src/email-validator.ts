@@ -1,15 +1,15 @@
 import { isValid } from 'psl';
 import { getCacheStore } from './cache';
-import type { ICache } from './cache-interface';
+import type { Cache } from './cache-interface';
 import type { DomainValidResult } from './types';
 
 /**
  * Validates if email domain is valid TLD
  */
-export async function isValidEmailDomain(emailOrDomain: string, cache?: ICache | null): Promise<boolean> {
-  let [_, emailDomain] = emailOrDomain?.split('@') || [];
+export async function isValidEmailDomain(emailOrDomain: string, cache?: Cache | null): Promise<boolean> {
+  let [localPart, emailDomain] = emailOrDomain?.split('@') || [];
   if (!emailDomain) {
-    emailDomain = _;
+    emailDomain = localPart;
   }
   if (!emailDomain) {
     return false;
@@ -34,7 +34,7 @@ export async function isValidEmailDomain(emailOrDomain: string, cache?: ICache |
 
     await cacheStore.set(emailDomain, richResult);
     return isValidResult;
-  } catch (_e) {
+  } catch (validationError) {
     const errorResult: DomainValidResult = {
       isValid: false,
       hasMX: false,

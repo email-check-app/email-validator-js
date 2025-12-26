@@ -5,7 +5,7 @@
 // exhaustion, and graceful degradation.
 
 import { clearDefaultCache, getDefaultCache, SMTPStep } from '../src';
-import { verifyMailboxSMTP } from '../src/smtp';
+import { verifyMailboxSMTP } from '../src/smtp-verifier';
 import { createTestParams, TestUtils } from './utils/smtp.test.config';
 
 describe('0104 SMTP Errors', () => {

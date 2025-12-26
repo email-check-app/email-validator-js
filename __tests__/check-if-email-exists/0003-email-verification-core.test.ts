@@ -1,9 +1,9 @@
 import dns from 'node:dns';
 import {
+  type CheckIfEmailExistsCoreParams,
   checkIfEmailExistsCore,
   EmailProvider,
   getProviderFromMxHost,
-  type ICheckIfEmailExistsCoreParams,
   isGmail,
   isHotmailB2B,
   isHotmailB2C,
@@ -113,7 +113,7 @@ describe('0003 Core Email Verification Functionality', () => {
     const mockMxRecords = [{ exchange: 'gmail-smtp-in.l.google.com.', priority: 5 }];
     mockResolveMx.mockResolvedValue(mockMxRecords);
 
-    const params: ICheckIfEmailExistsCoreParams = {
+    const params: CheckIfEmailExistsCoreParams = {
       emailAddress: 'test@gmail.com',
       fromEmail: 'test@example.com',
       helloName: 'example.com',
@@ -144,7 +144,7 @@ describe('0003 Core Email Verification Functionality', () => {
   it('should handle MX record lookup failures gracefully', async () => {
     mockResolveMx.mockRejectedValue(new Error('DNS lookup failed'));
 
-    const params: ICheckIfEmailExistsCoreParams = {
+    const params: CheckIfEmailExistsCoreParams = {
       emailAddress: 'test@nonexistentdomain.com',
       fromEmail: 'test@example.com',
       helloName: 'example.com',
@@ -165,7 +165,7 @@ describe('0003 Core Email Verification Functionality', () => {
   });
 
   it('should handle invalid email format', async () => {
-    const params: ICheckIfEmailExistsCoreParams = {
+    const params: CheckIfEmailExistsCoreParams = {
       emailAddress: 'invalid-email',
       fromEmail: 'test@example.com',
       helloName: 'example.com',
@@ -194,7 +194,7 @@ describe('0003 Core Email Verification Functionality', () => {
       },
     };
 
-    const params: ICheckIfEmailExistsCoreParams = {
+    const params: CheckIfEmailExistsCoreParams = {
       emailAddress: 'test@gmail.com',
       fromEmail: 'test@example.com',
       helloName: 'example.com',
@@ -236,7 +236,7 @@ describe('0003 Core Email Verification Functionality', () => {
     for (const testCase of testCases) {
       mockResolveMx.mockResolvedValue(testCase.mxRecords);
 
-      const params: ICheckIfEmailExistsCoreParams = {
+      const params: CheckIfEmailExistsCoreParams = {
         emailAddress: testCase.email,
         fromEmail: 'test@example.com',
         helloName: 'example.com',
@@ -263,7 +263,7 @@ describe.skip('0003 Integration Tests', () => {
       { exchange: 'alt1.aspmx.l.google.com.', priority: 20 },
     ]);
 
-    const params: ICheckIfEmailExistsCoreParams = {
+    const params: CheckIfEmailExistsCoreParams = {
       emailAddress: 'support@gmail.com', // Known valid Gmail address
       fromEmail: 'test@example.com',
       helloName: 'example.com',

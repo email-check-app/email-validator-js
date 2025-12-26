@@ -1,14 +1,14 @@
 import { promises as dnsPromises } from 'node:dns';
 import sinon, { type SinonSandbox } from 'sinon';
-import type { ICache } from '../src';
+import type { Cache } from '../src';
 import { isDisposableEmail, isFreeEmail, isValidEmailDomain, LRUAdapter } from '../src';
 import { clearDefaultCache, DEFAULT_CACHE_OPTIONS, getDefaultCache, resetDefaultCache } from '../src/cache';
-import { resolveMxRecords } from '../src/dns';
+import { resolveMxRecords } from '../src/mx-resolver';
 import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from '../src/types';
 
 describe('0200 Cache', () => {
   let sandbox: SinonSandbox;
-  let testCache: ICache;
+  let testCache: Cache;
 
   beforeEach(() => {
     sandbox = sinon.createSandbox();
@@ -64,7 +64,7 @@ describe('0200 Cache', () => {
       try {
         await resolveMxRecords({ domain: 'invalid.com', cache: testCache });
         expect(true).toBe(false); // Should not reach here
-      } catch (_error) {
+      } catch (ignoredError) {
         expect(resolveMxStub.callCount).toBe(1);
       }
 

@@ -2,12 +2,12 @@
  * Tests for Redis adapter implementation of the cache interface
  */
 
-import type { IRedisClient } from '../src';
+import type { RedisClient } from '../src';
 import { RedisAdapter } from '../src';
 
 describe('0203 Redis Adapter', () => {
   // Create a mock Redis client for testing
-  const createMockRedis = (): IRedisClient => {
+  const createMockRedis = (): RedisClient => {
     const store = new Map<string, string>();
 
     return {

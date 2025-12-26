@@ -1,8 +1,8 @@
 import { promises as dnsPromises } from 'node:dns';
 import { getCacheStore } from './cache';
-import type { IResolveMxParams } from './types';
+import type { ResolveMxParams } from './types';
 
-export async function resolveMxRecords(params: IResolveMxParams): Promise<string[]> {
+export async function resolveMxRecords(params: ResolveMxParams): Promise<string[]> {
   const { domain, cache, logger } = params;
   const log = logger || (() => {});
 

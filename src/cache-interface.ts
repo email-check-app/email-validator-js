@@ -9,16 +9,16 @@ import type { ParsedWhoisResult } from './whois-parser';
 /**
  * Generic cache interface that can be implemented by any cache store
  */
-export interface ICacheStore<T = any> {
+export interface CacheStore<T = any> {
   /**
-   * Get a value from the cache
+   * Get a value from cache
    * @param key - The cache key
    * @returns The cached value or null/undefined if not found or expired
    */
   get(key: string): Promise<T | null | undefined> | T | null | undefined;
 
   /**
-   * Set a value in the cache with optional TTL
+   * Set a value in cache with optional TTL
    * @param key - The cache key
    * @param value - The value to cache
    * @param ttlMs - Optional TTL in milliseconds
@@ -26,24 +26,24 @@ export interface ICacheStore<T = any> {
   set(key: string, value: T, ttlMs?: number): Promise<void> | void;
 
   /**
-   * Delete a value from the cache
+   * Delete a value from cache
    * @param key - The cache key
    */
   delete(key: string): Promise<boolean> | boolean;
 
   /**
-   * Check if a key exists in the cache
+   * Check if a key exists in cache
    * @param key - The cache key
    */
   has(key: string): Promise<boolean> | boolean;
 
   /**
-   * Clear all values from the cache
+   * Clear all values from cache
    */
   clear(): Promise<void> | void;
 
   /**
-   * Get the current size of the cache (number of entries)
+   * Get the current size of cache (number of entries)
    * Returns undefined if size is not applicable (e.g., Redis)
    */
   size?(): number | undefined;
@@ -53,17 +53,17 @@ export interface ICacheStore<T = any> {
  * Cache interface for different types of data
  * Uses rich result types instead of boolean values for better debugging and analytics
  */
-export interface ICache {
-  mx: ICacheStore<string[]>;
+export interface Cache {
+  mx: CacheStore<string[]>;
   /** Rich result: includes isDisposable, source, category, and checkedAt */
-  disposable: ICacheStore<DisposableEmailResult>;
+  disposable: CacheStore<DisposableEmailResult>;
   /** Rich result: includes isFree, provider, and checkedAt */
-  free: ICacheStore<FreeEmailResult>;
+  free: CacheStore<FreeEmailResult>;
   /** Rich result: includes isValid, hasMX, mxRecords, and checkedAt */
-  domainValid: ICacheStore<DomainValidResult>;
+  domainValid: CacheStore<DomainValidResult>;
   /** Rich result: includes isValid, mxHost, port, reason, tlsUsed, and checkedAt */
-  smtp: ICacheStore<SmtpVerificationResult>;
-  smtpPort: ICacheStore<number>; // Cache for storing successful port per host/domain
-  domainSuggestion: ICacheStore<{ suggested: string; confidence: number } | null>;
-  whois: ICacheStore<ParsedWhoisResult>;
+  smtp: CacheStore<SmtpVerificationResult>;
+  smtpPort: CacheStore<number>; // Cache for storing successful port per host/domain
+  domainSuggestion: CacheStore<{ suggested: string; confidence: number } | null>;
+  whois: CacheStore<ParsedWhoisResult>;
 }

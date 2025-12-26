@@ -147,7 +147,7 @@ export async function verifyMailboxSMTP(
           portCached: false,
         };
       }
-    } catch (_error) {
+    } catch (ignoredError) {
       // Cache error, continue with processing
       cachedResult = undefined;
     }
@@ -160,7 +160,7 @@ export async function verifyMailboxSMTP(
     let cachedPort: number | null | undefined;
     try {
       cachedPort = await smtpPortCacheStore.get(mxHost);
-    } catch (_error) {
+    } catch (ignoredError) {
       // Cache error, continue with processing
       cachedPort = null;
     }
@@ -187,7 +187,7 @@ export async function verifyMailboxSMTP(
         try {
           await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, smtpResult);
           log(`Cached SMTP result ${result} for ${local}@${domain} via ${mxHost}`);
-        } catch (_error) {
+        } catch (ignoredError) {
           // Cache error, ignore it
         }
       }
@@ -227,7 +227,7 @@ export async function verifyMailboxSMTP(
         try {
           await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, smtpResult);
           log(`Cached SMTP result ${result} for ${local}@${domain} via ${mxHost}`);
-        } catch (_error) {
+        } catch (ignoredError) {
           // Cache error, ignore it
         }
       }
@@ -237,7 +237,7 @@ export async function verifyMailboxSMTP(
           try {
             await smtpPortCacheStore.set(mxHost, port);
             log(`Cached port ${port} for ${mxHost}`);
-          } catch (_error) {
+          } catch (ignoredError) {
             // Cache error, ignore it
           }
         }

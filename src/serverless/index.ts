@@ -27,4 +27,4 @@ export {
   validateEmailBatch,
   validateEmailCore,
   validateEmailCore as validateEmail,
-} from './core';
+} from './verifier';

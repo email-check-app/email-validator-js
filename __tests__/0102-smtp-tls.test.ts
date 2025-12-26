@@ -4,7 +4,7 @@
 // TLS version settings, STARTTLS behavior, and performance comparisons.
 
 import { clearDefaultCache } from '../src';
-import { verifyMailboxSMTP } from '../src/smtp';
+import { verifyMailboxSMTP } from '../src/smtp-verifier';
 import { createTestParams, TEST_CONFIGS, TestUtils } from './utils/smtp.test.config';
 
 describe('0102 SMTP TLS', () => {

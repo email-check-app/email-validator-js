@@ -5,7 +5,7 @@
 
 import { resolveMx } from 'dns/promises';
 import { getDefaultCache } from '../src/cache';
-import { verifyMailboxSMTP } from '../src/smtp';
+import { verifyMailboxSMTP } from '../src/smtp-verifier';
 
 // Example 1: Basic usage with default settings (tests ports 25, 587, 465)
 async function basicVerification(email: string) {

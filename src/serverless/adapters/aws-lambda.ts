@@ -4,7 +4,7 @@
  */
 
 import type { EmailValidationResult, ValidateEmailOptions } from '../../types';
-import { clearCache, validateEmailBatch, validateEmailCore } from '../core';
+import { clearCache, validateEmailBatch, validateEmailCore } from '../verifier';
 
 // AWS Lambda handler types
 export interface APIGatewayProxyEvent {

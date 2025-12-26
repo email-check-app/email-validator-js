@@ -1,27 +1,26 @@
 import { parse } from 'psl';
 import { getCacheStore } from './cache';
-import { resolveMxRecords } from './dns';
 import { suggestEmailDomain } from './domain-suggester';
+import { isValidEmail, isValidEmailDomain } from './email-validator';
+import { resolveMxRecords } from './mx-resolver';
 import { detectNameFromEmail } from './name-detector';
-import { verifyMailboxSMTP } from './smtp';
+import { verifyMailboxSMTP } from './smtp-verifier';
 import {
+  type DisposableEmailCheckParams,
   type DisposableEmailResult,
   type EmailProvider,
+  type FreeEmailCheckParams,
   type FreeEmailResult,
-  type IDisposableEmailParams,
-  type IFreeEmailParams,
-  type IVerifyEmailParams,
   type SmtpVerificationResult,
   VerificationErrorCode,
   type VerificationResult,
+  type VerifyEmailParams,
 } from './types';
-
-import { isValidEmail, isValidEmailDomain } from './validator';
 import { getDomainAge, getDomainRegistrationStatus } from './whois';
 
 export * from './adapters/lru-adapter';
 export * from './adapters/redis-adapter';
-export { verifyEmailBatch } from './batch';
+export { verifyEmailBatch } from './batch-verifier';
 export * from './cache';
 export * from './cache-interface';
 export {
@@ -32,6 +31,7 @@ export {
   suggestDomain,
   suggestEmailDomain,
 } from './domain-suggester';
+export { isValidEmail, isValidEmailDomain } from './email-validator';
 export {
   cleanNameForAlgorithm,
   defaultNameDetectionMethod,
@@ -41,13 +41,12 @@ export {
 } from './name-detector';
 // Re-export types
 export * from './types';
-export { isValidEmail, isValidEmailDomain } from './validator';
 export { getDomainAge, getDomainRegistrationStatus } from './whois';
 
 let disposableEmailProviders: Set<string>;
 let freeEmailProviders: Set<string>;
 
-export async function isDisposableEmail(params: IDisposableEmailParams): Promise<boolean> {
+export async function isDisposableEmail(params: DisposableEmailCheckParams): Promise<boolean> {
   const { emailOrDomain, cache, logger } = params;
   const log = logger || (() => {});
 
@@ -62,7 +61,7 @@ export async function isDisposableEmail(params: IDisposableEmailParams): Promise
   let cached: DisposableEmailResult | null | undefined;
   try {
     cached = await cacheStore.get(emailDomain);
-  } catch (_error) {
+  } catch (ignoredError) {
     // Cache error, continue with processing
     cached = null;
   }
@@ -88,7 +87,7 @@ export async function isDisposableEmail(params: IDisposableEmailParams): Promise
   try {
     await cacheStore.set(emailDomain, richResult);
     log(`[isDisposableEmail] Cached result for ${emailDomain}: ${isDisposable}`);
-  } catch (_error) {
+  } catch (ignoredError) {
     // Cache error, ignore it
     log(`[isDisposableEmail] Cache write error for ${emailDomain}`);
   }
@@ -96,7 +95,7 @@ export async function isDisposableEmail(params: IDisposableEmailParams): Promise
   return isDisposable;
 }
 
-export async function isFreeEmail(params: IFreeEmailParams): Promise<boolean> {
+export async function isFreeEmail(params: FreeEmailCheckParams): Promise<boolean> {
   const { emailOrDomain, cache, logger } = params;
   const log = logger || (() => {});
 
@@ -111,7 +110,7 @@ export async function isFreeEmail(params: IFreeEmailParams): Promise<boolean> {
   let cached: FreeEmailResult | null | undefined;
   try {
     cached = await cacheStore.get(emailDomain);
-  } catch (_error) {
+  } catch (ignoredError) {
     // Cache error, continue with processing
     cached = null;
   }
@@ -136,7 +135,7 @@ export async function isFreeEmail(params: IFreeEmailParams): Promise<boolean> {
   try {
     await cacheStore.set(emailDomain, richResult);
     log(`[isFreeEmail] Cached result for ${emailDomain}: ${isFree}`);
-  } catch (_error) {
+  } catch (ignoredError) {
     // Cache error, ignore it
     log(`[isFreeEmail] Cache write error for ${emailDomain}`);
   }
@@ -153,7 +152,7 @@ export const domainPorts: Record<string, number> = {
 /**
  * Verify email address
  */
-export async function verifyEmail(params: IVerifyEmailParams): Promise<VerificationResult> {
+export async function verifyEmail(params: VerifyEmailParams): Promise<VerificationResult> {
   const {
     emailAddress,
     timeout = 4000,
@@ -276,8 +275,8 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
     try {
       result.domainAge = await getDomainAge(domain, whoisTimeout, debug, params.cache);
       log(`[verifyEmail] Domain age result:`, result.domainAge ? `${result.domainAge.ageInDays} days` : 'null');
-    } catch (err) {
-      log('[verifyEmail] Failed to get domain age', err);
+    } catch (error) {
+      log('[verifyEmail] Failed to get domain age', error);
       result.domainAge = null;
     }
   } else if (checkDomainAge && shouldSkipDomainWhois) {
@@ -293,8 +292,8 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
         `[verifyEmail] Domain registration result:`,
         result.domainRegistration?.isRegistered ? 'registered' : 'not registered'
       );
-    } catch (err) {
-      log('[verifyEmail] Failed to get domain registration status', err);
+    } catch (error) {
+      log('[verifyEmail] Failed to get domain registration status', error);
       result.domainRegistration = null;
     }
   } else if (checkDomainRegistration && shouldSkipDomainWhois) {
@@ -382,8 +381,8 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
           result.metadata.error = VerificationErrorCode.smtpConnectionFailed;
         }
       }
-    } catch (err) {
-      log('[verifyEmail] Failed to resolve MX records', err);
+    } catch (error) {
+      log('[verifyEmail] Failed to resolve MX records', error);
       result.validMx = false;
       if (result.metadata) {
         result.metadata.error = VerificationErrorCode.noMxRecords;

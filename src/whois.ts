@@ -1,7 +1,7 @@
 import * as net from 'node:net';
 import { isValid } from 'psl';
 import { getCacheStore } from './cache';
-import type { ICache } from './cache-interface';
+import type { Cache } from './cache-interface';
 import type { DomainAgeInfo, DomainRegistrationInfo } from './types';
 import { type ParsedWhoisResult, parseWhoisData } from './whois-parser';
 
@@ -98,7 +98,7 @@ async function getWhoisData(
   domain: string,
   timeout = 5000,
   debug = false,
-  cache?: ICache
+  cache?: Cache
 ): Promise<ParsedWhoisResult | null> {
   const log = debug ? console.debug : (..._args: unknown[]) => {};
   const cacheKey = `whois:${domain}`;
@@ -149,9 +149,9 @@ async function getWhoisData(
     await cacheStore.set(cacheKey, whoisData);
     log(`[whois] successfully retrieved and cached WHOIS data for ${domain}`);
     return whoisData;
-  } catch (_error) {
+  } catch (ignoredError) {
     log(
-      `[whois] failed to get WHOIS data for ${domain}: ${_error instanceof Error ? _error.message : 'Unknown error'}`
+      `[whois] failed to get WHOIS data for ${domain}: ${ignoredError instanceof Error ? ignoredError.message : 'Unknown error'}`
     );
     return null;
   }
@@ -161,7 +161,7 @@ export async function getDomainAge(
   domain: string,
   timeout = 5000,
   debug = false,
-  cache?: ICache
+  cache?: Cache
 ): Promise<DomainAgeInfo | null> {
   const log = debug ? console.debug : (..._args: unknown[]) => {};
 
@@ -206,9 +206,9 @@ export async function getDomainAge(
       expirationDate: whoisData.expirationDate ? new Date(whoisData.expirationDate) : null,
       updatedDate: whoisData.updatedDate ? new Date(whoisData.updatedDate) : null,
     };
-  } catch (_error) {
+  } catch (ignoredError) {
     log(
-      `[whois] error getting domain age for ${domain}: ${_error instanceof Error ? _error.message : 'Unknown error'}`
+      `[whois] error getting domain age for ${domain}: ${ignoredError instanceof Error ? ignoredError.message : 'Unknown error'}`
     );
     return null;
   }
@@ -218,7 +218,7 @@ export async function getDomainRegistrationStatus(
   domain: string,
   timeout = 5000,
   debug = false,
-  cache?: ICache
+  cache?: Cache
 ): Promise<DomainRegistrationInfo | null> {
   const log = debug ? console.debug : (..._args: unknown[]) => {};
 
@@ -310,9 +310,9 @@ export async function getDomainRegistrationStatus(
       isPendingDelete,
       isLocked,
     };
-  } catch (_error) {
+  } catch (ignoredError) {
     log(
-      `[whois] error getting domain registration status for ${domain}: ${_error instanceof Error ? _error.message : 'Unknown error'}`
+      `[whois] error getting domain registration status for ${domain}: ${ignoredError instanceof Error ? ignoredError.message : 'Unknown error'}`
     );
     return null;
   }

@@ -5,7 +5,7 @@
 // comparison, and error handling.
 
 import { clearDefaultCache, SMTPStep } from '../src';
-import { verifyMailboxSMTP } from '../src/smtp';
+import { verifyMailboxSMTP } from '../src/smtp-verifier';
 import { createTestParams, TEST_SEQUENCES, TestUtils } from './utils/smtp.test.config';
 
 describe('0103 SMTP Sequences', () => {

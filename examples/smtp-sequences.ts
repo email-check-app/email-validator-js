@@ -2,8 +2,8 @@
 //
 // Demonstrates how to use SMTPStep enum and custom sequences
 
-import { verifyMailboxSMTP } from '../src/smtp';
-import { SMTPStep } from '../src/types';
+import { SMTPStep } from '../src';
+import { verifyMailboxSMTP } from '../src/smtp-verifier';
 
 // Example 1: Basic verification with default sequence
 async function basicSequence() {

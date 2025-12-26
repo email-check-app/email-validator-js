@@ -10,16 +10,16 @@
  */
 
 import {
+  type CheckIfEmailExistsCoreParams,
   type CheckIfEmailExistsCoreResult,
   checkIfEmailExistsCore,
   EmailProvider,
   getProviderFromMxHost,
-  type ICheckIfEmailExistsCoreParams,
   isGmail,
   isHotmailB2B,
   isHotmailB2C,
   isYahoo,
-} from '../src';
+} from '../src/check-if-email-exists';
 
 async function basicEmailVerification() {
   console.log('=== Basic Email Verification ===\n');
@@ -65,13 +65,13 @@ async function advancedEmailVerification() {
   const email = 'user@business-company.com';
 
   // Advanced configuration with provider-specific settings
-  const config: ICheckIfEmailExistsCoreParams = {
+  const config: CheckIfEmailExistsCoreParams = {
     emailAddress: email,
     fromEmail: 'verification@myservice.com',
     helloName: 'myservice.com',
     timeout: 10000,
     verifySmtp: false,
-    // Cache would be passed as an ICache interface implementation
+    // Cache would be passed as an Cache interface implementation
     // cache: myCacheInstance,
   };
 

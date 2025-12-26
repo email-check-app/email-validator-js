@@ -2,8 +2,8 @@
 //
 // This demonstrates the new clean API without backward compatibility concerns
 
-import { getDefaultCache } from '../src/cache';
-import { verifyMailboxSMTP } from '../src/smtp';
+import { getDefaultCache } from '../src';
+import { verifyMailboxSMTP } from '../src/smtp-verifier';
 
 // Example 1: Simple verification with defaults
 // Tests ports 25 -> 587 -> 465 with TLS

@@ -2,8 +2,8 @@
 //
 // This file demonstrates various testing scenarios for the enhanced SMTP functionality.
 
-import { getDefaultCache } from '../src/cache';
-import { verifyMailboxSMTP } from '../src/smtp';
+import { getDefaultCache } from '../src';
+import { verifyMailboxSMTP } from '../src/smtp-verifier';
 
 // Mock MX records for testing (these are real MX servers)
 const testDomains = {

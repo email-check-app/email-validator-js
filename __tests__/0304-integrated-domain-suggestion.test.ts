@@ -1,5 +1,5 @@
+import type { DomainSuggestionMethod } from '../src';
 import { verifyEmail, verifyEmailBatch } from '../src';
-import type { DomainSuggestionMethod } from '../src/types';
 
 describe('0304-integrated-domain-suggestion', () => {
   describe('verifyEmail with domain suggestion enabled', () => {

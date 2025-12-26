@@ -3,9 +3,9 @@
  * Tests that caching works correctly with email validation functions
  */
 
-import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, ICache, SmtpVerificationResult } from '../src';
+import type { Cache, DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from '../src';
 import { DEFAULT_CACHE_OPTIONS, isDisposableEmail, isFreeEmail, LRUAdapter } from '../src';
-import { resolveMxRecords } from '../src/dns';
+import { resolveMxRecords } from '../src/mx-resolver';
 
 describe('0201 Cache Integration', () => {
   // No need to reset cache for parameter-based testing
@@ -29,7 +29,7 @@ describe('0201 Cache Integration', () => {
         return originalSet(key, value, ttl);
       };
 
-      const customCache: ICache = {
+      const customCache: Cache = {
         disposable: trackingCache,
         mx: new LRUAdapter<string[]>(DEFAULT_CACHE_OPTIONS.maxSize.mx, DEFAULT_CACHE_OPTIONS.ttl.mx),
         free: new LRUAdapter<FreeEmailResult>(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
@@ -79,7 +79,7 @@ describe('0201 Cache Integration', () => {
         return originalSet(key, value, ttl);
       };
 
-      const customCache: ICache = {
+      const customCache: Cache = {
         disposable: trackingCache,
         mx: new LRUAdapter<string[]>(DEFAULT_CACHE_OPTIONS.maxSize.mx, DEFAULT_CACHE_OPTIONS.ttl.mx),
         free: new LRUAdapter<FreeEmailResult>(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
@@ -131,7 +131,7 @@ describe('0201 Cache Integration', () => {
         return originalSet(key, value, ttl);
       };
 
-      const customCache: ICache = {
+      const customCache: Cache = {
         free: trackingCache,
         mx: new LRUAdapter<string[]>(DEFAULT_CACHE_OPTIONS.maxSize.mx, DEFAULT_CACHE_OPTIONS.ttl.mx),
         disposable: new LRUAdapter<DisposableEmailResult>(
@@ -186,7 +186,7 @@ describe('0201 Cache Integration', () => {
         return originalSet(key, value, ttl);
       };
 
-      const customCache: ICache = {
+      const customCache: Cache = {
         mx: trackingCache,
         disposable: new LRUAdapter<DisposableEmailResult>(
           DEFAULT_CACHE_OPTIONS.maxSize.disposable,
@@ -228,7 +228,7 @@ describe('0201 Cache Integration', () => {
   describe('Cache Isolation', () => {
     it('should isolate results between different cache instances', async () => {
       // Create two independent cache instances
-      const cache1: ICache = {
+      const cache1: Cache = {
         disposable: new LRUAdapter<DisposableEmailResult>(100, 86400000),
         mx: new LRUAdapter<string[]>(100, 3600000),
         free: new LRUAdapter<FreeEmailResult>(100, 86400000),
@@ -239,7 +239,7 @@ describe('0201 Cache Integration', () => {
         whois: new LRUAdapter<any>(100, 3600000),
       };
 
-      const cache2: ICache = {
+      const cache2: Cache = {
         disposable: new LRUAdapter<DisposableEmailResult>(100, 86400000),
         mx: new LRUAdapter<string[]>(100, 3600000),
         free: new LRUAdapter<FreeEmailResult>(100, 86400000),
@@ -282,7 +282,7 @@ describe('0201 Cache Integration', () => {
   describe('Cache Error Handling', () => {
     it('should handle cache errors gracefully', async () => {
       // Create a cache that throws errors on all operations
-      const faultyCache: ICache = {
+      const faultyCache: Cache = {
         mx: {
           get: () => Promise.reject(new Error('Cache read error')),
           set: () => Promise.reject(new Error('Cache write error')),
