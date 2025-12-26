@@ -17,7 +17,7 @@ function isIPAddress(host: string): boolean {
 
   // IPv6 pattern (simplified)
   const ipv6Regex =
-    /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,7}:$|^(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}$|^(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}$|^(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})$|^::1(?::(?::[0-9a-fA-F]{1,4}){1,7})|$|:(?:(?::[0-9a-fA-F]{1,4}){1,7}:)$/;
+    /^(?:(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})|::1(?::(?::[0-9a-fA-F]{1,4}){1,7})?|:(?:(?::[0-9a-fA-F]{1,4}){1,7}:)|::)$/;
 
   return ipv6Regex.test(host);
 }
@@ -202,6 +202,8 @@ export class SMTPClient {
           ...tlsOptions,
           port: this.port,
           servername: isIPAddress(this.host) ? undefined : this.host,
+          // TLSSocket supports timeout option directly
+          timeout: this.timeout,
         };
         this.socket = tls.connect(connectOptions, () => {
           this.debug(`Connected to ${this.host}:${this.port} with TLS`);
@@ -224,12 +226,15 @@ export class SMTPClient {
         }
       }, this.timeout);
 
-      this.socket.setTimeout(this.timeout, () => {
-        if (!this.resolved) {
-          this.debug(`Socket timeout after ${this.timeout}ms`);
-          finish(false, 'socket_timeout');
-        }
-      });
+      // Only call setTimeout if the method exists (TLSSocket doesn't have it)
+      if (this.socket && typeof this.socket.setTimeout === 'function') {
+        this.socket.setTimeout(this.timeout, () => {
+          if (!this.resolved) {
+            this.debug(`Socket timeout after ${this.timeout}ms`);
+            finish(false, 'socket_timeout');
+          }
+        });
+      }
 
       // Enhanced error handling
       this.socket.on('error', (error) => {
@@ -251,11 +256,9 @@ export class SMTPClient {
         this.currentStepIndex = 0;
         const firstStep = this.sequence.steps[0];
         if (firstStep !== Step.GREETING) {
-          // If sequence doesn't start with GREETING, start with the specified step
           this.executeStep(firstStep);
         }
       } else {
-        // Empty sequence - consider it complete
         finish(true, 'sequence_complete');
       }
     });
@@ -274,8 +277,6 @@ export class SMTPClient {
       this.currentStepIndex = 0;
       this.verifyParams = params;
 
-      // Merge params into sequence (from/vrfyTarget)
-      // The sequence steps are used as-is from constructor/options
       this.sequence = {
         ...this.sequence,
         from: params.from ?? this.sequence.from,
@@ -299,7 +300,6 @@ export class SMTPClient {
         resolve(result);
       };
 
-      // Override the processResponse method for this verification
       const originalProcessResponse = this.processResponse.bind(this);
       const customProcessResponse = (response: string) => {
         const result = originalProcessResponse(response);
@@ -308,11 +308,10 @@ export class SMTPClient {
         }
       };
 
-      // Override dataHandler to use custom processResponse
       this.dataHandler = (data: Buffer) => {
         if (this.resolved) return;
 
-        this.resetActivityTimeout(); // Reset timeout on each data receipt
+        this.resetActivityTimeout();
         this.buffer += data.toString();
 
         let pos: number;
@@ -324,25 +323,21 @@ export class SMTPClient {
         }
       };
 
-      // Update socket to use new data handler
       if (this.socket) {
         this.socket.removeAllListeners('data');
         this.socket.on('data', this.dataHandler);
       }
 
-      // Start verification
       if (this.sequence.steps.length > 0) {
         const firstStep = this.sequence.steps[0];
         if (firstStep !== Step.GREETING) {
           this.executeStep(firstStep);
         }
       } else {
-        // Empty sequence - consider verification successful immediately
         finish({ success: true, reason: 'sequence_complete' });
         return;
       }
 
-      // Set activity timeout
       this.resetActivityTimeout();
     });
   }
@@ -358,7 +353,7 @@ export class SMTPClient {
   private defaultHandleData(data: Buffer): void {
     if (this.resolved) return;
 
-    this.resetActivityTimeout(); // Reset timeout on each data receipt
+    this.resetActivityTimeout();
     this.buffer += data.toString();
 
     let pos: number;
@@ -377,12 +372,10 @@ export class SMTPClient {
     const isMultiline = response.length > 3 && response[3] === '-';
     this.debug(`← ${response}`);
 
-    // Handle multiline greetings properly
     if (isMultilineGreet(response)) {
       return null;
     }
 
-    // Apply original logic for over quota and invalid mailbox errors
     if (isOverQuota(response)) {
       return { success: false, reason: 'over_quota' };
     }
@@ -391,7 +384,6 @@ export class SMTPClient {
       return { success: false, reason: 'not_found' };
     }
 
-    // Skip multiline continuation for EHLO responses
     if (isMultiline) {
       const currentStep = this.sequence.steps[this.currentStepIndex];
       if (currentStep === Step.EHLO && code === '250') {
@@ -406,7 +398,6 @@ export class SMTPClient {
       return null;
     }
 
-    // Check for recognized responses
     if (
       !response.includes('220') &&
       !response.includes('250') &&
@@ -418,7 +409,6 @@ export class SMTPClient {
 
     const currentStep = this.sequence.steps[this.currentStepIndex];
 
-    // Process response based on current step
     switch (currentStep) {
       case Step.GREETING:
         if (code.startsWith('220')) {
@@ -430,11 +420,9 @@ export class SMTPClient {
 
       case Step.EHLO:
         if (code.startsWith('250')) {
-          // Check if we need STARTTLS
           const hasSTARTTLS = this.sequence.steps.includes(Step.STARTTLS);
           const useTLS = this.tls !== false;
           if (!this.isTLS && useTLS && this.supportsSTARTTLS && this.port !== 465 && hasSTARTTLS) {
-            // Jump to STARTTLS step
             this.currentStepIndex = this.sequence.steps.indexOf(Step.STARTTLS);
             this.executeStep(Step.STARTTLS);
           } else {
@@ -455,10 +443,8 @@ export class SMTPClient {
 
       case Step.STARTTLS:
         if (code.startsWith('220')) {
-          // Upgrade to TLS
           this.upgradeToTLS();
         } else {
-          // STARTTLS failed, continue to next step
           this.nextStep();
         }
         break;
@@ -484,7 +470,6 @@ export class SMTPClient {
           code.startsWith('5') &&
           this.sequence.steps.includes(Step.VRFY)
         ) {
-          // Jump to VRFY step
           this.currentStepIndex = this.sequence.steps.indexOf(Step.VRFY);
           this.executeStep(Step.VRFY);
         } else {
@@ -524,7 +509,6 @@ export class SMTPClient {
         this.sendCommand(`HELO ${this.hostname}`);
         break;
       case Step.GREETING:
-        // No command to send, wait for server greeting
         break;
       case Step.STARTTLS:
         this.sendCommand('STARTTLS');
@@ -559,7 +543,6 @@ export class SMTPClient {
   private nextStep(): void {
     this.currentStepIndex++;
     if (this.currentStepIndex >= this.sequence.steps.length) {
-      // Sequence completed successfully
       return;
     }
     this.executeStep(this.sequence.steps[this.currentStepIndex]);
@@ -582,16 +565,13 @@ export class SMTPClient {
       this.isTLS = true;
       this.debug('TLS upgraded');
       this.buffer = '';
-      // Continue with next step after STARTTLS
       const starttlsIndex = this.sequence.steps.indexOf(Step.STARTTLS);
       this.currentStepIndex = starttlsIndex;
       this.nextStep();
     });
 
     this.socket.on('data', this.dataHandler);
-    this.socket.on('error', () => {
-      // Error handled in main connection logic
-    });
+    this.socket.on('error', () => {});
   }
 
   private resetActivityTimeout(): void {
@@ -602,7 +582,6 @@ export class SMTPClient {
     this.stepTimeout = setTimeout(() => {
       if (!this.resolved) {
         this.debug(`Step timeout after ${this.timeout}ms of inactivity`);
-        // This will be handled by the calling method
       }
     }, this.timeout);
   }
@@ -610,7 +589,11 @@ export class SMTPClient {
   private clearTimeouts(): void {
     if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
     if (this.stepTimeout) clearTimeout(this.stepTimeout);
-    if (this.socket) this.socket.setTimeout(0);
+
+    // Safe: TLSSocket does not have setTimeout()
+    if (this.socket && typeof (this.socket as any).setTimeout === 'function') {
+      (this.socket as any).setTimeout(0);
+    }
   }
 
   /**

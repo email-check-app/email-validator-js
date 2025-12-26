@@ -262,11 +262,6 @@ describe.skip('0007: Integration Tests', () => {
   // or in a CI environment with proper mocking
 
   it('should handle real Gmail addresses (integration test)', async () => {
-    // Skip this test in automated testing
-    if (process.env.CI) {
-      return;
-    }
-
     // Restore original DNS resolution for integration test
     mockResolveMx.mockRestore();
 

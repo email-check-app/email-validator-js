@@ -24,25 +24,6 @@ export function detectEnvironment(): TestEnvironment {
 }
 
 /**
- * Check if integration tests should be skipped
- */
-export function shouldSkipIntegrationTests(): boolean {
-  const env = detectEnvironment();
-  return (
-    env === TestEnvironment.CI ||
-    process.env.SKIP_INTEGRATION_TESTS === 'true' ||
-    process.env.SKIP_NETWORK_TESTS === 'true'
-  );
-}
-
-/**
- * Check if network tests should be skipped
- */
-export function shouldSkipNetworkTests(): boolean {
-  return process.env.SKIP_NETWORK_TESTS === 'true' || process.env.OFFLINE === 'true';
-}
-
-/**
  * Get test timeout based on test category
  */
 export function getTestTimeout(category: 'fast' | 'slow' | 'integration' | 'network'): number {

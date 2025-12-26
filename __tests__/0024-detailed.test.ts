@@ -113,7 +113,7 @@ describe('0024: Detailed Email Verification', () => {
       expect(result.metadata?.error).toBe(VerificationErrorCode.SMTP_CONNECTION_FAILED);
     });
 
-    it.only('should handle SMTP connection failure', async () => {
+    it('should handle SMTP connection failure', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
       const socket = {
@@ -127,6 +127,7 @@ describe('0024: Detailed Email Verification', () => {
         destroyed: false,
         removeAllListeners: () => {},
         destroy: () => {},
+        setTimeout: () => {},
       };
       sandbox.stub(net, 'connect').returns(socket as unknown as Socket);
 
@@ -138,7 +139,7 @@ describe('0024: Detailed Email Verification', () => {
       });
 
       expect(result.validSmtp).toBe(null);
-      expect(result.metadata?.error).toBe(VerificationErrorCode.NO_MX_RECORDS);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.SMTP_CONNECTION_FAILED);
     });
 
     it('should indicate when results are cached', async () => {
@@ -166,7 +167,7 @@ describe('0024: Detailed Email Verification', () => {
         cache: sharedCache,
         timeout: 2000,
       });
-      expect(result1.metadata?.cached).toBe(true);
+      expect(result1.metadata?.cached).toBe(false);
 
       // Second call - should be cached
       const result2 = await verifyEmail({
