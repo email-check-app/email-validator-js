@@ -56,6 +56,9 @@ function parseSmtpError(errorMessage: string): {
     '550',
     '551',
     '553',
+    // Internal reason codes from SMTPClient
+    'not_found',
+    'ambiguous',
   ];
 
   // Check for full inbox
@@ -75,6 +78,8 @@ function parseSmtpError(errorMessage: string): {
     'overquota', // Single word variant
     '452',
     '552',
+    // Internal reason codes from SMTPClient
+    'over_quota',
   ];
 
   // Check for catch-all (accepts all recipients)
@@ -101,6 +106,8 @@ function parseSmtpError(errorMessage: string): {
     '421',
     '450',
     '451',
+    // Internal reason codes from SMTPClient
+    'temporary_failure',
   ];
 
   const isDisabled =
@@ -380,6 +387,18 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<SmtpVer
 
     // Parse error for detailed information
     const errorMessage = verifyResult.reason || 'Unknown error';
+
+    // If the reason is 'valid', this is actually a success case
+    if (errorMessage === 'valid') {
+      return {
+        canConnectSmtp: true,
+        hasFullInbox: false,
+        isCatchAll: false,
+        isDeliverable: true,
+        isDisabled: false,
+      };
+    }
+
     const parsed = parseSmtpError(errorMessage);
     const responseCode = extractResponseCode(errorMessage);
 
@@ -412,7 +431,12 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<SmtpVer
       errorMessage.includes('ECONNREFUSED') ||
       errorMessage.includes('ENOTFOUND') ||
       errorMessage.includes('ECONNRESET') ||
-      errorMessage.includes('socket hang up');
+      errorMessage.includes('socket hang up') ||
+      // Internal error reasons from SMTPClient
+      errorMessage === 'connection_timeout' ||
+      errorMessage === 'socket_timeout' ||
+      errorMessage === 'connection_error' ||
+      errorMessage === 'connection_closed';
 
     if (isConnectionFailure) {
       return {
