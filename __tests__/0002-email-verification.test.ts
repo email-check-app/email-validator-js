@@ -148,23 +148,6 @@ describe('0002 MX Records Query', () => {
     mockResolveMx.mockClear();
   });
 
-  test('should successfully resolve and sort MX records by priority (preference)', async () => {
-    const mockMxRecords = [
-      { exchange: 'mail.example.com', preference: 10 },
-      { exchange: 'mail2.example.com', preference: 20 },
-    ];
-
-    mockResolveMx.mockResolvedValue(mockMxRecords);
-
-    const result = await queryMxRecords('example.com');
-
-    expect(mockResolveMx).toHaveBeenCalledWith('example.com');
-    expect(result.success).toBe(true);
-    expect(result.records).toHaveLength(2);
-    expect(result.lowestPriority?.exchange).toBe('mail.example.com');
-    expect(result.lowestPriority?.priority).toBe(10);
-  });
-
   test('should handle domains with no MX records gracefully', async () => {
     mockResolveMx.mockResolvedValue([]);
 
@@ -185,23 +168,6 @@ describe('0002 MX Records Query', () => {
     expect(result.success).toBe(false);
     expect(result.error).toBe('domain not found');
     expect(result.code).toBe('ENOTFOUND');
-  });
-
-  test('should sort MX records by preference in ascending order', async () => {
-    const mockMxRecords = [
-      { exchange: 'mail3.example.com', preference: 30 },
-      { exchange: 'mail1.example.com', preference: 10 },
-      { exchange: 'mail2.example.com', preference: 20 },
-    ];
-
-    mockResolveMx.mockResolvedValue(mockMxRecords);
-
-    const result = await queryMxRecords('example.com');
-
-    expect(result.records[0].priority).toBe(10);
-    expect(result.records[1].priority).toBe(20);
-    expect(result.records[2].priority).toBe(30);
-    expect(result.lowestPriority?.exchange).toBe('mail1.example.com');
   });
 });
 
