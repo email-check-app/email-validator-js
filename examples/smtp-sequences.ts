@@ -50,13 +50,13 @@ async function fullSequence() {
       ports: [587],
       sequence: {
         steps: [
-          SMTPStep.GREETING,
-          SMTPStep.EHLO,
-          SMTPStep.STARTTLS,
+          SMTPStep.greeting,
+          SMTPStep.ehlo,
+          SMTPStep.startTls,
           // Note: EHLO will be automatically sent after STARTTLS
-          SMTPStep.MAIL_FROM,
-          SMTPStep.RCPT_TO,
-          SMTPStep.VRFY,
+          SMTPStep.mailFrom,
+          SMTPStep.rcptTo,
+          SMTPStep.vrfy,
         ],
         from: '<>', // Null sender
         vrfyTarget: 'user', // VRFY username only
@@ -78,9 +78,9 @@ async function minimalSequence() {
     options: {
       sequence: {
         steps: [
-          SMTPStep.EHLO, // Skip greeting, send EHLO directly
-          SMTPStep.MAIL_FROM,
-          SMTPStep.RCPT_TO,
+          SMTPStep.ehlo, // Skip greeting, send EHLO directly
+          SMTPStep.mailFrom,
+          SMTPStep.rcptTo,
         ],
         from: '<sender@test.com>', // Custom sender
       },
@@ -102,11 +102,11 @@ async function vrfyOnlyTest() {
     options: {
       sequence: {
         steps: [
-          SMTPStep.GREETING,
-          SMTPStep.EHLO,
-          SMTPStep.MAIL_FROM,
+          SMTPStep.greeting,
+          SMTPStep.ehlo,
+          SMTPStep.mailFrom,
           // Skip RCPT TO, go directly to VRFY
-          SMTPStep.VRFY,
+          SMTPStep.vrfy,
         ],
         vrfyTarget: 'user@example.com', // VRFY with full email
       },
@@ -125,21 +125,21 @@ async function customPortsWithSequences() {
       port: 25,
       name: 'SMTP with STARTTLS',
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.STARTTLS, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo],
       },
     },
     {
       port: 587,
       name: 'Submission with TLS',
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.STARTTLS, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo],
       },
     },
     {
       port: 465,
       name: 'SMTPS (implicit TLS)',
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO], // No STARTTLS needed
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo], // No STARTTLS needed
       },
     },
   ];
@@ -180,7 +180,7 @@ async function stepByStepTest() {
     mxRecords: ['mx.example.com'],
     options: {
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo],
       },
       debug: true,
     },
@@ -195,7 +195,7 @@ async function stepByStepTest() {
     mxRecords: ['mx.example.com'],
     options: {
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom],
       },
       debug: true,
     },
@@ -226,7 +226,7 @@ async function compareStrategies() {
       name: 'With VRFY fallback',
       options: {
         sequence: {
-          steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
+          steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
         },
         debug: false,
       },

@@ -122,38 +122,31 @@ async function testCustomSequences() {
     {
       name: 'Minimal sequence',
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
       },
     },
     {
       name: 'With STARTTLS',
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.STARTTLS, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo],
       },
     },
     {
       name: 'With VRFY fallback',
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
       },
     },
     {
       name: 'Full sequence',
       sequence: {
-        steps: [
-          SMTPStep.GREETING,
-          SMTPStep.EHLO,
-          SMTPStep.STARTTLS,
-          SMTPStep.MAIL_FROM,
-          SMTPStep.RCPT_TO,
-          SMTPStep.VRFY,
-        ],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
       },
     },
     {
       name: 'No greeting (direct)',
       sequence: {
-        steps: [SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+        steps: [SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
       },
     },
   ];
@@ -230,28 +223,28 @@ async function testCustomFromAndVRFY() {
     {
       name: 'Null sender (default)',
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
         from: '<>',
       },
     },
     {
       name: 'Real sender',
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
         from: '<sender@domain.com>',
       },
     },
     {
       name: 'VRFY with username',
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
         vrfyTarget: 'test',
       },
     },
     {
       name: 'VRFY with email',
       sequence: {
-        steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
+        steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
         vrfyTarget: 'test@gmail.com',
       },
     },
@@ -350,7 +343,7 @@ async function testErrorScenarios() {
     {
       name: 'Invalid sequence',
       sequence: {
-        steps: [SMTPStep.QUIT], // Invalid - starts with QUIT
+        steps: [SMTPStep.quit], // Invalid - starts with QUIT
       },
       mxRecords: testMX.gmail,
     },

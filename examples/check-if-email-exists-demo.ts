@@ -100,10 +100,10 @@ async function providerOptimizationsDemo() {
   console.log('='.repeat(50));
 
   const providerTests = [
-    { email: 'user@gmail.com', type: EmailProvider.GMAIL },
-    { email: 'person@yahoo.com', type: EmailProvider.YAHOO },
-    { email: 'contact@outlook.com', type: EmailProvider.HOTMAIL_B2C },
-    { email: 'admin@customcompany.com', type: EmailProvider.EVERYTHING_ELSE },
+    { email: 'user@gmail.com', type: EmailProvider.gmail },
+    { email: 'person@yahoo.com', type: EmailProvider.yahoo },
+    { email: 'contact@outlook.com', type: EmailProvider.hotmailB2c },
+    { email: 'admin@customcompany.com', type: EmailProvider.everythingElse },
   ];
 
   console.log('\n🔧 Provider optimizations applied:\n');
@@ -117,8 +117,8 @@ async function providerOptimizationsDemo() {
       port: number;
       retries: number;
     } = {
-      timeout: CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT,
-      port: CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_SMTP_PORT,
+      timeout: checkIfEmailExistsConstants.defaultTimeout,
+      port: checkIfEmailExistsConstants.defaultSmtpPort,
       retries: 2,
     };
 
@@ -131,13 +131,13 @@ async function providerOptimizationsDemo() {
       retries: number;
     } = { ...defaultOptions };
     switch (test.type) {
-      case EmailProvider.GMAIL:
+      case EmailProvider.gmail:
         optimizedOptions = { ...defaultOptions, timeout: 15000, port: 587, retries: 1 };
         break;
-      case EmailProvider.YAHOO:
+      case EmailProvider.yahoo:
         optimizedOptions = { ...defaultOptions, timeout: 20000, port: 587, retries: 2 };
         break;
-      case EmailProvider.HOTMAIL_B2C:
+      case EmailProvider.hotmailB2c:
         optimizedOptions = { ...defaultOptions, timeout: 15000, port: 587, retries: 2 };
         break;
     }
@@ -224,7 +224,7 @@ async function customSmtpVerificationDemo() {
         domain,
         mxResult.lowestPriority.exchange,
         config.options,
-        EmailProvider.EVERYTHING_ELSE
+        EmailProvider.everythingElse
       );
 
       const duration = Date.now() - startTime;
