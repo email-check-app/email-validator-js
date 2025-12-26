@@ -3,6 +3,9 @@
  * Mirrors the logging pattern - pass as optional parameter
  */
 
+import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from './types';
+import type { ParsedWhoisResult } from './whois-parser';
+
 /**
  * Generic cache interface that can be implemented by any cache store
  */
@@ -48,14 +51,19 @@ export interface ICacheStore<T = any> {
 
 /**
  * Cache interface for different types of data
+ * Uses rich result types instead of boolean values for better debugging and analytics
  */
 export interface ICache {
   mx: ICacheStore<string[]>;
-  disposable: ICacheStore<boolean>;
-  free: ICacheStore<boolean>;
-  domainValid: ICacheStore<boolean>;
-  smtp: ICacheStore<boolean | null>;
+  /** Rich result: includes isDisposable, source, category, and checkedAt */
+  disposable: ICacheStore<DisposableEmailResult>;
+  /** Rich result: includes isFree, provider, and checkedAt */
+  free: ICacheStore<FreeEmailResult>;
+  /** Rich result: includes isValid, hasMX, mxRecords, and checkedAt */
+  domainValid: ICacheStore<DomainValidResult>;
+  /** Rich result: includes isValid, mxHost, port, reason, tlsUsed, and checkedAt */
+  smtp: ICacheStore<SmtpVerificationResult>;
   smtpPort: ICacheStore<number>; // Cache for storing successful port per host/domain
   domainSuggestion: ICacheStore<{ suggested: string; confidence: number } | null>;
-  whois: ICacheStore<any>;
+  whois: ICacheStore<ParsedWhoisResult>;
 }

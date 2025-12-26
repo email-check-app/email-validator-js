@@ -1,6 +1,7 @@
 import { isValid } from 'psl';
 import { getCacheStore } from './cache';
 import type { ICache } from './cache-interface';
+import type { DomainValidResult } from './types';
 
 /**
  * Validates if email domain is valid TLD
@@ -14,19 +15,32 @@ export async function isValidEmailDomain(emailOrDomain: string, cache?: ICache |
     return false;
   }
 
-  // Check cache first
-  const cacheStore = getCacheStore<boolean>(cache, 'domainValid');
+  // Check cache first - now uses rich DomainValidResult
+  const cacheStore = getCacheStore<DomainValidResult>(cache, 'domainValid');
   const cached = await cacheStore.get(emailDomain);
   if (cached !== null && cached !== undefined) {
-    return cached;
+    return cached.isValid;
   }
 
   try {
-    const result = isValid(emailDomain) || false;
-    await cacheStore.set(emailDomain, result);
-    return result;
+    const isValidResult = isValid(emailDomain) || false;
+
+    // Store rich result in cache
+    const richResult: DomainValidResult = {
+      isValid: isValidResult,
+      hasMX: false, // MX not checked in this function
+      checkedAt: Date.now(),
+    };
+
+    await cacheStore.set(emailDomain, richResult);
+    return isValidResult;
   } catch (_e) {
-    await cacheStore.set(emailDomain, false);
+    const errorResult: DomainValidResult = {
+      isValid: false,
+      hasMX: false,
+      checkedAt: Date.now(),
+    };
+    await cacheStore.set(emailDomain, errorResult);
     return false;
   }
 }

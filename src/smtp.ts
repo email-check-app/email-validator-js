@@ -1,8 +1,8 @@
 import * as net from 'node:net';
 import * as tls from 'node:tls';
 import { getCacheStore } from './cache';
-import type { SMTPSequence, SMTPTLSConfig, VerifyMailboxSMTPParams } from './types';
-import { SMTPStep } from './types';
+import type { SMTPSequence, SMTPTLSConfig, SmtpVerificationResult, VerifyMailboxSMTPParams } from './types';
+import { EmailProvider, parseSmtpError, SMTPStep } from './types';
 
 /**
  * Check if a string is an IP address
@@ -68,7 +68,7 @@ const PORT_CONFIGS = {
 
 export async function verifyMailboxSMTP(
   params: VerifyMailboxSMTPParams
-): Promise<{ result: boolean | null; cached: boolean; port: number; portCached: boolean }> {
+): Promise<{ smtpResult: SmtpVerificationResult; cached: boolean; port: number; portCached: boolean }> {
   const { local, domain, mxRecords = [], options = {} } = params;
 
   const {
@@ -85,25 +85,63 @@ export async function verifyMailboxSMTP(
 
   const log = debug ? (...args: any[]) => console.log('[SMTP]', ...args) : () => {};
 
+  // Helper function to create SmtpVerificationResult from internal result
+  const createSmtpResult = (
+    result: boolean | null,
+    port: number,
+    tlsUsed: boolean,
+    mxHost: string
+  ): SmtpVerificationResult => {
+    const reason = result === true ? 'valid' : result === null ? 'ambiguous' : 'not_found';
+    const parsedError = parseSmtpError(reason);
+
+    return {
+      canConnectSmtp: result !== null,
+      hasFullInbox: parsedError.hasFullInbox,
+      isCatchAll: parsedError.isCatchAll,
+      isDeliverable: result === true,
+      isDisabled: result === false && parsedError.isDisabled,
+      error: result === null ? reason : result === false ? reason : undefined,
+      providerUsed: EmailProvider.EVERYTHING_ELSE,
+      checkedAt: Date.now(),
+    };
+  };
+
+  const createFailureResult = (error: string): SmtpVerificationResult => ({
+    canConnectSmtp: false,
+    hasFullInbox: false,
+    isCatchAll: false,
+    isDeliverable: false,
+    isDisabled: false,
+    error,
+    providerUsed: EmailProvider.EVERYTHING_ELSE,
+    checkedAt: Date.now(),
+  });
+
   if (!mxRecords || mxRecords.length === 0) {
     log('No MX records found');
-    return { result: false, cached: false, port: 0, portCached: false };
+    return {
+      smtpResult: createFailureResult('No MX records found'),
+      cached: false,
+      port: 0,
+      portCached: false,
+    };
   }
 
   const mxHost = mxRecords[0]; // Use highest priority MX
   log(`Verifying ${local}@${domain} via ${mxHost}`);
 
-  // Get cache store from cache parameter
-  const smtpCacheStore = cache ? getCacheStore<boolean | null>(cache, 'smtp') : null;
+  // Get cache store from cache parameter - now uses SmtpVerificationResult
+  const smtpCacheStore = cache ? getCacheStore<SmtpVerificationResult>(cache, 'smtp') : null;
 
   if (smtpCacheStore) {
-    let cachedResult: boolean | null | undefined;
+    let cachedResult: SmtpVerificationResult | null | undefined;
     try {
       cachedResult = await smtpCacheStore.get(`${mxHost}:${local}@${domain}`);
-      if (cachedResult !== undefined) {
-        log(`Using cached SMTP result: ${cachedResult}`);
+      if (cachedResult !== undefined && cachedResult !== null) {
+        log(`Using cached SMTP result: ${cachedResult.isDeliverable}`);
         return {
-          result: typeof cachedResult === 'boolean' ? cachedResult : null,
+          smtpResult: cachedResult,
           cached: true,
           port: 0,
           portCached: false,
@@ -142,17 +180,19 @@ export async function verifyMailboxSMTP(
         log,
       });
 
-      // Cache the SMTP result (cache even null results)
-      if (smtpCacheStore && result !== undefined) {
+      const smtpResult = createSmtpResult(result, cachedPort, tlsConfig !== false, mxHost);
+
+      // Cache the SMTP result
+      if (smtpCacheStore) {
         try {
-          await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, result);
+          await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, smtpResult);
           log(`Cached SMTP result ${result} for ${local}@${domain} via ${mxHost}`);
         } catch (_error) {
           // Cache error, ignore it
         }
       }
 
-      return { result, cached: false, port: cachedPort, portCached: true };
+      return { smtpResult, cached: false, port: cachedPort, portCached: true };
     }
   }
 
@@ -180,10 +220,12 @@ export async function verifyMailboxSMTP(
         log,
       });
 
-      // Cache the SMTP result (cache even null results)
-      if (smtpCacheStore && result !== undefined) {
+      const smtpResult = createSmtpResult(result, port, tlsConfig !== false, mxHost);
+
+      // Cache the SMTP result
+      if (smtpCacheStore) {
         try {
-          await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, result);
+          await smtpCacheStore.set(`${mxHost}:${local}@${domain}`, smtpResult);
           log(`Cached SMTP result ${result} for ${local}@${domain} via ${mxHost}`);
         } catch (_error) {
           // Cache error, ignore it
@@ -199,13 +241,18 @@ export async function verifyMailboxSMTP(
             // Cache error, ignore it
           }
         }
-        return { result, cached: false, port, portCached: false };
+        return { smtpResult, cached: false, port, portCached: false };
       }
     }
   }
 
   log('All ports failed');
-  return { result: null, cached: false, port: 0, portCached: false };
+  return {
+    smtpResult: createFailureResult('All SMTP connection attempts failed'),
+    cached: false,
+    port: 0,
+    portCached: false,
+  };
 }
 
 interface ConnectionTestParams {

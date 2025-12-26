@@ -253,16 +253,11 @@ describe('checkIfEmailExistsCore', () => {
   });
 });
 
-describe('Integration Tests', () => {
+describe.skip('Integration Tests', () => {
   // These tests require actual network connections and should be run manually
   // or in a CI environment with proper mocking
 
   it('should handle real Gmail addresses (integration test)', async () => {
-    // Skip this test in automated testing
-    if (process.env.CI) {
-      return;
-    }
-
     // Restore original DNS resolution for integration test
     mockResolveMx.mockRestore();
 
@@ -274,13 +269,8 @@ describe('Integration Tests', () => {
       verifySmtp: false, // Keep false for integration tests
     };
 
-    try {
-      const result = await checkIfEmailExistsCore(params);
-      expect(result).toHaveProperty('is_reachable');
-      expect(result.misc?.provider_type).toBe(EmailProvider.GMAIL);
-    } catch (error) {
-      // Network issues are acceptable in integration tests
-      console.warn('Integration test skipped due to network issues:', error);
-    }
+    const result = await checkIfEmailExistsCore(params);
+    expect(result).toHaveProperty('is_reachable');
+    expect(result.misc?.provider_type).toBe(EmailProvider.GMAIL);
   });
 });

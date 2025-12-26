@@ -5,9 +5,13 @@ import { suggestEmailDomain } from './domain-suggester';
 import { detectNameFromEmail } from './name-detector';
 import { verifyMailboxSMTP } from './smtp';
 import {
+  type DisposableEmailResult,
+  type EmailProvider,
+  type FreeEmailResult,
   type IDisposableEmailParams,
   type IFreeEmailParams,
   type IVerifyEmailParams,
+  type SmtpVerificationResult,
   VerificationErrorCode,
   type VerificationResult,
 } from './types';
@@ -79,9 +83,9 @@ export async function isDisposableEmail(params: IDisposableEmailParams): Promise
     return false;
   }
 
-  // Check cache first
-  const cacheStore = getCacheStore<boolean>(cache, 'disposable');
-  let cached: boolean | null | undefined;
+  // Check cache first - now uses rich DisposableEmailResult
+  const cacheStore = getCacheStore<DisposableEmailResult>(cache, 'disposable');
+  let cached: DisposableEmailResult | null | undefined;
   try {
     cached = await cacheStore.get(emailDomain);
   } catch (_error) {
@@ -89,24 +93,33 @@ export async function isDisposableEmail(params: IDisposableEmailParams): Promise
     cached = null;
   }
   if (cached !== null && cached !== undefined) {
-    log(`[isDisposableEmail] Cache hit for ${emailDomain}: ${cached}`);
-    return cached;
+    log(`[isDisposableEmail] Cache hit for ${emailDomain}: ${cached.isDisposable}`);
+    return cached.isDisposable;
   }
 
   if (!disposableEmailProviders) {
     disposableEmailProviders = new Set(require('./disposable-email-providers.json'));
   }
 
-  const result = disposableEmailProviders.has(emailDomain);
+  const isDisposable = disposableEmailProviders.has(emailDomain);
+
+  // Store rich result in cache
+  const richResult: DisposableEmailResult = {
+    isDisposable,
+    source: 'disposable-email-providers.json',
+    category: isDisposable ? 'disposable' : undefined,
+    checkedAt: Date.now(),
+  };
+
   try {
-    await cacheStore.set(emailDomain, result);
-    log(`[isDisposableEmail] Cached result for ${emailDomain}: ${result}`);
+    await cacheStore.set(emailDomain, richResult);
+    log(`[isDisposableEmail] Cached result for ${emailDomain}: ${isDisposable}`);
   } catch (_error) {
     // Cache error, ignore it
     log(`[isDisposableEmail] Cache write error for ${emailDomain}`);
   }
-  log(`[isDisposableEmail] Check result for ${emailDomain}: ${result}`);
-  return result;
+  log(`[isDisposableEmail] Check result for ${emailDomain}: ${isDisposable}`);
+  return isDisposable;
 }
 
 export async function isFreeEmail(params: IFreeEmailParams): Promise<boolean> {
@@ -119,9 +132,9 @@ export async function isFreeEmail(params: IFreeEmailParams): Promise<boolean> {
     return false;
   }
 
-  // Check cache first
-  const cacheStore = getCacheStore<boolean>(cache, 'free');
-  let cached: boolean | null | undefined;
+  // Check cache first - now uses rich FreeEmailResult
+  const cacheStore = getCacheStore<FreeEmailResult>(cache, 'free');
+  let cached: FreeEmailResult | null | undefined;
   try {
     cached = await cacheStore.get(emailDomain);
   } catch (_error) {
@@ -129,24 +142,32 @@ export async function isFreeEmail(params: IFreeEmailParams): Promise<boolean> {
     cached = null;
   }
   if (cached !== null && cached !== undefined) {
-    log(`[isFreeEmail] Cache hit for ${emailDomain}: ${cached}`);
-    return cached;
+    log(`[isFreeEmail] Cache hit for ${emailDomain}: ${cached.isFree}`);
+    return cached.isFree;
   }
 
   if (!freeEmailProviders) {
     freeEmailProviders = new Set(require('./free-email-providers.json'));
   }
 
-  const result = freeEmailProviders.has(emailDomain);
+  const isFree = freeEmailProviders.has(emailDomain);
+
+  // Store rich result in cache
+  const richResult: FreeEmailResult = {
+    isFree,
+    provider: isFree ? emailDomain : undefined,
+    checkedAt: Date.now(),
+  };
+
   try {
-    await cacheStore.set(emailDomain, result);
-    log(`[isFreeEmail] Cached result for ${emailDomain}: ${result}`);
+    await cacheStore.set(emailDomain, richResult);
+    log(`[isFreeEmail] Cached result for ${emailDomain}: ${isFree}`);
   } catch (_error) {
     // Cache error, ignore it
     log(`[isFreeEmail] Cache write error for ${emailDomain}`);
   }
-  log(`[isFreeEmail] Check result for ${emailDomain}: ${result}`);
-  return result;
+  log(`[isFreeEmail] Check result for ${emailDomain}: ${isFree}`);
+  return isFree;
 }
 
 export const domainPorts: Record<string, number> = {
@@ -323,11 +344,12 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
       // SMTP verification
       if (verifySmtp && mxRecords.length > 0) {
         const cacheKey = `${emailAddress}:smtp`;
-        const smtpCacheInstance = getCacheStore<boolean | null>(params.cache, 'smtp');
+        const smtpCacheInstance = getCacheStore<SmtpVerificationResult>(params.cache, 'smtp');
         const cachedSmtp = await smtpCacheInstance.get(cacheKey);
 
         if (cachedSmtp !== null && cachedSmtp !== undefined) {
-          result.validSmtp = cachedSmtp;
+          // Extract isDeliverable from rich cache result for backwards compatibility
+          result.validSmtp = cachedSmtp.isDeliverable ?? null;
           log(`[verifyEmail] SMTP result from cache: ${result.validSmtp} for ${emailAddress}`);
           if (result.metadata) {
             result.metadata.cached = true;
@@ -349,12 +371,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
             }
           }
 
-          const {
-            result: smtpResult,
-            cached,
-            portCached,
-            port,
-          } = await verifyMailboxSMTP({
+          const { smtpResult, cached, port } = await verifyMailboxSMTP({
             local,
             domain,
             mxRecords,
@@ -367,8 +384,9 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
             },
           });
 
+          // Cache the rich SmtpVerificationResult
           await smtpCacheInstance.set(cacheKey, smtpResult);
-          result.validSmtp = smtpResult;
+          result.validSmtp = smtpResult.isDeliverable ?? null;
           if (result.metadata) result.metadata.cached = cached;
 
           log(
