@@ -3,9 +3,9 @@
  */
 
 import {
-  CHECK_IF_EMAIL_EXISTS_CONSTANTS,
   type CheckIfEmailExistsCoreResult,
   type CheckIfEmailExistsSmtpOptions,
+  checkIfEmailExistsConstants,
   checkIfEmailExistsCore,
   EmailProvider,
   getProviderType,

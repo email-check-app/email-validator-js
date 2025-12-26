@@ -9,7 +9,7 @@
  */
 
 import {
-  CHECK_IF_EMAIL_EXISTS_CONSTANTS,
+  checkIfEmailExistsConstants,
   checkIfEmailExistsCore,
   EmailProvider,
   getProviderType,
@@ -29,14 +29,13 @@ jest.mock('dns', () => ({
 const mockResolveMx = require('dns').promises.resolveMx;
 
 // Mock console for debug tests
-const originalConsoleDebug = console.debug;
 beforeEach(() => {
-  console.debug = jest.fn();
+  jest.spyOn(console, 'debug').mockImplementation(() => {});
   mockResolveMx.mockClear();
 });
 
 afterEach(() => {
-  console.debug = originalConsoleDebug;
+  jest.restoreAllMocks();
   mockResolveMx.mockReset();
 });
 
@@ -115,7 +114,7 @@ describe('0002 Provider Type Detection', () => {
     const gmailDomains = ['gmail.com', 'googlemail.com'];
 
     gmailDomains.forEach((domain) => {
-      expect(getProviderType(domain)).toBe(EmailProvider.GMAIL);
+      expect(getProviderType(domain)).toBe(EmailProvider.gmail);
     });
   });
 
@@ -123,7 +122,7 @@ describe('0002 Provider Type Detection', () => {
     const yahooDomains = ['yahoo.com', 'ymail.com', 'rocketmail.com'];
 
     yahooDomains.forEach((domain) => {
-      expect(getProviderType(domain)).toBe(EmailProvider.YAHOO);
+      expect(getProviderType(domain)).toBe(EmailProvider.yahoo);
     });
   });
 
@@ -131,7 +130,7 @@ describe('0002 Provider Type Detection', () => {
     const hotmailDomains = ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'];
 
     hotmailDomains.forEach((domain) => {
-      expect(getProviderType(domain)).toBe(EmailProvider.HOTMAIL_B2C);
+      expect(getProviderType(domain)).toBe(EmailProvider.hotmailB2c);
     });
   });
 
@@ -139,7 +138,7 @@ describe('0002 Provider Type Detection', () => {
     const otherDomains = ['example.com', 'test.org', 'custom-domain.net'];
 
     otherDomains.forEach((domain) => {
-      expect(getProviderType(domain)).toBe(EmailProvider.EVERYTHING_ELSE);
+      expect(getProviderType(domain)).toBe(EmailProvider.everythingElse);
     });
   });
 });
@@ -225,7 +224,7 @@ describe('0002 SMTP Connection Verification', () => {
         'gmail.com',
         'gmail-smtp-in.l.google.com',
         gmailOptions,
-        EmailProvider.GMAIL
+        EmailProvider.gmail
       );
     }).not.toThrow();
   });
@@ -325,7 +324,7 @@ describe('0002 Check If Email Exists Core', () => {
     });
 
     expect(result.misc).not.toBeNull();
-    expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
+    expect(result.misc?.providerType).toBe(EmailProvider.gmail);
     // Gmail should be detected as free provider
     expect(result.misc?.isFree).toBeDefined();
   });
@@ -340,22 +339,22 @@ describe('0002 Check If Email Exists Core', () => {
       enableProviderOptimizations: true,
     });
 
-    expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
+    expect(result.misc?.providerType).toBe(EmailProvider.gmail);
   });
 });
 
 describe('0002 Constants', () => {
   test('should have correct default timeout, port, and email configuration values', () => {
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT).toBe(10000);
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_SMTP_PORT).toBe(25);
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL).toBe('test@example.com');
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME).toBe('example.com');
+    expect(checkIfEmailExistsConstants.defaultTimeout).toBe(10000);
+    expect(checkIfEmailExistsConstants.defaultSmtpPort).toBe(25);
+    expect(checkIfEmailExistsConstants.defaultFromEmail).toBe('test@example.com');
+    expect(checkIfEmailExistsConstants.defaultHelloName).toBe('example.com');
   });
 
   test('should have correct provider domain lists for Gmail, Yahoo, and Hotmail', () => {
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.GMAIL_DOMAINS).toContain('gmail.com');
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS).toContain('yahoo.com');
-    expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.HOTMAIL_DOMAINS).toContain('outlook.com');
+    expect(checkIfEmailExistsConstants.gmailDomains).toContain('gmail.com');
+    expect(checkIfEmailExistsConstants.yahooDomains).toContain('yahoo.com');
+    expect(checkIfEmailExistsConstants.hotmailDomains).toContain('outlook.com');
   });
 });
 
@@ -443,6 +442,6 @@ describe('0002 Integration Tests', () => {
     });
 
     expect(result.syntax.isValid).toBe(true);
-    expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
+    expect(result.misc?.providerType).toBe(EmailProvider.gmail);
   }, 10000);
 });

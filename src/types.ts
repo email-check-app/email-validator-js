@@ -4,16 +4,16 @@ import type { ICache } from './cache-interface';
  * Error codes for email verification failures
  */
 export enum VerificationErrorCode {
-  INVALID_FORMAT = 'INVALID_FORMAT',
-  INVALID_DOMAIN = 'INVALID_DOMAIN',
-  NO_MX_RECORDS = 'NO_MX_RECORDS',
-  SMTP_CONNECTION_FAILED = 'SMTP_CONNECTION_FAILED',
-  SMTP_TIMEOUT = 'SMTP_TIMEOUT',
-  MAILBOX_NOT_FOUND = 'MAILBOX_NOT_FOUND',
-  MAILBOX_FULL = 'MAILBOX_FULL',
-  NETWORK_ERROR = 'NETWORK_ERROR',
-  DISPOSABLE_EMAIL = 'DISPOSABLE_EMAIL',
-  FREE_EMAIL_PROVIDER = 'FREE_EMAIL_PROVIDER',
+  invalidFormat = 'INVALID_FORMAT',
+  invalidDomain = 'INVALID_DOMAIN',
+  noMxRecords = 'NO_MX_RECORDS',
+  smtpConnectionFailed = 'SMTP_CONNECTION_FAILED',
+  smtpTimeout = 'SMTP_TIMEOUT',
+  mailboxNotFound = 'MAILBOX_NOT_FOUND',
+  mailboxFull = 'MAILBOX_FULL',
+  networkError = 'NETWORK_ERROR',
+  disposableEmail = 'DISPOSABLE_EMAIL',
+  freeEmailProvider = 'FREE_EMAIL_PROVIDER',
 }
 
 /**
@@ -132,13 +132,13 @@ export interface DomainValidResult {
  * Email providers enum
  */
 export enum EmailProvider {
-  GMAIL = 'gmail',
-  HOTMAIL_B2B = 'hotmail_b2b',
-  HOTMAIL_B2C = 'hotmail_b2c',
-  PROOFPOINT = 'proofpoint',
-  MIMECAST = 'mimecast',
-  YAHOO = 'yahoo',
-  EVERYTHING_ELSE = 'everything_else',
+  gmail = 'gmail',
+  hotmailB2b = 'hotmail_b2b',
+  hotmailB2c = 'hotmail_b2c',
+  proofpoint = 'proofpoint',
+  mimecast = 'mimecast',
+  yahoo = 'yahoo',
+  everythingElse = 'everything_else',
 }
 
 /**
@@ -354,14 +354,14 @@ export interface SMTPTLSConfig {
  * SMTP protocol steps enum
  */
 export enum SMTPStep {
-  GREETING = 'GREETING',
-  EHLO = 'EHLO',
-  HELO = 'HELO',
-  STARTTLS = 'STARTTLS',
-  MAIL_FROM = 'MAIL_FROM',
-  RCPT_TO = 'RCPT_TO',
-  VRFY = 'VRFY',
-  QUIT = 'QUIT',
+  greeting = 'GREETING',
+  ehlo = 'EHLO',
+  helo = 'HELO',
+  startTls = 'STARTTLS',
+  mailFrom = 'MAIL_FROM',
+  rcptTo = 'RCPT_TO',
+  vrfy = 'VRFY',
+  quit = 'QUIT',
 }
 
 /**

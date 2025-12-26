@@ -26,7 +26,6 @@ describe('0103 SMTP Sequences', () => {
 
         const { smtpResult } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Minimal sequence result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -43,7 +42,6 @@ describe('0103 SMTP Sequences', () => {
 
         const { smtpResult } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Default sequence result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -61,7 +59,6 @@ describe('0103 SMTP Sequences', () => {
 
         const { smtpResult } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`STARTTLS sequence result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -79,7 +76,6 @@ describe('0103 SMTP Sequences', () => {
 
         const { smtpResult } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`VRFY sequence result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -98,7 +94,6 @@ describe('0103 SMTP Sequences', () => {
 
         const { smtpResult } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Full sequence result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -160,9 +155,9 @@ describe('0103 SMTP Sequences', () => {
       'should handle single step sequences',
       async () => {
         const singleStepSequences = [
-          { steps: [SMTPStep.GREETING], name: 'greeting-only' },
-          { steps: [SMTPStep.EHLO], name: 'ehlo-only' },
-          { steps: [SMTPStep.QUIT], name: 'quit-only' },
+          { steps: [SMTPStep.greeting], name: 'greeting-only' },
+          { steps: [SMTPStep.ehlo], name: 'ehlo-only' },
+          { steps: [SMTPStep.quit], name: 'quit-only' },
         ];
 
         for (const seq of singleStepSequences) {
@@ -178,7 +173,6 @@ describe('0103 SMTP Sequences', () => {
 
           const { smtpResult } = await verifyMailboxSMTP(params);
           expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-          console.log(`${seq.name} result: ${smtpResult.isDeliverable}`);
         }
       },
       TestUtils.getTestTimeout('integration')
@@ -190,7 +184,7 @@ describe('0103 SMTP Sequences', () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.EHLO, SMTPStep.EHLO, SMTPStep.QUIT],
+              steps: [SMTPStep.ehlo, SMTPStep.ehlo, SMTPStep.quit],
             },
             ports: [587],
           },
@@ -228,7 +222,7 @@ describe('0103 SMTP Sequences', () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+              steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
               from: '<>',
             },
             ports: [587],
@@ -247,7 +241,7 @@ describe('0103 SMTP Sequences', () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+              steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
               from: '<sender@example.com>',
             },
             ports: [587],
@@ -266,7 +260,7 @@ describe('0103 SMTP Sequences', () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+              steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
               from: 'sender@example.com',
             },
             ports: [587],
@@ -288,7 +282,7 @@ describe('0103 SMTP Sequences', () => {
           local: 'testuser',
           options: {
             sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
+              steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
               vrfyTarget: 'testuser',
             },
             ports: [25],
@@ -308,7 +302,7 @@ describe('0103 SMTP Sequences', () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
+              steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
               vrfyTarget: 'test@gmail.com',
             },
             ports: [25],
@@ -329,7 +323,7 @@ describe('0103 SMTP Sequences', () => {
           local: 'username',
           options: {
             sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
+              steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
             },
             ports: [25],
             useVRFY: true,
@@ -350,7 +344,7 @@ describe('0103 SMTP Sequences', () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.STARTTLS, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+              steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo],
             },
             ports: [587],
             tls: true,
@@ -369,7 +363,7 @@ describe('0103 SMTP Sequences', () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.STARTTLS, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+              steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo],
             },
             ports: [587],
             tls: false,
@@ -388,7 +382,7 @@ describe('0103 SMTP Sequences', () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.STARTTLS, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+              steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo],
             },
             ports: [465],
             tls: true,
@@ -428,7 +422,6 @@ describe('0103 SMTP Sequences', () => {
           const duration = Date.now() - start;
 
           results[name] = { result: smtpResult.isDeliverable, duration };
-          console.log(`${name} sequence: ${duration}ms, result: ${smtpResult.isDeliverable}`);
         }
 
         // Verify all sequences complete successfully
@@ -447,7 +440,7 @@ describe('0103 SMTP Sequences', () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.QUIT, SMTPStep.EHLO], // Invalid order
+              steps: [SMTPStep.quit, SMTPStep.ehlo], // Invalid order
             },
             ports: [587],
             timeout: 2000,
@@ -466,7 +459,7 @@ describe('0103 SMTP Sequences', () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.RCPT_TO], // MAIL_FROM skipped
+              steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.rcptTo], // MAIL_FROM skipped
             },
             ports: [587],
           },
@@ -484,7 +477,7 @@ describe('0103 SMTP Sequences', () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.QUIT],
+              steps: [SMTPStep.quit],
             },
             ports: [587],
             timeout: 1000,

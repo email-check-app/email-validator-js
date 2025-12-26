@@ -1,4 +1,3 @@
-import expect from 'expect';
 import { getDomainAge, getDomainRegistrationStatus } from '../src';
 
 describe('0302 WHOIS', () => {

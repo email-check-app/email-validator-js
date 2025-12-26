@@ -4,7 +4,6 @@
 
 import { promises as dnsPromises } from 'node:dns';
 import net, { Socket } from 'node:net';
-import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';
 import { clearDefaultCache, type VerificationResult, verifyEmailBatch } from '../src';
 

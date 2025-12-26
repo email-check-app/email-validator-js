@@ -105,42 +105,42 @@ export const TEST_CONFIGS = {
 // Custom sequences for testing
 export const TEST_SEQUENCES: { [key: string]: { steps: SMTPStep[]; name: string } } = {
   MINIMAL: {
-    steps: [SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+    steps: [SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
     name: 'minimal',
   },
 
   DEFAULT: {
-    steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+    steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
     name: 'default',
   },
 
   WITH_STARTTLS: {
-    steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.STARTTLS, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+    steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo],
     name: 'with-starttls',
   },
 
   WITH_VRFY: {
-    steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
+    steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
     name: 'with-vrfy',
   },
 
   FULL: {
-    steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.STARTTLS, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO, SMTPStep.VRFY],
+    steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
     name: 'full',
   },
 
   VRFY_ONLY: {
-    steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.VRFY],
+    steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.vrfy],
     name: 'vrfy-only',
   },
 
   NO_GREETING: {
-    steps: [SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+    steps: [SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
     name: 'no-greeting',
   },
 
   EHLO_ONLY: {
-    steps: [SMTPStep.GREETING, SMTPStep.EHLO],
+    steps: [SMTPStep.greeting, SMTPStep.ehlo],
     name: 'ehlo-only',
   },
 } as const;

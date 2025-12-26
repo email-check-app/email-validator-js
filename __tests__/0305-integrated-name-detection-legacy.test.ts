@@ -1,4 +1,3 @@
-import expect from 'expect';
 import { verifyEmail, verifyEmailBatch } from '../src';
 import type { NameDetectionMethod } from '../src/types';
 

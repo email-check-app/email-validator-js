@@ -24,7 +24,6 @@ describe('0101 SMTP Ports', () => {
           duration,
         } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Port 25 verification completed in ${duration}ms: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -41,7 +40,6 @@ describe('0101 SMTP Ports', () => {
           duration,
         } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Port 587 verification completed in ${duration}ms: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -58,7 +56,6 @@ describe('0101 SMTP Ports', () => {
           duration,
         } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Port 465 verification completed in ${duration}ms: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -101,7 +98,6 @@ describe('0101 SMTP Ports', () => {
           duration,
         } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Secure ports verification completed in ${duration}ms: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -122,7 +118,6 @@ describe('0101 SMTP Ports', () => {
           duration,
         } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`All ports verification completed in ${duration}ms: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -334,7 +329,6 @@ describe('0101 SMTP Ports', () => {
 
           const { smtpResult } = await verifyMailboxSMTP(params);
           expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-          console.log(`${domain.name} on port ${domain.preferredPort}: ${smtpResult.isDeliverable}`);
         }
       },
       TestUtils.getTestTimeout('slow')

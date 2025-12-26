@@ -75,31 +75,31 @@ describe('0003 Email Provider Detection from MX Hosts', () => {
 
   describe('getProviderFromMxHost', () => {
     it('should detect GMAIL provider from Gmail MX hosts', () => {
-      expect(getProviderFromMxHost('gmail-smtp-in.l.google.com.')).toBe(EmailProvider.GMAIL);
+      expect(getProviderFromMxHost('gmail-smtp-in.l.google.com.')).toBe(EmailProvider.gmail);
     });
 
     it('should detect YAHOO provider from Yahoo MX hosts', () => {
-      expect(getProviderFromMxHost('mta7.am0.yahoodns.net.')).toBe(EmailProvider.YAHOO);
+      expect(getProviderFromMxHost('mta7.am0.yahoodns.net.')).toBe(EmailProvider.yahoo);
     });
 
     it('should detect HOTMAIL_B2C (consumer) provider from Outlook MX hosts', () => {
-      expect(getProviderFromMxHost('hotmail-com.olc.protection.outlook.com.')).toBe(EmailProvider.HOTMAIL_B2C);
+      expect(getProviderFromMxHost('hotmail-com.olc.protection.outlook.com.')).toBe(EmailProvider.hotmailB2c);
     });
 
     it('should detect HOTMAIL_B2B (business) provider from Office 365 MX hosts', () => {
-      expect(getProviderFromMxHost('mail.protection.outlook.com.')).toBe(EmailProvider.HOTMAIL_B2B);
+      expect(getProviderFromMxHost('mail.protection.outlook.com.')).toBe(EmailProvider.hotmailB2b);
     });
 
     it('should detect PROOFPOINT provider from Proofpoint MX hosts', () => {
-      expect(getProviderFromMxHost('mail.pphosted.com.')).toBe(EmailProvider.PROOFPOINT);
+      expect(getProviderFromMxHost('mail.pphosted.com.')).toBe(EmailProvider.proofpoint);
     });
 
     it('should detect MIMECAST provider from Mimecast MX hosts', () => {
-      expect(getProviderFromMxHost('smtp.mimecast.com.')).toBe(EmailProvider.MIMECAST);
+      expect(getProviderFromMxHost('smtp.mimecast.com.')).toBe(EmailProvider.mimecast);
     });
 
     it('should return EVERYTHING_ELSE for unknown or custom MX hosts', () => {
-      expect(getProviderFromMxHost('mail.example.com.')).toBe(EmailProvider.EVERYTHING_ELSE);
+      expect(getProviderFromMxHost('mail.example.com.')).toBe(EmailProvider.everythingElse);
     });
   });
 });
@@ -135,7 +135,7 @@ describe('0003 Core Email Verification Functionality', () => {
           records: mockMxRecords,
         }),
         misc: expect.objectContaining({
-          providerType: EmailProvider.GMAIL,
+          providerType: EmailProvider.gmail,
         }),
       })
     );
@@ -219,17 +219,17 @@ describe('0003 Core Email Verification Functionality', () => {
       {
         email: 'user@yahoo.com',
         mxRecords: [{ exchange: 'mta7.am0.yahoodns.net.', priority: 5 }],
-        expectedProvider: EmailProvider.YAHOO,
+        expectedProvider: EmailProvider.yahoo,
       },
       {
         email: 'user@hotmail.com',
         mxRecords: [{ exchange: 'hotmail-com.olc.protection.outlook.com.', priority: 5 }],
-        expectedProvider: EmailProvider.HOTMAIL_B2C,
+        expectedProvider: EmailProvider.hotmailB2c,
       },
       {
         email: 'user@company.com',
         mxRecords: [{ exchange: 'mail.protection.outlook.com.', priority: 5 }],
-        expectedProvider: EmailProvider.HOTMAIL_B2B,
+        expectedProvider: EmailProvider.hotmailB2b,
       },
     ];
 
@@ -271,6 +271,6 @@ describe.skip('0003 Integration Tests', () => {
 
     const result = await checkIfEmailExistsCore(params);
     expect(result).toHaveProperty('is_reachable');
-    expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
+    expect(result.misc?.providerType).toBe(EmailProvider.gmail);
   });
 });

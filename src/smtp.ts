@@ -102,7 +102,7 @@ export async function verifyMailboxSMTP(
       isDeliverable: result === true,
       isDisabled: result === false && parsedError.isDisabled,
       error: result === null ? reason : result === false ? reason : undefined,
-      providerUsed: EmailProvider.EVERYTHING_ELSE,
+      providerUsed: EmailProvider.everythingElse,
       checkedAt: Date.now(),
     };
   };
@@ -114,7 +114,7 @@ export async function verifyMailboxSMTP(
     isDeliverable: false,
     isDisabled: false,
     error,
-    providerUsed: EmailProvider.EVERYTHING_ELSE,
+    providerUsed: EmailProvider.everythingElse,
     checkedAt: Date.now(),
   });
 
@@ -277,13 +277,13 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
 
   // Default sequence if not provided
   const defaultSequence: SMTPSequence = {
-    steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
+    steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
   };
   const activeSequence = sequence || defaultSequence;
 
   // For port 25, use HELO instead of EHLO (original behavior)
   if (port === 25) {
-    activeSequence.steps = activeSequence.steps.map((step) => (step === SMTPStep.EHLO ? SMTPStep.HELO : step));
+    activeSequence.steps = activeSequence.steps.map((step) => (step === SMTPStep.ehlo ? SMTPStep.helo : step));
   }
 
   const tlsOptions: tls.ConnectionOptions = {
@@ -340,32 +340,32 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
       if (resolved) return;
 
       switch (step) {
-        case SMTPStep.EHLO:
+        case SMTPStep.ehlo:
           sendCommand(`EHLO ${hostname}`);
           break;
-        case SMTPStep.HELO:
+        case SMTPStep.helo:
           sendCommand(`HELO ${domain}`);
           break;
-        case SMTPStep.GREETING:
+        case SMTPStep.greeting:
           // No command to send, wait for server greeting
           break;
-        case SMTPStep.STARTTLS:
+        case SMTPStep.startTls:
           sendCommand('STARTTLS');
           break;
-        case SMTPStep.MAIL_FROM: {
+        case SMTPStep.mailFrom: {
           const from = activeSequence.from || '<>';
           sendCommand(`MAIL FROM:${from}`);
           break;
         }
-        case SMTPStep.RCPT_TO:
+        case SMTPStep.rcptTo:
           sendCommand(`RCPT TO:<${local}@${domain}>`);
           break;
-        case SMTPStep.VRFY: {
+        case SMTPStep.vrfy: {
           const vrfyTarget = activeSequence.vrfyTarget || local;
           sendCommand(`VRFY ${vrfyTarget}`);
           break;
         }
-        case SMTPStep.QUIT:
+        case SMTPStep.quit:
           sendCommand('QUIT');
           break;
       }
@@ -397,12 +397,12 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
       // Skip multiline continuation for EHLO responses
       if (isMultiline) {
         const currentStep = activeSequence.steps[currentStepIndex];
-        if (currentStep === SMTPStep.EHLO && code === '250') {
+        if (currentStep === SMTPStep.ehlo && code === '250') {
           const upper = response.toUpperCase();
           if (upper.includes('STARTTLS')) supportsSTARTTLS = true;
           if (upper.includes('VRFY')) supportsVRFY = true;
         }
-        if (currentStep === SMTPStep.HELO && code === '250') {
+        if (currentStep === SMTPStep.helo && code === '250') {
           const upper = response.toUpperCase();
           if (upper.includes('VRFY')) supportsVRFY = true;
         }
@@ -424,7 +424,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
 
       // Process response based on current step
       switch (currentStep) {
-        case SMTPStep.GREETING:
+        case SMTPStep.greeting:
           if (code.startsWith('220')) {
             nextStep();
           } else {
@@ -432,14 +432,14 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
           }
           break;
 
-        case SMTPStep.EHLO:
+        case SMTPStep.ehlo:
           if (code.startsWith('250')) {
             // Check if we need STARTTLS
-            const hasSTARTTLS = activeSequence.steps.includes(SMTPStep.STARTTLS);
+            const hasSTARTTLS = activeSequence.steps.includes(SMTPStep.startTls);
             if (!isTLS && useTLS && supportsSTARTTLS && !implicitTLS && hasSTARTTLS) {
               // Jump to STARTTLS step
-              currentStepIndex = activeSequence.steps.indexOf(SMTPStep.STARTTLS);
-              executeStep(SMTPStep.STARTTLS);
+              currentStepIndex = activeSequence.steps.indexOf(SMTPStep.startTls);
+              executeStep(SMTPStep.startTls);
             } else {
               nextStep();
             }
@@ -448,7 +448,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
           }
           break;
 
-        case SMTPStep.HELO:
+        case SMTPStep.helo:
           if (code.startsWith('250')) {
             nextStep();
           } else {
@@ -456,7 +456,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
           }
           break;
 
-        case SMTPStep.STARTTLS:
+        case SMTPStep.startTls:
           if (code.startsWith('220')) {
             // Upgrade to TLS
             const plainSocket = socket as net.Socket;
@@ -471,7 +471,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
                 log('TLS upgraded');
                 buffer = '';
                 // Continue with next step after STARTTLS
-                const starttlsIndex = activeSequence.steps.indexOf(SMTPStep.STARTTLS);
+                const starttlsIndex = activeSequence.steps.indexOf(SMTPStep.startTls);
                 currentStepIndex = starttlsIndex;
                 nextStep();
               }
@@ -484,7 +484,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
           }
           break;
 
-        case SMTPStep.MAIL_FROM:
+        case SMTPStep.mailFrom:
           if (code.startsWith('250')) {
             nextStep();
           } else {
@@ -492,23 +492,23 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
           }
           break;
 
-        case SMTPStep.RCPT_TO:
+        case SMTPStep.rcptTo:
           if (code.startsWith('250') || code.startsWith('251')) {
             finish(true, 'valid');
           } else if (code.startsWith('552') || code.startsWith('452')) {
             finish(false, 'over_quota');
           } else if (code.startsWith('4')) {
             finish(null, 'temporary_failure');
-          } else if (useVRFY && supportsVRFY && code.startsWith('5') && activeSequence.steps.includes(SMTPStep.VRFY)) {
+          } else if (useVRFY && supportsVRFY && code.startsWith('5') && activeSequence.steps.includes(SMTPStep.vrfy)) {
             // Jump to VRFY step
-            currentStepIndex = activeSequence.steps.indexOf(SMTPStep.VRFY);
-            executeStep(SMTPStep.VRFY);
+            currentStepIndex = activeSequence.steps.indexOf(SMTPStep.vrfy);
+            executeStep(SMTPStep.vrfy);
           } else {
             finish(null, 'ambiguous');
           }
           break;
 
-        case SMTPStep.VRFY:
+        case SMTPStep.vrfy:
           if (code.startsWith('250') || code.startsWith('252')) {
             finish(true, 'vrfy_valid');
           } else if (code.startsWith('550')) {
@@ -518,7 +518,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
           }
           break;
 
-        case SMTPStep.QUIT:
+        case SMTPStep.quit:
           if (code.startsWith('221')) {
             finish(null, 'quit_received');
           }
@@ -597,7 +597,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
       }
     }, timeout);
 
-    if (firstStep !== SMTPStep.GREETING) {
+    if (firstStep !== SMTPStep.greeting) {
       // If sequence doesn't start with GREETING, start with the specified step
       executeStep(firstStep);
     }

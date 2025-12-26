@@ -92,22 +92,22 @@ async function advancedEmailVerification() {
     // Provider-specific analysis
     console.log('\n--- Provider Analysis ---');
     switch (result.misc?.providerType) {
-      case EmailProvider.GMAIL:
+      case EmailProvider.gmail:
         console.log('  Gmail address - high confidence in verification');
         break;
-      case EmailProvider.YAHOO:
+      case EmailProvider.yahoo:
         console.log('  Yahoo address - may require special handling');
         break;
-      case EmailProvider.HOTMAIL_B2C:
+      case EmailProvider.hotmailB2c:
         console.log('  Microsoft consumer email (Hotmail/Outlook)');
         break;
-      case EmailProvider.HOTMAIL_B2B:
+      case EmailProvider.hotmailB2b:
         console.log('  Microsoft 365 business email');
         break;
-      case EmailProvider.PROOFPOINT:
+      case EmailProvider.proofpoint:
         console.log('  Proofpoint-protected email - additional security layers');
         break;
-      case EmailProvider.MIMECAST:
+      case EmailProvider.mimecast:
         console.log('  Mimecast-protected email - additional security layers');
         break;
       default:

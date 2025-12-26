@@ -5,7 +5,7 @@ import type { ICache } from './cache-interface';
 import type { DomainAgeInfo, DomainRegistrationInfo } from './types';
 import { type ParsedWhoisResult, parseWhoisData } from './whois-parser';
 
-const WHOIS_SERVERS: Record<string, string> = {
+const whoisServers: Record<string, string> = {
   com: 'whois.verisign-grs.com',
   net: 'whois.verisign-grs.com',
   org: 'whois.pir.org',
@@ -120,7 +120,7 @@ async function getWhoisData(
 
     log(`[whois] extracted TLD: ${tld} for domain: ${domain}`);
 
-    const whoisServer = WHOIS_SERVERS[tld];
+    const whoisServer = whoisServers[tld];
     if (!whoisServer) {
       log(`[whois] no specific server for TLD ${tld}, trying IANA`);
       const defaultServer = 'whois.iana.org';

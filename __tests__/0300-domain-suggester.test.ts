@@ -1,4 +1,3 @@
-import expect from 'expect';
 import type { DomainSuggestionMethod } from '../src';
 import {
   COMMON_EMAIL_DOMAINS,
@@ -125,8 +124,7 @@ describe('0300 Domain Suggester', () => {
       };
 
       // Suppress console.warn for this test
-      const originalWarn = console.warn;
-      console.warn = jest.fn();
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       const result = suggestDomain({
         domain: 'gmial.com',
@@ -136,7 +134,7 @@ describe('0300 Domain Suggester', () => {
       expect(result).toBeTruthy();
       expect(result?.suggested).toBe('gmail.com');
 
-      console.warn = originalWarn;
+      warnSpy.mockRestore();
     });
 
     it('should handle very short domains', () => {

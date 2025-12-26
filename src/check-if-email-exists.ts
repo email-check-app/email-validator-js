@@ -14,14 +14,14 @@ import {
 } from './email-verifier-types';
 import { isDisposableEmail, isFreeEmail } from './index';
 // Constants for common providers
-export const CHECK_IF_EMAIL_EXISTS_CONSTANTS = {
-  GMAIL_DOMAINS: ['gmail.com', 'googlemail.com'] as const,
-  YAHOO_DOMAINS: ['yahoo.com', 'ymail.com', 'rocketmail.com'] as const,
-  HOTMAIL_DOMAINS: ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'] as const,
-  DEFAULT_TIMEOUT: 10000,
-  DEFAULT_SMTP_PORT: 25,
-  DEFAULT_FROM_EMAIL: 'test@example.com',
-  DEFAULT_HELLO_NAME: 'example.com',
+export const checkIfEmailExistsConstants = {
+  gmailDomains: ['gmail.com', 'googlemail.com'] as const,
+  yahooDomains: ['yahoo.com', 'ymail.com', 'rocketmail.com'] as const,
+  hotmailDomains: ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'] as const,
+  defaultTimeout: 10000,
+  defaultSmtpPort: 25,
+  defaultFromEmail: 'test@example.com',
+  defaultHelloName: 'example.com',
 } as const;
 
 // Re-export types for backward compatibility
@@ -198,19 +198,19 @@ export function isMimecast(host: string): boolean {
  */
 export function getProviderFromMxHost(host: string): EmailProvider {
   if (isGmail(host)) {
-    return EmailProvider.GMAIL;
+    return EmailProvider.gmail;
   } else if (isYahoo(host)) {
-    return EmailProvider.YAHOO;
+    return EmailProvider.yahoo;
   } else if (isHotmailB2B(host)) {
-    return EmailProvider.HOTMAIL_B2B;
+    return EmailProvider.hotmailB2b;
   } else if (isHotmailB2C(host)) {
-    return EmailProvider.HOTMAIL_B2C;
+    return EmailProvider.hotmailB2c;
   } else if (isProofpoint(host)) {
-    return EmailProvider.PROOFPOINT;
+    return EmailProvider.proofpoint;
   } else if (isMimecast(host)) {
-    return EmailProvider.MIMECAST;
+    return EmailProvider.mimecast;
   } else {
-    return EmailProvider.EVERYTHING_ELSE;
+    return EmailProvider.everythingElse;
   }
 }
 
@@ -218,14 +218,14 @@ export function getProviderFromMxHost(host: string): EmailProvider {
  * Get provider type for known email providers (legacy function)
  */
 export function getProviderType(domain: string): EmailProvider {
-  const { GMAIL_DOMAINS, YAHOO_DOMAINS, HOTMAIL_DOMAINS } = CHECK_IF_EMAIL_EXISTS_CONSTANTS;
+  const { gmailDomains, yahooDomains, hotmailDomains } = checkIfEmailExistsConstants;
 
   const lowerDomain = domain.toLowerCase();
 
-  if (GMAIL_DOMAINS.some((d) => lowerDomain === d)) return EmailProvider.GMAIL;
-  if (YAHOO_DOMAINS.some((d) => lowerDomain === d)) return EmailProvider.YAHOO;
-  if (HOTMAIL_DOMAINS.some((d) => lowerDomain === d)) return EmailProvider.HOTMAIL_B2C;
-  return EmailProvider.EVERYTHING_ELSE;
+  if (gmailDomains.some((d) => lowerDomain === d)) return EmailProvider.gmail;
+  if (yahooDomains.some((d) => lowerDomain === d)) return EmailProvider.yahoo;
+  if (hotmailDomains.some((d) => lowerDomain === d)) return EmailProvider.hotmailB2c;
+  return EmailProvider.everythingElse;
 }
 
 /**
@@ -238,7 +238,7 @@ export async function queryMxRecords(
     cache?: ICache | null;
   } = {}
 ): Promise<MxLookupResult> {
-  const { timeout = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT, cache } = options;
+  const { timeout = checkIfEmailExistsConstants.defaultTimeout, cache } = options;
 
   // Check cache first
   if (cache && cache.mx) {
@@ -462,13 +462,13 @@ export async function verifySmtpConnection(
     useStartTls?: boolean;
     proxy?: any;
   } = {},
-  providerType: EmailProvider = EmailProvider.EVERYTHING_ELSE
+  providerType: EmailProvider = EmailProvider.everythingElse
 ): Promise<SmtpVerificationResult> {
   const {
-    timeout = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT,
-    fromEmail = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL,
-    helloName = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME,
-    port = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_SMTP_PORT,
+    timeout = checkIfEmailExistsConstants.defaultTimeout,
+    fromEmail = checkIfEmailExistsConstants.defaultFromEmail,
+    helloName = checkIfEmailExistsConstants.defaultHelloName,
+    port = checkIfEmailExistsConstants.defaultSmtpPort,
     retries = 2,
     useStartTls = true,
   } = options;
@@ -526,28 +526,28 @@ export async function verifySmtpConnection(
  */
 function getProviderOptimizations(providerType: EmailProvider): Partial<any> {
   switch (providerType) {
-    case EmailProvider.GMAIL:
+    case EmailProvider.gmail:
       return {
         port: 587,
         timeout: 15000,
         retries: 1,
         useStartTls: true,
       };
-    case EmailProvider.YAHOO:
+    case EmailProvider.yahoo:
       return {
         port: 587,
         timeout: 20000,
         retries: 2,
         useStartTls: true,
       };
-    case EmailProvider.HOTMAIL_B2C:
+    case EmailProvider.hotmailB2c:
       return {
         port: 587,
         timeout: 15000,
         retries: 2,
         useStartTls: true,
       };
-    case EmailProvider.HOTMAIL_B2B:
+    case EmailProvider.hotmailB2b:
       return {
         port: 587,
         timeout: 15000,
@@ -912,7 +912,7 @@ function getProviderSpecificSmtpHeaders(
   domain: string
 ): { headers?: Record<string, string>; optimizations?: Record<string, any> } {
   switch (provider) {
-    case EmailProvider.HOTMAIL_B2B: {
+    case EmailProvider.hotmailB2b: {
       // Microsoft 365 Business specific headers and optimizations
       return {
         headers: {
@@ -936,7 +936,7 @@ function getProviderSpecificSmtpHeaders(
         },
       };
     }
-    case EmailProvider.HOTMAIL_B2C: {
+    case EmailProvider.hotmailB2c: {
       // Microsoft consumer email (Hotmail/Outlook) optimizations
       return {
         headers: {
@@ -952,7 +952,7 @@ function getProviderSpecificSmtpHeaders(
         },
       };
     }
-    case EmailProvider.GMAIL: {
+    case EmailProvider.gmail: {
       // Gmail-specific optimizations
       return {
         headers: {
@@ -970,7 +970,7 @@ function getProviderSpecificSmtpHeaders(
         },
       };
     }
-    case EmailProvider.YAHOO: {
+    case EmailProvider.yahoo: {
       // Yahoo-specific optimizations
       return {
         headers: {
@@ -985,7 +985,7 @@ function getProviderSpecificSmtpHeaders(
         },
       };
     }
-    case EmailProvider.PROOFPOINT: {
+    case EmailProvider.proofpoint: {
       // Proofpoint protected email servers
       return {
         headers: {
@@ -1001,7 +1001,7 @@ function getProviderSpecificSmtpHeaders(
         },
       };
     }
-    case EmailProvider.MIMECAST: {
+    case EmailProvider.mimecast: {
       // Mimecast protected email servers
       return {
         headers: {
@@ -1090,7 +1090,7 @@ export async function checkIfEmailExistsCore(
 
   const {
     emailAddress,
-    timeout = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT,
+    timeout = checkIfEmailExistsConstants.defaultTimeout,
     verifyMx = true,
     verifySmtp = false, // Default to false for safety
     debug = false,
@@ -1156,7 +1156,7 @@ export async function checkIfEmailExistsCore(
     }
 
     // Step 3: Provider detection from MX host
-    let providerType = EmailProvider.EVERYTHING_ELSE;
+    let providerType = EmailProvider.everythingElse;
     if (mxResult && mxResult.success && mxResult.lowestPriority) {
       providerType = getProviderFromMxHost(mxResult.lowestPriority.exchange);
     } else {
@@ -1180,7 +1180,7 @@ export async function checkIfEmailExistsCore(
     }
 
     // Step 5: Provider-specific verification (Yahoo API, Headless, etc.)
-    if (providerType === EmailProvider.YAHOO && (useYahooApi || useYahooHeadless)) {
+    if (providerType === EmailProvider.yahoo && (useYahooApi || useYahooHeadless)) {
       if (useYahooApi) {
         log('Using Yahoo API verification for:', syntaxResult.email!);
 
@@ -1195,7 +1195,7 @@ export async function checkIfEmailExistsCore(
             isDeliverable: yahooResult.isDeliverable,
             isDisabled: !yahooResult.isValid,
             error: yahooResult.error,
-            providerUsed: EmailProvider.YAHOO,
+            providerUsed: EmailProvider.yahoo,
             success: yahooResult.isValid,
             canConnect: yahooResult.isValid,
           };
@@ -1219,7 +1219,7 @@ export async function checkIfEmailExistsCore(
             isDeliverable: false,
             isDisabled: false,
             error: `Yahoo API error: ${error.message}`,
-            providerUsed: EmailProvider.YAHOO,
+            providerUsed: EmailProvider.yahoo,
             success: false,
             canConnect: false,
           };
@@ -1239,7 +1239,7 @@ export async function checkIfEmailExistsCore(
             isDeliverable: headlessResult.email_exists || false,
             isDisabled: !headlessResult.success,
             error: headlessResult.error,
-            providerUsed: EmailProvider.YAHOO,
+            providerUsed: EmailProvider.yahoo,
             success: headlessResult.success,
             canConnect: headlessResult.success,
           };
@@ -1263,7 +1263,7 @@ export async function checkIfEmailExistsCore(
             isDeliverable: false,
             isDisabled: false,
             error: `Yahoo headless error: ${error.message}`,
-            providerUsed: EmailProvider.YAHOO,
+            providerUsed: EmailProvider.yahoo,
             success: false,
             canConnect: false,
           };
@@ -1272,7 +1272,7 @@ export async function checkIfEmailExistsCore(
       }
     }
     // Step 5b: Gmail headless verification (when requested)
-    else if (providerType === EmailProvider.GMAIL && headlessOptions && headlessOptions.webdriverEndpoint) {
+    else if (providerType === EmailProvider.gmail && headlessOptions && headlessOptions.webdriverEndpoint) {
       log('Using Gmail headless verification for:', syntaxResult.email!);
 
       try {
@@ -1286,7 +1286,7 @@ export async function checkIfEmailExistsCore(
           isDeliverable: headlessResult.email_exists || false,
           isDisabled: !headlessResult.success,
           error: headlessResult.error,
-          providerUsed: EmailProvider.GMAIL,
+          providerUsed: EmailProvider.gmail,
           success: headlessResult.success,
           canConnect: headlessResult.success,
         };
@@ -1310,7 +1310,7 @@ export async function checkIfEmailExistsCore(
           isDeliverable: false,
           isDisabled: false,
           error: `Gmail headless error: ${error.message}`,
-          providerUsed: EmailProvider.GMAIL,
+          providerUsed: EmailProvider.gmail,
           success: false,
           canConnect: false,
         };
@@ -1330,8 +1330,8 @@ export async function checkIfEmailExistsCore(
           mxResult.lowestPriority.exchange,
           {
             timeout: smtpTimeout || timeout,
-            fromEmail: fromEmail || CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL,
-            helloName: helloName || CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME,
+            fromEmail: fromEmail || checkIfEmailExistsConstants.defaultFromEmail,
+            helloName: helloName || checkIfEmailExistsConstants.defaultHelloName,
           },
           providerType
         );
@@ -1343,8 +1343,8 @@ export async function checkIfEmailExistsCore(
           mxResult.lowestPriority.exchange,
           {
             timeout: smtpTimeout || timeout,
-            fromEmail: fromEmail || CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL,
-            helloName: helloName || CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME,
+            fromEmail: fromEmail || checkIfEmailExistsConstants.defaultFromEmail,
+            helloName: helloName || checkIfEmailExistsConstants.defaultHelloName,
           },
           providerType
         );
@@ -1396,7 +1396,7 @@ async function verifyYahooApi(
   } = options;
 
   const domain = email.split('@')[1];
-  if (!domain || !CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS.includes(domain as any)) {
+  if (!domain || !checkIfEmailExistsConstants.yahooDomains.includes(domain as any)) {
     return {
       isValid: false,
       isDeliverable: false,
@@ -1949,16 +1949,16 @@ class SmtpErrorParser {
 
     // Provider-specific parsing first
     switch (provider) {
-      case EmailProvider.GMAIL:
+      case EmailProvider.gmail:
         return SmtpErrorParser.parseGmailError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.YAHOO:
+      case EmailProvider.yahoo:
         return SmtpErrorParser.parseYahooError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.HOTMAIL_B2C:
-      case EmailProvider.HOTMAIL_B2B:
+      case EmailProvider.hotmailB2c:
+      case EmailProvider.hotmailB2b:
         return SmtpErrorParser.parseHotmailError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.PROOFPOINT:
+      case EmailProvider.proofpoint:
         return SmtpErrorParser.parseProofpointError(normalizedMessage, smtpMessage, responseCode);
-      case EmailProvider.MIMECAST:
+      case EmailProvider.mimecast:
         return SmtpErrorParser.parseMimecastError(normalizedMessage, smtpMessage, responseCode);
       default:
         break;

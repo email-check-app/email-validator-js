@@ -2,7 +2,6 @@
  * Test suite for utility functions including email validation and disposable email detection
  */
 
-import expect from 'expect';
 import { isDisposableEmail, isValidEmail, isValidEmailDomain } from '../src';
 
 describe('0008 Utils', () => {

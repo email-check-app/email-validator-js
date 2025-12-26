@@ -30,25 +30,25 @@ class TestMockSmtpServer implements MockSmtpServer {
 
   private setupProviderResponses(): void {
     switch (this.provider) {
-      case EmailProvider.GMAIL:
+      case EmailProvider.gmail:
         this.responses.set('RCPT TO:test@gmail.com', { code: 250, message: '2.1.5 OK' });
         this.responses.set('RCPT TO:nonexistent@gmail.com', { code: 550, message: 'No such user here' });
         this.responses.set('RCPT TO:disabled@gmail.com', { code: 554, message: 'Delivery error: Account disabled' });
         break;
 
-      case EmailProvider.YAHOO:
+      case EmailProvider.yahoo:
         this.responses.set('RCPT TO:test@yahoo.com', { code: 250, message: 'User OK' });
         this.responses.set('RCPT TO:nonexistent@yahoo.com', { code: 550, message: 'Invalid recipient' });
         this.responses.set('RCPT TO:full@yahoo.com', { code: 552, message: 'Mailbox over quota' });
         break;
 
-      case EmailProvider.HOTMAIL_B2C:
+      case EmailProvider.hotmailB2c:
         this.responses.set('RCPT TO:test@hotmail.com', { code: 250, message: '2.1.5 Recipient OK' });
         this.responses.set('RCPT TO:nonexistent@hotmail.com', { code: 550, message: 'Recipient address rejected' });
         this.responses.set('RCPT TO:blocked@hotmail.com', { code: 550, message: 'Mail content rejected' });
         break;
 
-      case EmailProvider.HOTMAIL_B2B:
+      case EmailProvider.hotmailB2b:
         this.responses.set('RCPT TO:test@company.com', { code: 250, message: '2.1.5 OK' });
         this.responses.set('RCPT TO:nonexistent@company.com', { code: 550, message: '5.2.1 Invalid recipient' });
         this.responses.set('RCPT TO:relay@company.com', { code: 550, message: '5.4.1 Relay access denied' });
@@ -79,7 +79,7 @@ describe('0106 Mock SMTP Server', () => {
     let server: TestMockSmtpServer;
 
     beforeEach(() => {
-      server = new TestMockSmtpServer('gmail.com', EmailProvider.GMAIL);
+      server = new TestMockSmtpServer('gmail.com', EmailProvider.gmail);
     });
 
     test('should handle Gmail success responses', () => {
@@ -102,7 +102,7 @@ describe('0106 Mock SMTP Server', () => {
     let server: TestMockSmtpServer;
 
     beforeEach(() => {
-      server = new TestMockSmtpServer('yahoo.com', EmailProvider.YAHOO);
+      server = new TestMockSmtpServer('yahoo.com', EmailProvider.yahoo);
     });
 
     test('should handle Yahoo success responses', () => {
@@ -120,7 +120,7 @@ describe('0106 Mock SMTP Server', () => {
     let server: TestMockSmtpServer;
 
     beforeEach(() => {
-      server = new TestMockSmtpServer('hotmail.com', EmailProvider.HOTMAIL_B2C);
+      server = new TestMockSmtpServer('hotmail.com', EmailProvider.hotmailB2c);
     });
 
     test('should handle Hotmail success responses', () => {
@@ -138,7 +138,7 @@ describe('0106 Mock SMTP Server', () => {
     let server: TestMockSmtpServer;
 
     beforeEach(() => {
-      server = new TestMockSmtpServer('company.com', EmailProvider.HOTMAIL_B2B);
+      server = new TestMockSmtpServer('company.com', EmailProvider.hotmailB2b);
     });
 
     test('should handle Microsoft 365 relay denied responses', () => {
@@ -152,7 +152,7 @@ describe('SMTP Error Parsing Tests', () => {
   describe('Gmail Error Parsing', () => {
     test('should parse Gmail disabled account errors', () => {
       const errorMessage = 'Gmail Service: Account disabled';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.GMAIL, 554);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.gmail, 554);
 
       expect(parsed.type).toBe('disabled');
       expect(parsed.severity).toBe('permanent');
@@ -162,7 +162,7 @@ describe('SMTP Error Parsing Tests', () => {
 
     test('should parse Gmail quota exceeded errors', () => {
       const errorMessage = 'Gmail over quota: User has exceeded storage limit';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.GMAIL, 552);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.gmail, 552);
 
       expect(parsed.type).toBe('full_inbox');
       expect(parsed.severity).toBe('temporary');
@@ -172,7 +172,7 @@ describe('SMTP Error Parsing Tests', () => {
 
     test('should parse Gmail rate limiting errors', () => {
       const errorMessage = 'Gmail temporarily deferred: Rate limit exceeded';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.GMAIL, 450);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.gmail, 450);
 
       expect(parsed.type).toBe('rate_limited');
       expect(parsed.severity).toBe('temporary');
@@ -184,7 +184,7 @@ describe('SMTP Error Parsing Tests', () => {
   describe('Yahoo Error Parsing', () => {
     test('should parse Yahoo disabled account errors', () => {
       const errorMessage = 'Yahoo Mail: Account disabled due to terms of service violation';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.YAHOO, 550);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.yahoo, 550);
 
       expect(parsed.type).toBe('disabled');
       expect(parsed.severity).toBe('permanent');
@@ -194,7 +194,7 @@ describe('SMTP Error Parsing Tests', () => {
 
     test('should parse Yahoo mailbox over quota errors', () => {
       const errorMessage = 'Yahoo Mail: Mailbox over quota';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.YAHOO, 552);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.yahoo, 552);
 
       expect(parsed.type).toBe('full_inbox');
       expect(parsed.severity).toBe('temporary');
@@ -204,7 +204,7 @@ describe('SMTP Error Parsing Tests', () => {
 
     test('should parse Yahoo request rejected errors', () => {
       const errorMessage = 'Yahoo Mail: 553 Request rejected';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.YAHOO, 553);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.yahoo, 553);
 
       expect(parsed.type).toBe('blocked');
       expect(parsed.severity).toBe('permanent');
@@ -216,7 +216,7 @@ describe('SMTP Error Parsing Tests', () => {
   describe('Hotmail/Microsoft Error Parsing', () => {
     test('should parse Microsoft 365 recipient rejected errors', () => {
       const errorMessage = 'Outlook: 550 5.2.1 Recipient rejected';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.HOTMAIL_B2B, 550);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.hotmailB2b, 550);
 
       expect(parsed.type).toBe('invalid');
       expect(parsed.severity).toBe('permanent');
@@ -226,7 +226,7 @@ describe('SMTP Error Parsing Tests', () => {
 
     test('should parse Exchange relay access denied errors', () => {
       const errorMessage = 'Outlook: 550 5.4.1 Relay access denied';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.HOTMAIL_B2B, 550);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.hotmailB2b, 550);
 
       expect(parsed.type).toBe('blocked');
       expect(parsed.severity).toBe('permanent');
@@ -236,7 +236,7 @@ describe('SMTP Error Parsing Tests', () => {
 
     test('should parse Microsoft throttling errors', () => {
       const errorMessage = 'Outlook: 4.4.2 Connection limit exceeded';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.HOTMAIL_B2B, 450);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.hotmailB2b, 450);
 
       expect(parsed.type).toBe('rate_limited');
       expect(parsed.severity).toBe('temporary');
@@ -248,7 +248,7 @@ describe('SMTP Error Parsing Tests', () => {
   describe('Proofpoint Error Parsing', () => {
     test('should parse Proofpoint policy violation errors', () => {
       const errorMessage = 'Message rejected due to Proofpoint security policy violation';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.PROOFPOINT, 550);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.proofpoint, 550);
 
       expect(parsed.type).toBe('blocked');
       expect(parsed.severity).toBe('permanent');
@@ -258,7 +258,7 @@ describe('SMTP Error Parsing Tests', () => {
 
     test('should parse Proofpoint rate limiting errors', () => {
       const errorMessage = 'Proofpoint: Too many messages - frequency limit exceeded';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.PROOFPOINT, 450);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.proofpoint, 450);
 
       expect(parsed.type).toBe('rate_limited');
       expect(parsed.severity).toBe('temporary');
@@ -270,7 +270,7 @@ describe('SMTP Error Parsing Tests', () => {
   describe('Mimecast Error Parsing', () => {
     test('should parse Mimecast content policy violations', () => {
       const errorMessage = 'Mimecast: Blocked by policy - content filter triggered';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.MIMECAST, 550);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.mimecast, 550);
 
       expect(parsed.type).toBe('blocked');
       expect(parsed.severity).toBe('permanent');
@@ -282,7 +282,7 @@ describe('SMTP Error Parsing Tests', () => {
   describe('Generic Error Parsing', () => {
     test('should parse generic disabled account errors', () => {
       const errorMessage = 'Account has been disabled';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.EVERYTHING_ELSE, 550);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.everythingElse, 550);
 
       expect(parsed.type).toBe('disabled');
       expect(parsed.severity).toBe('permanent');
@@ -291,7 +291,7 @@ describe('SMTP Error Parsing Tests', () => {
 
     test('should parse generic mailbox full errors', () => {
       const errorMessage = 'Mailbox is full';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.EVERYTHING_ELSE, 552);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.everythingElse, 552);
 
       expect(parsed.type).toBe('full_inbox');
       expect(parsed.severity).toBe('temporary');
@@ -300,7 +300,7 @@ describe('SMTP Error Parsing Tests', () => {
 
     test('should parse generic user unknown errors', () => {
       const errorMessage = 'User unknown';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.EVERYTHING_ELSE, 550);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.everythingElse, 550);
 
       expect(parsed.type).toBe('invalid');
       expect(parsed.severity).toBe('permanent');
@@ -309,7 +309,7 @@ describe('SMTP Error Parsing Tests', () => {
 
     test('should parse generic rate limiting errors', () => {
       const errorMessage = 'Rate limit exceeded';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.EVERYTHING_ELSE, 450);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.everythingElse, 450);
 
       expect(parsed.type).toBe('rate_limited');
       expect(parsed.severity).toBe('temporary');
@@ -328,7 +328,7 @@ describe('SMTP Error Parsing Tests', () => {
       ];
 
       testCases.forEach(({ code, expectedType }) => {
-        const parsed = SmtpErrorParser.parseError('Generic error', EmailProvider.EVERYTHING_ELSE, code);
+        const parsed = SmtpErrorParser.parseError('Generic error', EmailProvider.everythingElse, code);
         expect(parsed.type).toBe(expectedType);
       });
     });
@@ -337,7 +337,7 @@ describe('SMTP Error Parsing Tests', () => {
   describe('Unknown Errors', () => {
     test('should handle unknown error messages gracefully', () => {
       const errorMessage = 'Some completely unknown error message that we cannot parse';
-      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.EVERYTHING_ELSE);
+      const parsed = SmtpErrorParser.parseError(errorMessage, EmailProvider.everythingElse);
 
       expect(parsed.type).toBe('unknown');
       expect(parsed.severity).toBe('unknown');
@@ -350,7 +350,7 @@ describe('SMTP Error Parsing Tests', () => {
 describe('Mock Server Integration Tests', () => {
   describe('Server Lifecycle', () => {
     test('should connect and disconnect properly', () => {
-      const server = new TestMockSmtpServer('gmail.com', EmailProvider.GMAIL);
+      const server = new TestMockSmtpServer('gmail.com', EmailProvider.gmail);
 
       expect(server.connected).toBe(false);
 
@@ -365,7 +365,7 @@ describe('Mock Server Integration Tests', () => {
 
   describe('Provider-Specific Mock Behavior', () => {
     test('should simulate Gmail behavior', () => {
-      const server = new TestMockSmtpServer('gmail.com', EmailProvider.GMAIL);
+      const server = new TestMockSmtpServer('gmail.com', EmailProvider.gmail);
 
       const validResponse = server.getResponse('RCPT TO:test@gmail.com');
       expect(validResponse?.code).toBe(250);
@@ -375,7 +375,7 @@ describe('Mock Server Integration Tests', () => {
     });
 
     test('should simulate Yahoo behavior', () => {
-      const server = new TestMockSmtpServer('yahoo.com', EmailProvider.YAHOO);
+      const server = new TestMockSmtpServer('yahoo.com', EmailProvider.yahoo);
 
       const validResponse = server.getResponse('RCPT TO:test@yahoo.com');
       expect(validResponse?.code).toBe(250);
@@ -387,7 +387,7 @@ describe('Mock Server Integration Tests', () => {
 
   describe('Missing Responses', () => {
     test('should return null for unknown commands', () => {
-      const server = new TestMockSmtpServer('gmail.com', EmailProvider.GMAIL);
+      const server = new TestMockSmtpServer('gmail.com', EmailProvider.gmail);
 
       const unknownResponse = server.getResponse('UNKNOWN COMMAND');
       expect(unknownResponse).toBeNull();

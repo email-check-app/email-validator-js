@@ -102,10 +102,10 @@ function providerDetection() {
       const providerType = getProviderType(domain);
 
       let icon = '📧';
-      if (providerType === EmailProvider.GMAIL) icon = '🔵';
-      else if (providerType === EmailProvider.YAHOO) icon = '🟣';
-      else if (providerType === EmailProvider.HOTMAIL_B2C) icon = '🔷';
-      else if (providerType === EmailProvider.EVERYTHING_ELSE) icon = '🌐';
+      if (providerType === EmailProvider.gmail) icon = '🔵';
+      else if (providerType === EmailProvider.yahoo) icon = '🟣';
+      else if (providerType === EmailProvider.hotmailB2c) icon = '🔷';
+      else if (providerType === EmailProvider.everythingElse) icon = '🌐';
 
       console.log(`${icon} ${email.padEnd(25)} ${providerType}`);
     }

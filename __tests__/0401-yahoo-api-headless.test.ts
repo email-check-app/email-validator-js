@@ -374,15 +374,15 @@ describe('0401 Yahoo API Headless', () => {
 
 describe('Email Provider Constants', () => {
   test('should have correct Yahoo provider enum', () => {
-    expect(EmailProvider.YAHOO).toBe('yahoo');
+    expect(EmailProvider.yahoo).toBe('yahoo');
   });
 
   test('should have all required email provider enums', () => {
-    expect(EmailProvider.GMAIL).toBe('gmail');
-    expect(EmailProvider.HOTMAIL_B2C).toBe('hotmail_b2c');
-    expect(EmailProvider.HOTMAIL_B2B).toBe('hotmail_b2b');
-    expect(EmailProvider.PROOFPOINT).toBe('proofpoint');
-    expect(EmailProvider.MIMECAST).toBe('mimecast');
-    expect(EmailProvider.EVERYTHING_ELSE).toBe('everything_else');
+    expect(EmailProvider.gmail).toBe('gmail');
+    expect(EmailProvider.hotmailB2c).toBe('hotmail_b2c');
+    expect(EmailProvider.hotmailB2b).toBe('hotmail_b2b');
+    expect(EmailProvider.proofpoint).toBe('proofpoint');
+    expect(EmailProvider.mimecast).toBe('mimecast');
+    expect(EmailProvider.everythingElse).toBe('everything_else');
   });
 });

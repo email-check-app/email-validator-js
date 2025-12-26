@@ -102,7 +102,7 @@ function createErrorResult(email: string, _error: unknown): VerificationResult {
     metadata: {
       verificationTime: 0,
       cached: false,
-      error: VerificationErrorCode.SMTP_CONNECTION_FAILED,
+      error: VerificationErrorCode.smtpConnectionFailed,
     },
   };
 }

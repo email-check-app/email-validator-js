@@ -289,7 +289,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         options: {
           sequence: {
-            steps: [SMTPStep.QUIT, SMTPStep.QUIT, SMTPStep.QUIT], // Invalid order
+            steps: [SMTPStep.quit, SMTPStep.quit, SMTPStep.quit], // Invalid order
           },
           ports: [587],
           timeout: 2000,
@@ -304,7 +304,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         options: {
           sequence: {
-            steps: [SMTPStep.EHLO], // Missing RCPT_TO
+            steps: [SMTPStep.ehlo], // Missing RCPT_TO
           },
           ports: [587],
         },
@@ -372,7 +372,7 @@ describe('0104 SMTP Errors', () => {
         options: {
           ports: [25],
           sequence: {
-            steps: [SMTPStep.GREETING, SMTPStep.EHLO],
+            steps: [SMTPStep.greeting, SMTPStep.ehlo],
           },
           timeout: 3000,
         },

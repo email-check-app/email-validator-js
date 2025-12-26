@@ -4,7 +4,7 @@
  */
 
 import {
-  CHECK_IF_EMAIL_EXISTS_CONSTANTS,
+  checkIfEmailExistsConstants,
   checkIfEmailExistsCore,
   EmailProvider,
   getProviderType,
@@ -20,7 +20,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@gmail.com',
       expected: {
         syntax: { isValid: true, domain: 'gmail.com', localPart: 'user' },
-        provider: EmailProvider.GMAIL,
+        provider: EmailProvider.gmail,
         isDeliverable: true,
       },
       description: 'Valid Gmail address',
@@ -30,7 +30,7 @@ describe('0400 Provider Specific', () => {
       email: 'user+tag@gmail.com',
       expected: {
         syntax: { isValid: true, domain: 'gmail.com', localPart: 'user+tag' },
-        provider: EmailProvider.GMAIL,
+        provider: EmailProvider.gmail,
         isDeliverable: true,
       },
       description: 'Gmail plus addressing',
@@ -40,7 +40,7 @@ describe('0400 Provider Specific', () => {
       email: 'user.dots@gmail.com',
       expected: {
         syntax: { isValid: true, domain: 'gmail.com', localPart: 'user.dots' },
-        provider: EmailProvider.GMAIL,
+        provider: EmailProvider.gmail,
         isDeliverable: true,
       },
       description: 'Gmail with dots (dots are ignored by Gmail)',
@@ -50,7 +50,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@googlemail.com',
       expected: {
         syntax: { isValid: true, domain: 'googlemail.com', localPart: 'user' },
-        provider: EmailProvider.GMAIL,
+        provider: EmailProvider.gmail,
         isDeliverable: true,
       },
       description: 'Googlemail domain (Gmail alternative)',
@@ -62,7 +62,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@yahoo.com',
       expected: {
         syntax: { isValid: true, domain: 'yahoo.com', localPart: 'user' },
-        provider: EmailProvider.YAHOO,
+        provider: EmailProvider.yahoo,
         isDeliverable: true,
       },
       description: 'Valid Yahoo address',
@@ -72,7 +72,7 @@ describe('0400 Provider Specific', () => {
       email: 'user+alias@yahoo.com',
       expected: {
         syntax: { isValid: true, domain: 'yahoo.com', localPart: 'user+alias' },
-        provider: EmailProvider.YAHOO,
+        provider: EmailProvider.yahoo,
         isDeliverable: true,
       },
       description: 'Yahoo plus addressing',
@@ -82,7 +82,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@ymail.com',
       expected: {
         syntax: { isValid: true, domain: 'ymail.com', localPart: 'user' },
-        provider: EmailProvider.YAHOO,
+        provider: EmailProvider.yahoo,
         isDeliverable: true,
       },
       description: 'Yahoo alternative domain (ymail.com)',
@@ -92,7 +92,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@rocketmail.com',
       expected: {
         syntax: { isValid: true, domain: 'rocketmail.com', localPart: 'user' },
-        provider: EmailProvider.YAHOO,
+        provider: EmailProvider.yahoo,
         isDeliverable: true,
       },
       description: 'Yahoo alternative domain (rocketmail.com)',
@@ -104,7 +104,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@hotmail.com',
       expected: {
         syntax: { isValid: true, domain: 'hotmail.com', localPart: 'user' },
-        provider: EmailProvider.HOTMAIL_B2C,
+        provider: EmailProvider.hotmailB2c,
         isDeliverable: true,
       },
       description: 'Valid Hotmail address',
@@ -114,7 +114,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@outlook.com',
       expected: {
         syntax: { isValid: true, domain: 'outlook.com', localPart: 'user' },
-        provider: EmailProvider.HOTMAIL_B2C,
+        provider: EmailProvider.hotmailB2c,
         isDeliverable: true,
       },
       description: 'Valid Outlook address',
@@ -124,7 +124,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@live.com',
       expected: {
         syntax: { isValid: true, domain: 'live.com', localPart: 'user' },
-        provider: EmailProvider.HOTMAIL_B2C,
+        provider: EmailProvider.hotmailB2c,
         isDeliverable: true,
       },
       description: 'Valid Live.com address',
@@ -134,7 +134,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@msn.com',
       expected: {
         syntax: { isValid: true, domain: 'msn.com', localPart: 'user' },
-        provider: EmailProvider.HOTMAIL_B2C,
+        provider: EmailProvider.hotmailB2c,
         isDeliverable: true,
       },
       description: 'Valid MSN address',
@@ -146,7 +146,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@company.onmicrosoft.com',
       expected: {
         syntax: { isValid: true, domain: 'company.onmicrosoft.com', localPart: 'user' },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
         isDeliverable: true,
       },
       description: 'Microsoft 365 business domain (requires MX lookup)',
@@ -158,7 +158,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@company.emailprotection.outlook.com',
       expected: {
         syntax: { isValid: true, domain: 'company.emailprotection.outlook.com', localPart: 'user' },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
         isDeliverable: true,
       },
       description: 'Mimecast protected domain (requires MX lookup)',
@@ -168,7 +168,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@company.protection.outlook.com',
       expected: {
         syntax: { isValid: true, domain: 'company.protection.outlook.com', localPart: 'user' },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
         isDeliverable: true,
       },
       description: 'Proofpoint protected domain (requires MX lookup)',
@@ -180,7 +180,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@example.com',
       expected: {
         syntax: { isValid: true, domain: 'example.com', localPart: 'user' },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
         isDeliverable: true,
       },
       description: 'Generic domain',
@@ -190,7 +190,7 @@ describe('0400 Provider Specific', () => {
       email: 'user@custom-domain.org',
       expected: {
         syntax: { isValid: true, domain: 'custom-domain.org', localPart: 'user' },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
         isDeliverable: true,
       },
       description: 'Custom domain',
@@ -202,7 +202,7 @@ describe('0400 Provider Specific', () => {
       email: 'a@b.co',
       expected: {
         syntax: { isValid: true, domain: 'b.co', localPart: 'a' },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
         isDeliverable: true,
       },
       description: 'Minimum valid email',
@@ -212,7 +212,7 @@ describe('0400 Provider Specific', () => {
       email: 'very.long.local.part.that.exceeds.the.normal.limits.but.is.still.technically.valid@domain.com',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Local part exceeds 64 characters',
       category: 'invalid',
@@ -235,21 +235,21 @@ describe('0400 Provider Specific', () => {
     test('should recognize all Gmail domains', () => {
       const gmailDomains = ['gmail.com', 'googlemail.com'];
       gmailDomains.forEach((domain) => {
-        expect(getProviderType(domain)).toBe(EmailProvider.GMAIL);
+        expect(getProviderType(domain)).toBe(EmailProvider.gmail);
       });
     });
 
     test('should recognize all Yahoo domains', () => {
       const yahooDomains = ['yahoo.com', 'ymail.com', 'rocketmail.com'];
       yahooDomains.forEach((domain) => {
-        expect(getProviderType(domain)).toBe(EmailProvider.YAHOO);
+        expect(getProviderType(domain)).toBe(EmailProvider.yahoo);
       });
     });
 
     test('should recognize all Hotmail domains', () => {
       const hotmailDomains = ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'];
       hotmailDomains.forEach((domain) => {
-        expect(getProviderType(domain)).toBe(EmailProvider.HOTMAIL_B2C);
+        expect(getProviderType(domain)).toBe(EmailProvider.hotmailB2c);
       });
     });
 
@@ -260,7 +260,7 @@ describe('0400 Provider Specific', () => {
       ];
       // Note: B2B detection requires MX record lookup, so onmicrosoft.com is classified as EVERYTHING_ELSE
       b2bDomains.forEach((domain) => {
-        expect(getProviderType(domain)).toBe(EmailProvider.EVERYTHING_ELSE);
+        expect(getProviderType(domain)).toBe(EmailProvider.everythingElse);
       });
     });
 
@@ -273,7 +273,7 @@ describe('0400 Provider Specific', () => {
       ];
       // Note: Security provider detection requires MX record lookup
       securityDomains.forEach((domain) => {
-        expect(getProviderType(domain)).toBe(EmailProvider.EVERYTHING_ELSE);
+        expect(getProviderType(domain)).toBe(EmailProvider.everythingElse);
       });
     });
 
@@ -284,7 +284,7 @@ describe('0400 Provider Specific', () => {
         'outlook.office.com', // Should be OTHER, not HOTMAIL
       ];
       subdomainTests.forEach((domain) => {
-        expect(getProviderType(domain)).toBe(EmailProvider.EVERYTHING_ELSE);
+        expect(getProviderType(domain)).toBe(EmailProvider.everythingElse);
       });
     });
   });
@@ -314,7 +314,7 @@ describe('0400 Provider Specific', () => {
       yahooFeatures.forEach((email) => {
         const result = validateEmailSyntax(email);
         expect(result.isValid).toBe(true);
-        expect([EmailProvider.YAHOO].includes(getProviderType(result.domain!))).toBe(true);
+        expect([EmailProvider.yahoo].includes(getProviderType(result.domain!))).toBe(true);
       });
     });
 
@@ -324,7 +324,7 @@ describe('0400 Provider Specific', () => {
       hotmailFeatures.forEach((email) => {
         const result = validateEmailSyntax(email);
         expect(result.isValid).toBe(true);
-        expect(getProviderType(result.domain!)).toBe(EmailProvider.HOTMAIL_B2C);
+        expect(getProviderType(result.domain!)).toBe(EmailProvider.hotmailB2c);
       });
     });
   });
@@ -359,24 +359,24 @@ describe('0400 Provider Specific', () => {
 
   describe('Constants Validation', () => {
     test('should have correct provider domains in constants', () => {
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.GMAIL_DOMAINS).toContain('gmail.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.GMAIL_DOMAINS).toContain('googlemail.com');
+      expect(checkIfEmailExistsConstants.gmailDomains).toContain('gmail.com');
+      expect(checkIfEmailExistsConstants.gmailDomains).toContain('googlemail.com');
 
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS).toContain('yahoo.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS).toContain('ymail.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS).toContain('rocketmail.com');
+      expect(checkIfEmailExistsConstants.yahooDomains).toContain('yahoo.com');
+      expect(checkIfEmailExistsConstants.yahooDomains).toContain('ymail.com');
+      expect(checkIfEmailExistsConstants.yahooDomains).toContain('rocketmail.com');
 
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.HOTMAIL_DOMAINS).toContain('hotmail.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.HOTMAIL_DOMAINS).toContain('outlook.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.HOTMAIL_DOMAINS).toContain('live.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.HOTMAIL_DOMAINS).toContain('msn.com');
+      expect(checkIfEmailExistsConstants.hotmailDomains).toContain('hotmail.com');
+      expect(checkIfEmailExistsConstants.hotmailDomains).toContain('outlook.com');
+      expect(checkIfEmailExistsConstants.hotmailDomains).toContain('live.com');
+      expect(checkIfEmailExistsConstants.hotmailDomains).toContain('msn.com');
     });
 
     test('should have correct default values', () => {
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT).toBe(10000);
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_SMTP_PORT).toBe(25);
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL).toBe('test@example.com');
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME).toBe('example.com');
+      expect(checkIfEmailExistsConstants.defaultTimeout).toBe(10000);
+      expect(checkIfEmailExistsConstants.defaultSmtpPort).toBe(25);
+      expect(checkIfEmailExistsConstants.defaultFromEmail).toBe('test@example.com');
+      expect(checkIfEmailExistsConstants.defaultHelloName).toBe('example.com');
     });
   });
 
@@ -414,7 +414,7 @@ describe('0400 Provider Specific', () => {
 
       expect(result.email).toBe('test@yahoo.com');
       expect(result.syntax.isValid).toBe(true);
-      expect(result.misc?.providerType).toBe(EmailProvider.YAHOO);
+      expect(result.misc?.providerType).toBe(EmailProvider.yahoo);
     });
 
     test('should handle provider optimizations when enabled', async () => {
@@ -427,7 +427,7 @@ describe('0400 Provider Specific', () => {
 
       expect(result.email).toBe('test@gmail.com');
       expect(result.syntax.isValid).toBe(true);
-      expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
+      expect(result.misc?.providerType).toBe(EmailProvider.gmail);
     });
   });
 });

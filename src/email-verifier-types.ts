@@ -9,13 +9,13 @@ import type { ICache } from './cache-interface';
  * Email providers with enhanced type safety
  */
 export enum EmailProvider {
-  GMAIL = 'gmail',
-  HOTMAIL_B2B = 'hotmail_b2b',
-  HOTMAIL_B2C = 'hotmail_b2c',
-  PROOFPOINT = 'proofpoint',
-  MIMECAST = 'mimecast',
-  YAHOO = 'yahoo',
-  EVERYTHING_ELSE = 'everything_else',
+  gmail = 'gmail',
+  hotmailB2b = 'hotmail_b2b',
+  hotmailB2c = 'hotmail_b2c',
+  proofpoint = 'proofpoint',
+  mimecast = 'mimecast',
+  yahoo = 'yahoo',
+  everythingElse = 'everything_else',
 }
 
 /**

@@ -34,7 +34,7 @@ export type {
 } from './check-if-email-exists';
 // Export check-if-email-exists functionality
 export {
-  CHECK_IF_EMAIL_EXISTS_CONSTANTS,
+  checkIfEmailExistsConstants,
   checkIfEmailExistsCore,
   EmailProvider,
   getProviderFromMxHost,
@@ -221,7 +221,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
   if (!isValidEmail(emailAddress)) {
     if (result.metadata) {
       result.metadata.verificationTime = Date.now() - startTime;
-      result.metadata.error = VerificationErrorCode.INVALID_FORMAT;
+      result.metadata.error = VerificationErrorCode.invalidFormat;
     }
     return result;
   }
@@ -254,7 +254,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
   if (!domain || !local) {
     if (result.metadata) {
       result.metadata.verificationTime = Date.now() - startTime;
-      result.metadata.error = VerificationErrorCode.INVALID_FORMAT;
+      result.metadata.error = VerificationErrorCode.invalidFormat;
     }
     return result;
   }
@@ -263,7 +263,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
   if (!(await isValidEmailDomain(domain, params.cache))) {
     if (result.metadata) {
       result.metadata.verificationTime = Date.now() - startTime;
-      result.metadata.error = VerificationErrorCode.INVALID_DOMAIN;
+      result.metadata.error = VerificationErrorCode.invalidDomain;
     }
     return result;
   }
@@ -274,7 +274,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
     result.isDisposable = await isDisposableEmail({ emailOrDomain: emailAddress, cache: params.cache, logger: log });
     log(`[verifyEmail] Disposable check result: ${result.isDisposable}`);
     if (result.isDisposable && result.metadata) {
-      result.metadata.error = VerificationErrorCode.DISPOSABLE_EMAIL;
+      result.metadata.error = VerificationErrorCode.disposableEmail;
     }
   }
 
@@ -338,7 +338,7 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
       log(`[verifyEmail] MX records found: ${mxRecords.length}, valid: ${result.validMx}`);
 
       if (!result.validMx && result.metadata) {
-        result.metadata.error = VerificationErrorCode.NO_MX_RECORDS;
+        result.metadata.error = VerificationErrorCode.noMxRecords;
       }
 
       // SMTP verification
@@ -403,16 +403,16 @@ export async function verifyEmail(params: IVerifyEmailParams): Promise<Verificat
         }
 
         if (result.validSmtp === false && result.metadata) {
-          result.metadata.error = VerificationErrorCode.MAILBOX_NOT_FOUND;
+          result.metadata.error = VerificationErrorCode.mailboxNotFound;
         } else if (result.validSmtp === null && result.metadata) {
-          result.metadata.error = VerificationErrorCode.SMTP_CONNECTION_FAILED;
+          result.metadata.error = VerificationErrorCode.smtpConnectionFailed;
         }
       }
     } catch (err) {
       log('[verifyEmail] Failed to resolve MX records', err);
       result.validMx = false;
       if (result.metadata) {
-        result.metadata.error = VerificationErrorCode.NO_MX_RECORDS;
+        result.metadata.error = VerificationErrorCode.noMxRecords;
       }
     }
   } else if ((verifyMx || verifySmtp) && shouldSkipMx) {

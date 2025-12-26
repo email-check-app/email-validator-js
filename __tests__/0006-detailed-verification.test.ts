@@ -4,7 +4,6 @@
 
 import { promises as dnsPromises } from 'node:dns';
 import net, { Socket } from 'node:net';
-import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';
 import { clearDefaultCache, getDefaultCache, VerificationErrorCode, verifyEmail } from '../src';
 
@@ -30,7 +29,7 @@ describe('0006 Detailed Email Verification', () => {
       });
 
       expect(result.validFormat).toBe(false);
-      expect(result.metadata?.error).toBe(VerificationErrorCode.INVALID_FORMAT);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.invalidFormat);
       expect(result.metadata?.verificationTime).toBeGreaterThanOrEqual(0);
     });
 
@@ -45,7 +44,7 @@ describe('0006 Detailed Email Verification', () => {
 
       expect(result.validFormat).toBe(true);
       expect(result.isDisposable).toBe(true);
-      expect(result.metadata?.error).toBe(VerificationErrorCode.DISPOSABLE_EMAIL);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.disposableEmail);
     });
 
     it('should detect free email providers when checkFree is enabled', async () => {
@@ -85,7 +84,7 @@ describe('0006 Detailed Email Verification', () => {
       });
 
       expect(result.validMx).toBe(false);
-      expect(result.metadata?.error).toBe(VerificationErrorCode.NO_MX_RECORDS);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.noMxRecords);
     });
 
     it('should handle SMTP verification failure with proper error reporting', async () => {
@@ -110,7 +109,7 @@ describe('0006 Detailed Email Verification', () => {
       });
 
       expect(result.validSmtp).toBe(null);
-      expect(result.metadata?.error).toBe(VerificationErrorCode.SMTP_CONNECTION_FAILED);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.smtpConnectionFailed);
     });
 
     it('should handle SMTP connection failure with proper error reporting', async () => {
@@ -137,7 +136,7 @@ describe('0006 Detailed Email Verification', () => {
       });
 
       expect(result.validSmtp).toBe(null);
-      expect(result.metadata?.error).toBe(VerificationErrorCode.NO_MX_RECORDS);
+      expect(result.metadata?.error).toBe(VerificationErrorCode.noMxRecords);
     });
 
     it('should indicate when verification results are retrieved from cache', async () => {
@@ -206,7 +205,7 @@ describe('0006 Detailed Email Verification', () => {
           emailAddress: email,
         });
         expect(result.validFormat).toBe(false);
-        expect(result.metadata?.error).toBe(VerificationErrorCode.INVALID_FORMAT);
+        expect(result.metadata?.error).toBe(VerificationErrorCode.invalidFormat);
       }
     });
   });

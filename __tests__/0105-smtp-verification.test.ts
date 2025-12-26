@@ -13,37 +13,37 @@ describe('0105 SMTP Verification', () => {
   describe('Gmail Provider', () => {
     test('should identify Gmail provider correctly', () => {
       // This test verifies that we can correctly identify Gmail providers
-      expect(EmailProvider.GMAIL).toBe('gmail');
+      expect(EmailProvider.gmail).toBe('gmail');
     });
 
     test('should use Gmail-specific ports', () => {
       // Test that Gmail optimizations include port 587
       const email = 'test@gmail.com';
-      const provider = EmailProvider.GMAIL;
+      const provider = EmailProvider.gmail;
 
-      expect(provider).toBe(EmailProvider.GMAIL);
+      expect(provider).toBe(EmailProvider.gmail);
       expect(email).toContain('@gmail.com');
     });
   });
 
   describe('Yahoo Provider', () => {
     test('should identify Yahoo provider correctly', () => {
-      expect(EmailProvider.YAHOO).toBe('yahoo');
+      expect(EmailProvider.yahoo).toBe('yahoo');
     });
 
     test('should use Yahoo-specific settings', () => {
       const email = 'test@yahoo.com';
-      const provider = EmailProvider.YAHOO;
+      const provider = EmailProvider.yahoo;
 
-      expect(provider).toBe(EmailProvider.YAHOO);
+      expect(provider).toBe(EmailProvider.yahoo);
       expect(email).toContain('@yahoo.com');
     });
   });
 
   describe('Hotmail Providers', () => {
     test('should distinguish B2C and B2B Hotmail providers', () => {
-      expect(EmailProvider.HOTMAIL_B2C).toBe('hotmail_b2c');
-      expect(EmailProvider.HOTMAIL_B2B).toBe('hotmail_b2b');
+      expect(EmailProvider.hotmailB2c).toBe('hotmail_b2c');
+      expect(EmailProvider.hotmailB2b).toBe('hotmail_b2b');
     });
 
     test('should handle Hotmail email addresses', () => {
@@ -57,14 +57,14 @@ describe('0105 SMTP Verification', () => {
 
   describe('Default Provider', () => {
     test('should use default provider for unknown domains', () => {
-      expect(EmailProvider.EVERYTHING_ELSE).toBe('everything_else');
+      expect(EmailProvider.everythingElse).toBe('everything_else');
     });
 
     test('should handle custom domain emails', () => {
       const customEmail = 'test@customdomain.com';
-      const provider = EmailProvider.EVERYTHING_ELSE;
+      const provider = EmailProvider.everythingElse;
 
-      expect(provider).toBe(EmailProvider.EVERYTHING_ELSE);
+      expect(provider).toBe(EmailProvider.everythingElse);
       expect(customEmail).toContain('@customdomain.com');
     });
   });

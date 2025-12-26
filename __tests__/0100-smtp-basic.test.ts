@@ -23,8 +23,6 @@ describe('0100 SMTP Basic', () => {
         } = await measureTime(() => verifyMailboxSMTP(params));
 
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Default verification completed in ${duration}ms`);
-        console.log(`Result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -227,10 +225,8 @@ describe('0100 SMTP Basic', () => {
         } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(result2.isDeliverable)).toBe(true);
 
-        console.log(`First call: ${duration1}ms, Second call: ${duration2}ms`);
         if (duration1 > 0) {
           const improvement = Math.round(((duration1 - duration2) / duration1) * 100);
-          console.log(`Performance improvement: ${improvement}%`);
         }
       },
       TestUtils.getTestTimeout('integration')
@@ -274,7 +270,6 @@ describe('0100 SMTP Basic', () => {
 
           const { smtpResult } = await verifyMailboxSMTP(params);
           expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-          console.log(`${domain}: ${smtpResult.isDeliverable}`);
         }
       },
       TestUtils.getTestTimeout('slow')

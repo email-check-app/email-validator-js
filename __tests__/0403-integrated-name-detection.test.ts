@@ -1,4 +1,3 @@
-import expect from 'expect';
 import { defaultNameDetectionMethod, detectName, detectNameFromEmail } from '../src';
 import type { NameDetectionMethod } from '../src/types';
 

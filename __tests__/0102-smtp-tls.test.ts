@@ -24,7 +24,6 @@ describe('0102 SMTP TLS', () => {
 
         const { smtpResult } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`TLS enabled result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -38,7 +37,6 @@ describe('0102 SMTP TLS', () => {
 
         const { smtpResult } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`TLS disabled result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -215,7 +213,6 @@ describe('0102 SMTP TLS', () => {
 
         const { smtpResult } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Strict TLS result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -229,7 +226,6 @@ describe('0102 SMTP TLS', () => {
 
         const { smtpResult } = await verifyMailboxSMTP(params);
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Lenient TLS result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -357,7 +353,6 @@ describe('0102 SMTP TLS', () => {
           const duration = Date.now() - start;
 
           results[testCase.name] = { result: smtpResult.isDeliverable, duration };
-          console.log(`${testCase.name}: ${duration}ms`);
         }
 
         // Verify all results are valid

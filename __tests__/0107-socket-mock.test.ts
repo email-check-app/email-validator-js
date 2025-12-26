@@ -1,6 +1,5 @@
 import { promises as dnsPromises, type MxRecord } from 'node:dns';
 import net, { Socket } from 'node:net';
-import expect from 'expect';
 import sinon, { type SinonSandbox, type SinonStub } from 'sinon';
 import { clearDefaultCache, verifyEmail } from '../src';
 import { resolveMxRecords } from '../src/dns';
@@ -13,7 +12,7 @@ type SelfMockType = {
 };
 
 function stubResolveMx(self: SelfMockType, domain = 'foo.com') {
-  self.resolveMxStub = self.sandbox.stub(dnsPromises, 'resolveMx').callsFake(async (_hostname: string) => [
+  self.resolveMxStub! = self.sandbox!.stub(dnsPromises, 'resolveMx').callsFake(async (_hostname: string) => [
     { exchange: `mx1.${domain}`, priority: 30 },
     { exchange: `mx2.${domain}`, priority: 10 },
     { exchange: `mx3.${domain}`, priority: 20 },
@@ -21,24 +20,24 @@ function stubResolveMx(self: SelfMockType, domain = 'foo.com') {
 }
 
 function stubSocket(self: SelfMockType) {
-  self.socket = new Socket({});
+  self.socket! = new Socket({});
   let greetingSent = false;
 
   // Mock the connect function to emit the socket immediately with a greeting
-  self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+  self.connectStub! = self.sandbox!.stub(net, 'connect').callsFake((options, callback) => {
     // Emit the socket with a small delay
     setTimeout(() => {
       if (callback) callback();
       // Emit greeting after connection
       setTimeout(() => {
-        self.socket.emit('data', '220 test.example.com ESMTP\r\n');
+        self.socket!.emit('data', '220 test.example.com ESMTP\r\n');
         greetingSent = true;
       }, 10);
     }, 5);
-    return self.socket;
+    return self.socket!;
   });
 
-  self.sandbox.stub(self.socket, 'write').callsFake(function (data) {
+  self.sandbox!.stub(self.socket!, 'write').callsFake(function (data) {
     const command = data.toString().trim();
     if (!command.includes('QUIT') && greetingSent) {
       // Respond to SMTP commands
@@ -68,12 +67,12 @@ const self: SelfMockType = {};
 
 describe('0107 Socket Mock', () => {
   beforeEach(() => {
-    self.sandbox = sinon.createSandbox();
+    self.sandbox! = sinon.createSandbox();
     clearDefaultCache();
   });
 
   afterEach(() => {
-    self.sandbox.restore();
+    self.sandbox!.restore();
     clearDefaultCache();
   });
 
@@ -90,8 +89,8 @@ describe('0107 Socket Mock', () => {
         verifySmtp: true,
         debug: true,
       });
-      sinon.assert.called(self.resolveMxStub);
-      sinon.assert.called(self.connectStub);
+      sinon.assert.called(self.resolveMxStub!);
+      sinon.assert.called(self.connectStub!);
       expect(result.validFormat).toBe(true);
       expect(result.validMx).toBe(true);
       expect(result.validSmtp).toBe(true);
@@ -99,8 +98,8 @@ describe('0107 Socket Mock', () => {
 
     it('returns early if email format is invalid', async () => {
       const result = await verifyEmail({ emailAddress: 'bar.com' });
-      sinon.assert.notCalled(self.resolveMxStub);
-      sinon.assert.notCalled(self.connectStub);
+      sinon.assert.notCalled(self.resolveMxStub!);
+      sinon.assert.notCalled(self.connectStub!);
       expect(result.validFormat).toBe(false);
       expect(result.validMx).toBe(null);
       expect(result.validSmtp).toBe(null);
@@ -118,7 +117,7 @@ describe('0107 Socket Mock', () => {
       });
 
       it('returns null if mailbox is yahoo', async () => {
-        self.resolveMxStub.restore();
+        self.resolveMxStub!.restore();
         stubResolveMx(self, 'yahoo.com');
 
         const result = await verifyEmail({
@@ -132,12 +131,12 @@ describe('0107 Socket Mock', () => {
       });
 
       it('returns false on over quota check', async () => {
-        self.connectStub.restore(); // Restore previous stub
+        self.connectStub!.restore(); // Restore previous stub
         const msg = '452-4.2.2 The email account that you tried to reach is over quota. Please direct';
         const socket = new Socket({});
         let greetingSent = false;
 
-        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+        self.connectStub! = self.sandbox!.stub(net, 'connect').callsFake((options, callback) => {
           setTimeout(() => {
             if (callback) callback();
             setTimeout(() => {
@@ -148,7 +147,7 @@ describe('0107 Socket Mock', () => {
           return socket;
         });
 
-        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+        self.sandbox!.stub(socket, 'write').callsFake(function (data) {
           const command = data.toString().trim();
           if (!command.includes('QUIT') && greetingSent) {
             setTimeout(() => {
@@ -177,10 +176,10 @@ describe('0107 Socket Mock', () => {
       });
 
       it('returns null when socket connection error occurs', async () => {
-        self.connectStub.restore(); // Restore previous stub
+        self.connectStub!.restore(); // Restore previous stub
         const socket = new Socket({});
 
-        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+        self.connectStub! = self.sandbox!.stub(net, 'connect').callsFake((options, callback) => {
           setTimeout(() => {
             if (callback) callback();
             // Emit error immediately without greeting
@@ -189,7 +188,7 @@ describe('0107 Socket Mock', () => {
           return socket;
         });
 
-        self.sandbox.stub(socket, 'write').callsFake(() => true);
+        self.sandbox!.stub(socket, 'write').callsFake(() => true);
 
         const result = await verifyEmail({
           emailAddress: 'bar@foo.com',
@@ -203,11 +202,11 @@ describe('0107 Socket Mock', () => {
       });
 
       it('handles multiline SMTP greetings correctly', async () => {
-        self.connectStub.restore(); // Restore previous stub
+        self.connectStub!.restore(); // Restore previous stub
         const socket = new Socket({});
         let greeted = false;
 
-        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+        self.connectStub! = self.sandbox!.stub(net, 'connect').callsFake((options, callback) => {
           setTimeout(() => {
             if (callback) callback();
             // the "-" indicates a multi line greeting
@@ -222,7 +221,7 @@ describe('0107 Socket Mock', () => {
           return socket;
         });
 
-        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+        self.sandbox!.stub(socket, 'write').callsFake(function (data) {
           const command = data.toString().trim();
           if (!command.includes('QUIT')) {
             setTimeout(() => {
@@ -243,8 +242,8 @@ describe('0107 Socket Mock', () => {
       });
 
       it('regression: prevents infinite write loop on socket error', async () => {
-        const writeSpy = self.sandbox.spy();
-        const endSpy = self.sandbox.spy();
+        const writeSpy = self.sandbox!.spy();
+        const endSpy = self.sandbox!.spy();
 
         const socket = {
           on: (event: string, callback: (arg0: Error) => void) => {
@@ -264,7 +263,7 @@ describe('0107 Socket Mock', () => {
           },
         };
 
-        self.connectStub = self.connectStub.returns(socket as unknown as Socket);
+        self.connectStub! = self.connectStub!.returns(socket as unknown as Socket);
 
         await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true, debug: true });
         sinon.assert.notCalled(writeSpy);
@@ -272,11 +271,11 @@ describe('0107 Socket Mock', () => {
       });
 
       it('should return null on unknown SMTP errors', async () => {
-        self.connectStub.restore(); // Restore previous stub
+        self.connectStub!.restore(); // Restore previous stub
         const socket = new Socket({});
         let greetingSent = false;
 
-        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+        self.connectStub! = self.sandbox!.stub(net, 'connect').callsFake((options, callback) => {
           setTimeout(() => {
             if (callback) callback();
             setTimeout(() => {
@@ -287,7 +286,7 @@ describe('0107 Socket Mock', () => {
           return socket;
         });
 
-        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+        self.sandbox!.stub(socket, 'write').callsFake(function (data) {
           const command = data.toString().trim();
           if (!command.includes('QUIT') && greetingSent) {
             setTimeout(() => {
@@ -308,11 +307,11 @@ describe('0107 Socket Mock', () => {
       });
 
       it('returns false on bad mailbox errors', async () => {
-        self.connectStub.restore(); // Restore previous stub
+        self.connectStub!.restore(); // Restore previous stub
         const socket = new Socket({});
         let greetingSent = false;
 
-        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+        self.connectStub! = self.sandbox!.stub(net, 'connect').callsFake((options, callback) => {
           setTimeout(() => {
             if (callback) callback();
             setTimeout(() => {
@@ -323,7 +322,7 @@ describe('0107 Socket Mock', () => {
           return socket;
         });
 
-        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+        self.sandbox!.stub(socket, 'write').callsFake(function (data) {
           const command = data.toString().trim();
           if (!command.includes('QUIT') && greetingSent) {
             setTimeout(() => {
@@ -347,12 +346,12 @@ describe('0107 Socket Mock', () => {
         const msg = '550-"JunkMail rejected - ec2-54-74-157-229.eu-west-1.compute.amazonaws.com';
         const socket = new Socket({});
 
-        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+        self.sandbox!.stub(socket, 'write').callsFake(function (data) {
           if (!data.toString().includes('QUIT')) this.emit('data', msg);
           return true;
         });
 
-        self.connectStub.returns(socket);
+        self.connectStub!.returns(socket);
 
         setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
@@ -365,12 +364,12 @@ describe('0107 Socket Mock', () => {
           '553 5.3.0 flpd575 DNSBL:RBL 521< 54.74.114.115 >_is_blocked.For assistance forward this email to abuse_rbl@abuse-att.net';
         const socket = new Socket({});
 
-        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+        self.sandbox!.stub(socket, 'write').callsFake(function (data) {
           if (!data.toString().includes('QUIT')) this.emit('data', msg);
           return true;
         });
 
-        self.connectStub.returns(socket);
+        self.connectStub!.returns(socket);
 
         setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
@@ -381,7 +380,7 @@ describe('0107 Socket Mock', () => {
 
     describe('given no mx records', () => {
       beforeEach(() => {
-        self.resolveMxStub.resolves([]);
+        self.resolveMxStub!.resolves([]);
       });
 
       it('should return false on the domain verification', async () => {
@@ -398,8 +397,8 @@ describe('0107 Socket Mock', () => {
           verifySmtp: false,
           verifyMx: true,
         });
-        sinon.assert.called(self.resolveMxStub);
-        sinon.assert.notCalled(self.connectStub);
+        sinon.assert.called(self.resolveMxStub!);
+        sinon.assert.notCalled(self.connectStub!);
         expect(result.validSmtp).toBe(null);
         expect(result.validMx).toBe(true);
       });
@@ -412,8 +411,8 @@ describe('0107 Socket Mock', () => {
           verifyMx: false,
           verifySmtp: false,
         });
-        sinon.assert.notCalled(self.resolveMxStub);
-        sinon.assert.notCalled(self.connectStub);
+        sinon.assert.notCalled(self.resolveMxStub!);
+        sinon.assert.notCalled(self.connectStub!);
         expect(result.validMx).toBe(null);
         expect(result.validSmtp).toBe(null);
       });

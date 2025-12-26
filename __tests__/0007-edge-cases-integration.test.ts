@@ -4,7 +4,7 @@
  */
 
 import {
-  CHECK_IF_EMAIL_EXISTS_CONSTANTS,
+  checkIfEmailExistsConstants,
   checkIfEmailExistsCore,
   EmailProvider,
   getProviderType,
@@ -20,7 +20,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'a@b.co',
       expected: {
         syntax: { isValid: true, domain: 'b.co', localPart: 'a' },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Minimum valid email format',
       category: 'edge_case',
@@ -29,7 +29,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'test@xn--d1acufc.xn--p1ai',
       expected: {
         syntax: { isValid: true, domain: 'xn--d1acufc.xn--p1ai', localPart: 'test' },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'International domain (punycode)',
       category: 'edge_case',
@@ -38,7 +38,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'test+very.long.tag+with.multiple.dots@gmail.com',
       expected: {
         syntax: { isValid: true, domain: 'gmail.com', localPart: 'test+very.long.tag+with.multiple.dots' },
-        provider: EmailProvider.GMAIL,
+        provider: EmailProvider.gmail,
       },
       description: 'Complex Gmail plus addressing',
       category: 'edge_case',
@@ -47,7 +47,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'user_name@domain.co.uk',
       expected: {
         syntax: { isValid: true, domain: 'domain.co.uk', localPart: 'user_name' },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Underscore in local part',
       category: 'edge_case',
@@ -56,7 +56,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'test123@domain123.com',
       expected: {
         syntax: { isValid: true, domain: 'domain123.com', localPart: 'test123' },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Numbers in both local and domain parts',
       category: 'edge_case',
@@ -69,7 +69,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
           domain: 'domain.com',
           localPart: 'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz0123456789',
         },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Maximum allowed local part characters',
       category: 'edge_case',
@@ -80,7 +80,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: '',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Empty email string',
       category: 'invalid',
@@ -89,7 +89,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: '@domain.com',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Empty local part',
       category: 'invalid',
@@ -98,7 +98,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'user@',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Empty domain part',
       category: 'invalid',
@@ -107,7 +107,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: '.user@domain.com',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Local part starts with dot',
       category: 'invalid',
@@ -116,7 +116,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'user.@domain.com',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Local part ends with dot',
       category: 'invalid',
@@ -125,7 +125,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'user..name@domain.com',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Consecutive dots in local part',
       category: 'invalid',
@@ -134,7 +134,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'user@domain..com',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Consecutive dots in domain',
       category: 'invalid',
@@ -143,7 +143,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'user@.domain.com',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Domain starts with dot',
       category: 'invalid',
@@ -152,7 +152,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'user@domain.com.',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Domain ends with dot',
       category: 'invalid',
@@ -161,7 +161,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'user name@domain.com',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Space in local part',
       category: 'invalid',
@@ -170,7 +170,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'user@domain name.com',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Space in domain',
       category: 'invalid',
@@ -179,7 +179,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'test@localhost',
       expected: {
         syntax: { isValid: true, domain: 'localhost', localPart: 'test' },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Localhost domain (syntactically valid but not deliverable)',
       category: 'edge_case',
@@ -188,7 +188,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'test@-domain.com',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Domain starts with hyphen',
       category: 'invalid',
@@ -197,7 +197,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       email: 'test@domain-.com',
       expected: {
         syntax: { isValid: false },
-        provider: EmailProvider.EVERYTHING_ELSE,
+        provider: EmailProvider.everythingElse,
       },
       description: 'Domain ends with hyphen',
       category: 'invalid',
@@ -285,11 +285,11 @@ describe('0007 Edge Cases and Integration Tests', () => {
 
     test('should perform case-insensitive provider detection', () => {
       const caseTests = [
-        ['GMAIL.COM', EmailProvider.GMAIL],
-        ['YAHOO.COM', EmailProvider.YAHOO],
-        ['OUTLOOK.COM', EmailProvider.HOTMAIL_B2C],
-        ['googlemail.com', EmailProvider.GMAIL],
-        ['ROCKETMAIL.COM', EmailProvider.YAHOO],
+        ['GMAIL.COM', EmailProvider.gmail],
+        ['YAHOO.COM', EmailProvider.yahoo],
+        ['OUTLOOK.COM', EmailProvider.hotmailB2c],
+        ['googlemail.com', EmailProvider.gmail],
+        ['ROCKETMAIL.COM', EmailProvider.yahoo],
       ];
 
       caseTests.forEach(([domain, expectedType]) => {
@@ -329,17 +329,17 @@ describe('0007 Edge Cases and Integration Tests', () => {
       gmailVariations.forEach((email) => {
         const result = validateEmailSyntax(email);
         expect(result.isValid).toBe(true);
-        expect(getProviderType(result.domain!)).toBe(EmailProvider.GMAIL);
+        expect(getProviderType(result.domain!)).toBe(EmailProvider.gmail);
       });
     });
 
     test('should detect provider alternative domains (googlemail.com, ymail.com, etc.)', () => {
       const alternativeDomainTests = [
-        { email: 'test@googlemail.com', provider: EmailProvider.GMAIL },
-        { email: 'test@ymail.com', provider: EmailProvider.YAHOO },
-        { email: 'test@rocketmail.com', provider: EmailProvider.YAHOO },
-        { email: 'test@live.com', provider: EmailProvider.HOTMAIL_B2C },
-        { email: 'test@msn.com', provider: EmailProvider.HOTMAIL_B2C },
+        { email: 'test@googlemail.com', provider: EmailProvider.gmail },
+        { email: 'test@ymail.com', provider: EmailProvider.yahoo },
+        { email: 'test@rocketmail.com', provider: EmailProvider.yahoo },
+        { email: 'test@live.com', provider: EmailProvider.hotmailB2c },
+        { email: 'test@msn.com', provider: EmailProvider.hotmailB2c },
       ];
 
       alternativeDomainTests.forEach(({ email, provider }) => {
@@ -444,7 +444,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       });
 
       expect(result.syntax.isValid).toBe(true);
-      expect(result.misc?.providerType).toBe(EmailProvider.YAHOO);
+      expect(result.misc?.providerType).toBe(EmailProvider.yahoo);
     });
 
     test('should handle headless browser configuration options correctly', async () => {
@@ -462,7 +462,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       });
 
       expect(result.syntax.isValid).toBe(true);
-      expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
+      expect(result.misc?.providerType).toBe(EmailProvider.gmail);
     });
   });
 

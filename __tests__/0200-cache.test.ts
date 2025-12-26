@@ -1,5 +1,4 @@
 import { promises as dnsPromises } from 'node:dns';
-import expect from 'expect';
 import sinon, { type SinonSandbox } from 'sinon';
 import { isDisposableEmail, isFreeEmail, isValidEmailDomain } from '../src';
 import { LRUAdapter } from '../src/adapters/lru-adapter';
