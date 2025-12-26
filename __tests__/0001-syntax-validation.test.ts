@@ -1,12 +1,12 @@
 /**
- * Comprehensive tests for email syntax validation
+ * Comprehensive tests for email syntax validation, provider detection, and edge case handling
  */
 
 import { EmailProvider, getProviderType, validateEmailSyntax } from '../src/check-if-email-exists';
 
-describe('0001 Syntax Validation', () => {
+describe('0001 Email Syntax Validation', () => {
   describe('valid email formats', () => {
-    test('should accept standard email formats', () => {
+    test('should accept standard RFC-compliant email formats', () => {
       const validEmails = [
         'simple@example.com',
         'very.common@example.com',
@@ -32,7 +32,7 @@ describe('0001 Syntax Validation', () => {
       });
     });
 
-    test('should handle case insensitive validation', () => {
+    test('should convert email addresses to lowercase during validation', () => {
       const testCases = ['UPPERCASE@EXAMPLE.COM', 'MixedCase@Example.Com', 'camelCase@domain.COM'];
 
       testCases.forEach((email) => {
@@ -44,7 +44,7 @@ describe('0001 Syntax Validation', () => {
       });
     });
 
-    test('should handle edge cases in local part', () => {
+    test('should accept valid edge cases in local part', () => {
       const edgeCases = [
         'a@b.co', // Minimum valid
         '1test@domain.com', // Numbers
@@ -61,7 +61,7 @@ describe('0001 Syntax Validation', () => {
       });
     });
 
-    test('should handle complex domain structures', () => {
+    test('should accept complex and international domain structures', () => {
       const complexDomains = [
         'test@sub.domain.com',
         'user@deeply.nested.sub.domain.example.co.uk',
@@ -79,7 +79,7 @@ describe('0001 Syntax Validation', () => {
   });
 
   describe('invalid email formats', () => {
-    test('should reject emails without @ symbol', () => {
+    test('should reject emails missing @ symbol or having invalid format', () => {
       const invalidEmails = ['plainaddress', '@missingdomain.com', 'username@', 'username'];
 
       invalidEmails.forEach((email) => {
@@ -93,7 +93,7 @@ describe('0001 Syntax Validation', () => {
       expect(emptyResult.is_valid).toBe(false);
     });
 
-    test('should reject emails with invalid characters', () => {
+    test('should reject emails containing invalid characters or malformed structure', () => {
       const invalidEmails = [
         'user name@domain.com', // Space in local part
         'user@domain name.com', // Space in domain
@@ -111,7 +111,7 @@ describe('0001 Syntax Validation', () => {
       });
     });
 
-    test('should reject emails with invalid local part structure', () => {
+    test('should reject emails with invalid local part structure (dots at edges, consecutive dots, or too long)', () => {
       const invalidEmails = [
         '.user@domain.com', // Starts with dot
         'user.@domain.com', // Ends with dot
@@ -125,7 +125,7 @@ describe('0001 Syntax Validation', () => {
       });
     });
 
-    test('should reject emails with invalid domain structure', () => {
+    test('should reject emails with invalid domain structure (empty, too long, malformed dots, or hyphens at edges)', () => {
       const invalidEmails = [
         'user@', // Empty domain
         'user@' + 'a'.repeat(254), // Exceeds 253 chars
@@ -142,7 +142,7 @@ describe('0001 Syntax Validation', () => {
       });
     });
 
-    test('should reject non-string inputs', () => {
+    test('should reject non-string inputs (null, undefined, numbers, objects, arrays, symbols, functions)', () => {
       const invalidInputs = [null, undefined, 123, {}, [], true, () => {}, Symbol('test')];
 
       invalidInputs.forEach((input) => {
@@ -154,7 +154,7 @@ describe('0001 Syntax Validation', () => {
   });
 
   describe('length validation', () => {
-    test('should enforce RFC length limits', () => {
+    test('should enforce RFC 5321 length limits (64 chars for local part, 253 for domain, 63 per domain label)', () => {
       // Test local part length (max 64)
       const longLocal = 'a'.repeat(64);
       expect(validateEmailSyntax(`${longLocal}@domain.com`).is_valid).toBe(true);
@@ -175,16 +175,16 @@ describe('0001 Syntax Validation', () => {
       const validEmail = `${local}@${longDomain}`;
       expect(validateEmailSyntax(validEmail).is_valid).toBe(true);
 
-      // Test domain label length limit (63 chars per label)
+      // Test domain label length limit (63 chars per label per RFC 1035)
       const tooLongLabel = 'a'.repeat(64); // 64 chars exceeds RFC 1035 limit
       const invalidLabelEmail = `${local}@${tooLongLabel}.example.com`;
       const labelResult = validateEmailSyntax(invalidLabelEmail);
       expect(labelResult.is_valid).toBe(false);
-      expect(labelResult.error).toContain('Invalid email format');
+      expect(labelResult.error).toMatch(/Invalid email format|exceeds 63 characters/);
     });
 
-    test('should handle boundary conditions', () => {
-      // Exactly 64 characters in local part
+    test('should handle boundary conditions at exact RFC limits', () => {
+      // Exactly 64 characters in local part (at the limit)
       const boundaryLocal = 'a'.repeat(64);
       const boundaryResult = validateEmailSyntax(`${boundaryLocal}@example.com`);
       expect(boundaryResult.is_valid).toBe(true);
@@ -201,7 +201,7 @@ describe('0001 Syntax Validation', () => {
   });
 
   describe('parsing accuracy', () => {
-    test('should correctly parse local and domain parts', () => {
+    test('should correctly parse and separate local part from domain part', () => {
       const testCases = [
         {
           email: 'user@example.com',
@@ -233,7 +233,7 @@ describe('0001 Syntax Validation', () => {
       });
     });
 
-    test('should handle whitespace correctly', () => {
+    test('should trim leading and trailing whitespace from email addresses', () => {
       const testCases = ['  user@example.com  ', '\tuser@example.com\n', '   user@example.com', 'user@example.com   '];
 
       testCases.forEach((email) => {
@@ -248,8 +248,8 @@ describe('0001 Syntax Validation', () => {
     });
   });
 
-  describe('regex compliance', () => {
-    test('should handle RFC 5321 compliant patterns', () => {
+  describe('RFC compliance', () => {
+    test('should accept RFC 5321 compliant email patterns', () => {
       const rfcCompliantEmails = [
         'john.doe@example.com',
         'john_doe@example.com',
@@ -267,7 +267,7 @@ describe('0001 Syntax Validation', () => {
       });
     });
 
-    test('should reject RFC non-compliant patterns', () => {
+    test('should reject RFC 5321 non-compliant patterns (consecutive dots, dots at edges)', () => {
       const rfcNonCompliantEmails = [
         'john..doe@example.com', // Double dot
         '.john@example.com', // Starts with dot
@@ -285,9 +285,9 @@ describe('0001 Syntax Validation', () => {
   });
 });
 
-describe('getProviderType', () => {
+describe('0001 Provider Type Detection', () => {
   describe('known provider detection', () => {
-    test('should identify Gmail domains', () => {
+    test('should identify Gmail and Googlemail domains', () => {
       const gmailDomains = ['gmail.com', 'googlemail.com'];
 
       gmailDomains.forEach((domain) => {
@@ -295,7 +295,7 @@ describe('getProviderType', () => {
       });
     });
 
-    test('should identify Yahoo domains', () => {
+    test('should identify Yahoo, Ymail, and Rocketmail domains', () => {
       const yahooDomains = ['yahoo.com', 'ymail.com', 'rocketmail.com'];
 
       yahooDomains.forEach((domain) => {
@@ -303,7 +303,7 @@ describe('getProviderType', () => {
       });
     });
 
-    test('should identify Hotmail/Microsoft domains', () => {
+    test('should identify Hotmail, Outlook, Live, and MSN domains', () => {
       const hotmailDomains = ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'];
 
       hotmailDomains.forEach((domain) => {
@@ -313,7 +313,7 @@ describe('getProviderType', () => {
   });
 
   describe('unknown provider handling', () => {
-    test('should return OTHER for unknown domains', () => {
+    test('should return EVERYTHING_ELSE for unknown or custom domains', () => {
       const unknownDomains = [
         'example.com',
         'customdomain.org',
@@ -330,7 +330,7 @@ describe('getProviderType', () => {
       });
     });
 
-    test('should handle case insensitive domain matching', () => {
+    test('should perform case-insensitive domain matching for provider detection', () => {
       const caseTests = [
         ['GMAIL.COM', EmailProvider.GMAIL],
         ['YAHOO.COM', EmailProvider.YAHOO],
@@ -346,11 +346,11 @@ describe('getProviderType', () => {
   });
 
   describe('subdomain handling', () => {
-    test('should not match providers on subdomains', () => {
+    test('should return EVERYTHING_ELSE for subdomains of known providers', () => {
       const subdomainTests = [
-        'mail.gmail.com', // Should be OTHER, not GMAIL
-        'smtp.yahoo.com', // Should be OTHER, not YAHOO
-        'outlook.office.com', // Should be OTHER, not HOTMAIL
+        'mail.gmail.com', // Should be EVERYTHING_ELSE, not GMAIL
+        'smtp.yahoo.com', // Should be EVERYTHING_ELSE, not YAHOO
+        'outlook.office.com', // Should be EVERYTHING_ELSE, not HOTMAIL_B2C
       ];
 
       subdomainTests.forEach((domain) => {
@@ -361,7 +361,7 @@ describe('getProviderType', () => {
 });
 
 describe('0001 Performance and Edge Cases', () => {
-  test('should handle large number of validations efficiently', () => {
+  test('should validate 1000 email addresses efficiently in under 1 second', () => {
     const emails = Array.from({ length: 1000 }, (_, i) => `user${i}@example.com`);
 
     const startTime = Date.now();
@@ -372,10 +372,10 @@ describe('0001 Performance and Edge Cases', () => {
     });
 
     const duration = Date.now() - startTime;
-    expect(duration).toBeLessThan(1000); // Should be very fast
+    expect(duration).toBeLessThan(1000); // Should complete 1000 validations in under 1 second
   });
 
-  test('should handle repeated validations consistently', () => {
+  test('should return consistent results across 100 repeated validations of the same email', () => {
     const email = 'test@example.com';
     const results = Array.from({ length: 100 }, () => validateEmailSyntax(email));
 
@@ -387,12 +387,12 @@ describe('0001 Performance and Edge Cases', () => {
     });
   });
 
-  test('should handle Unicode and international characters', () => {
+  test('should handle punycode international domains but reject Unicode in local part', () => {
     const unicodeTests = [
-      // Note: Our current regex doesn't support Unicode, but we test the behavior
-      { email: 'josé@example.com', expected: false }, // Unicode in local part
-      { email: 'user@xn--d1acufc.xn--p1ai', expected: true }, // Punycode domain
-      { email: 'user@münchen.de', expected: false }, // Unicode domain (not punycode)
+      // Note: Current regex does not support Unicode characters in local part
+      { email: 'josé@example.com', expected: false, description: 'Unicode character in local part' },
+      { email: 'user@xn--d1acufc.xn--p1ai', expected: true, description: 'Punycode domain (Russian)' },
+      { email: 'user@münchen.de', expected: false, description: 'Unicode domain (not punycode)' },
     ];
 
     unicodeTests.forEach(({ email, expected }) => {

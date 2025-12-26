@@ -11,7 +11,7 @@ import {
 
 describe('0300 Domain Suggester', () => {
   describe('suggestEmailDomain', () => {
-    it('should suggest gmail.com for common typos', async () => {
+    it('should suggest gmail.com for common typo variations', async () => {
       const typos = ['gmial.com', 'gmai.com', 'gmali.com', 'gmil.com', 'gmaill.com', 'gmail.co', 'gmail.cm'];
 
       for (const typo of typos) {
@@ -22,7 +22,7 @@ describe('0300 Domain Suggester', () => {
       }
     });
 
-    it('should suggest yahoo.com for common typos', async () => {
+    it('should suggest yahoo.com for common typo variations', async () => {
       const typos = ['yaho.com', 'yahooo.com', 'yahoo.co', 'yahoo.cm', 'yhaoo.com'];
 
       for (const typo of typos) {
@@ -33,7 +33,7 @@ describe('0300 Domain Suggester', () => {
       }
     });
 
-    it('should suggest hotmail.com for common typos', async () => {
+    it('should suggest hotmail.com for common typo variations', async () => {
       const typos = ['hotmai.com', 'hotmial.com', 'hotmal.com', 'hotmil.com', 'hotmail.co', 'hotmail.cm'];
 
       for (const typo of typos) {
@@ -44,7 +44,7 @@ describe('0300 Domain Suggester', () => {
       }
     });
 
-    it('should suggest outlook.com for common typos', async () => {
+    it('should suggest outlook.com for common typo variations', async () => {
       const typos = ['outlok.com', 'outloo.com', 'outlook.co', 'outlook.cm', 'outlokk.com'];
 
       for (const typo of typos) {
@@ -90,14 +90,14 @@ describe('0300 Domain Suggester', () => {
   });
 
   describe('suggestDomain', () => {
-    it('should suggest domain without email context', () => {
+    it('should suggest corrected domain for typo', () => {
       const result = suggestDomain({ domain: 'gmial.com' });
       expect(result).toBeTruthy();
       expect(result?.suggested).toBe('gmail.com');
       expect(result?.confidence).toBeGreaterThanOrEqual(0.7);
     });
 
-    it('should use custom suggestion method when provided', () => {
+    it('should use custom domain suggestion method when provided', () => {
       const customMethod: DomainSuggestionMethod = (domain: string) => {
         if (domain.includes('test')) {
           return {
@@ -190,7 +190,7 @@ describe('0300 Domain Suggester', () => {
   });
 
   describe('isCommonDomain', () => {
-    it('should return true for common domains', () => {
+    it('should return true for well-known email domains', () => {
       expect(isCommonDomain('gmail.com')).toBe(true);
       expect(isCommonDomain('yahoo.com')).toBe(true);
       expect(isCommonDomain('outlook.com')).toBe(true);

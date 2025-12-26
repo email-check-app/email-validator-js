@@ -10,6 +10,7 @@ import { wikipediaOrgData } from './0303-domain-whois-data/wikipedia-org-data';
 
 describe('0301: Parse Domain WHOIS Data', () => {
   // Helper function to compare results, handling timezone differences in dates
+  // The test data has timezone inconsistencies, so dates are validated for existence and reasonable range
   function compareResults(result: any, expected: any) {
     Object.keys(expected).forEach((key) => {
       if (key === 'creationDate' || key === 'updatedDate' || key === 'expirationDate') {
@@ -34,12 +35,12 @@ describe('0301: Parse Domain WHOIS Data', () => {
     });
   }
 
-  it('should parse whois json me.io', async () => {
+  it('should parse WHOIS data for me.io domain', async () => {
     const result = parseWhoisData({ rawData: meIoData.input, domain: 'me.io' });
     compareResults(result, meIoData.output);
   });
 
-  it('should parse whois json role.ai', async () => {
+  it('should parse WHOIS data for role.ai domain', async () => {
     const result = parseWhoisData({
       rawData: roleAiData.input,
       domain: 'role.ai',
@@ -47,12 +48,12 @@ describe('0301: Parse Domain WHOIS Data', () => {
     compareResults(result, roleAiData.output);
   });
 
-  it('should parse whois json in.mt', async () => {
+  it('should parse WHOIS data for in.mt domain', async () => {
     const result = parseWhoisData({ rawData: inMtData.input, domain: 'in.mt' });
     compareResults(result, inMtData.output);
   });
 
-  it('should parse whois json meabed.com', async () => {
+  it('should parse WHOIS data for meabed.com domain', async () => {
     const result = parseWhoisData({
       rawData: meabedComData.input,
       domain: 'meabed.com',
@@ -60,7 +61,7 @@ describe('0301: Parse Domain WHOIS Data', () => {
     compareResults(result, meabedComData.output);
   });
 
-  it('should parse whois json google.org', async () => {
+  it('should parse WHOIS data for google.org domain', async () => {
     const result = parseWhoisData({
       rawData: googleOrgData.input,
       domain: 'google.org',
@@ -68,7 +69,7 @@ describe('0301: Parse Domain WHOIS Data', () => {
     compareResults(result, googleOrgData.output);
   });
 
-  it('should parse whois json wikipedia.org', async () => {
+  it('should parse WHOIS data for wikipedia.org domain', async () => {
     const result = parseWhoisData({
       rawData: wikipediaOrgData.input,
       domain: 'wikipedia.org',
@@ -76,7 +77,7 @@ describe('0301: Parse Domain WHOIS Data', () => {
     compareResults(result, wikipediaOrgData.output);
   });
 
-  it('should parse whois json bbc.co.uk', async () => {
+  it('should parse WHOIS data for bbc.co.uk domain', async () => {
     const result = parseWhoisData({
       rawData: bbcCoUkData.input,
       domain: 'bbc.co.uk',
@@ -84,7 +85,7 @@ describe('0301: Parse Domain WHOIS Data', () => {
     compareResults(result, bbcCoUkData.output);
   });
 
-  it('should parse whois json amazon.ca', async () => {
+  it('should parse WHOIS data for amazon.ca domain', async () => {
     const result = parseWhoisData({
       rawData: amazonCaData.input,
       domain: 'amazon.ca',

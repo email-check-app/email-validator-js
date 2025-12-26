@@ -62,7 +62,7 @@ describe('0200 Cache', () => {
     it('should cache failed MX lookups as empty array', async () => {
       const resolveMxStub = sandbox.stub(dnsPromises, 'resolveMx').rejects(new Error('DNS failed'));
 
-      // First call - should hit DNS and fail
+      // First call - DNS lookup fails and caches the failure
       try {
         await resolveMxRecords({ domain: 'invalid.com', cache: testCache });
         expect(true).toBe(false); // Should not reach here
@@ -70,30 +70,30 @@ describe('0200 Cache', () => {
         expect(resolveMxStub.callCount).toBe(1);
       }
 
-      // Second call - should use cached empty array (not throw error)
+      // Second call - returns cached failure result (empty array, no error thrown)
       const result = await resolveMxRecords({ domain: 'invalid.com', cache: testCache });
-      expect(resolveMxStub.callCount).toBe(1); // Still 1, used cache
-      expect(result).toEqual([]); // Returns empty array for cached failure
+      expect(resolveMxStub.callCount).toBe(1); // Still 1, used cached failure
+      expect(result).toEqual([]); // Returns empty array for previously failed lookup
     });
   });
 
   describe('Disposable Email Cache', () => {
     it('should cache disposable email checks', async () => {
-      // First call
+      // First call - queries the disposable email list
       const result1 = await isDisposableEmail({ emailOrDomain: '10minutemail.com', cache: testCache });
       expect(result1).toBe(true);
 
-      // Second call - should use cache (we can't easily verify cache hit without exposing internals)
+      // Second call - returns cached result (no external query)
       const result2 = await isDisposableEmail({ emailOrDomain: '10minutemail.com', cache: testCache });
       expect(result2).toBe(true);
     });
 
     it('should cache non-disposable email checks', async () => {
-      // First call
+      // First call - queries the disposable email list
       const result1 = await isDisposableEmail({ emailOrDomain: 'gmail.com', cache: testCache });
       expect(result1).toBe(false);
 
-      // Second call - should use cache
+      // Second call - returns cached result (no external query)
       const result2 = await isDisposableEmail({ emailOrDomain: 'gmail.com', cache: testCache });
       expect(result2).toBe(false);
     });
@@ -101,21 +101,21 @@ describe('0200 Cache', () => {
 
   describe('Free Email Cache', () => {
     it('should cache free email checks', async () => {
-      // First call
+      // First call - queries the free email provider list
       const result1 = await isFreeEmail({ emailOrDomain: 'gmail.com', cache: testCache });
       expect(result1).toBe(true);
 
-      // Second call - should use cache
+      // Second call - returns cached result (no external query)
       const result2 = await isFreeEmail({ emailOrDomain: 'gmail.com', cache: testCache });
       expect(result2).toBe(true);
     });
 
     it('should cache non-free email checks', async () => {
-      // First call
+      // First call - queries the free email provider list
       const result1 = await isFreeEmail({ emailOrDomain: 'custom-business.com', cache: testCache });
       expect(result1).toBe(false);
 
-      // Second call - should use cache
+      // Second call - returns cached result (no external query)
       const result2 = await isFreeEmail({ emailOrDomain: 'custom-business.com', cache: testCache });
       expect(result2).toBe(false);
     });
@@ -123,21 +123,21 @@ describe('0200 Cache', () => {
 
   describe('Domain Validation Cache', () => {
     it('should cache domain validation checks', async () => {
-      // First call
+      // First call - performs domain format and syntax validation
       const result1 = await isValidEmailDomain('example.com', testCache);
       expect(result1).toBe(true);
 
-      // Second call - should use cache
+      // Second call - returns cached validation result
       const result2 = await isValidEmailDomain('example.com', testCache);
       expect(result2).toBe(true);
     });
 
     it('should cache invalid domain checks', async () => {
-      // First call
+      // First call - performs domain format and syntax validation
       const result1 = await isValidEmailDomain('invalid..domain', testCache);
       expect(result1).toBe(false);
 
-      // Second call - should use cache
+      // Second call - returns cached validation result
       const result2 = await isValidEmailDomain('invalid..domain', testCache);
       expect(result2).toBe(false);
     });
@@ -153,22 +153,22 @@ describe('0200 Cache', () => {
     it('should clear all cache stores', () => {
       const defaultCache = getDefaultCache();
 
-      // Add some data to caches
+      // Add test data to multiple cache stores
       defaultCache.mx.set('test.com', ['mx1.test.com']);
       defaultCache.disposable.set('test.com', { isDisposable: true, checkedAt: Date.now() });
       defaultCache.free.set('test.com', { isFree: false, checkedAt: Date.now() });
 
-      // Verify data exists
+      // Verify data exists before clearing
       expect(defaultCache.mx.get('test.com')).toEqual(['mx1.test.com']);
       const disposableResult = defaultCache.disposable.get('test.com');
       expect(disposableResult && 'isDisposable' in disposableResult && disposableResult.isDisposable).toBe(true);
       const freeResult = defaultCache.free.get('test.com');
       expect(freeResult && 'isFree' in freeResult && freeResult.isFree).toBe(false);
 
-      // Clear cache
+      // Clear all cache stores
       clearDefaultCache();
 
-      // Verify data is cleared
+      // Verify all data is cleared
       expect(defaultCache.mx.get('test.com')).toBeNull();
       expect(defaultCache.disposable.get('test.com')).toBeNull();
       expect(defaultCache.free.get('test.com')).toBeNull();
@@ -178,11 +178,12 @@ describe('0200 Cache', () => {
       const cache1 = getDefaultCache();
       cache1.mx.set('test.com', ['mx1.test.com']);
 
+      // Reset creates a new cache instance
       resetDefaultCache();
 
       const cache2 = getDefaultCache();
-      expect(cache1).not.toBe(cache2); // Should be different instances
-      expect(cache2.mx.get('test.com')).toBeNull(); // New cache should be empty
+      expect(cache1).not.toBe(cache2); // Different instances after reset
+      expect(cache2.mx.get('test.com')).toBeNull(); // New instance is empty
     });
   });
 
@@ -192,14 +193,14 @@ describe('0200 Cache', () => {
         .stub(dnsPromises, 'resolveMx')
         .resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
-      // Call without cache parameter - should use default cache
+      // Call without cache parameter - uses default singleton cache
       const result1 = await resolveMxRecords({ domain: 'example.com' });
       expect(resolveMxStub.callCount).toBe(1);
       expect(result1).toEqual(['mx1.example.com']);
 
-      // Second call without cache - should use cached result from default cache
+      // Second call - retrieves cached result from default cache
       const result2 = await resolveMxRecords({ domain: 'example.com' });
-      expect(resolveMxStub.callCount).toBe(1); // Still 1, used cache
+      expect(resolveMxStub.callCount).toBe(1); // Still 1, cache was used
       expect(result2).toEqual(['mx1.example.com']);
     });
   });

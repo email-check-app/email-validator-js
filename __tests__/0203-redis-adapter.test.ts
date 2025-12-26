@@ -1,12 +1,12 @@
 /**
- * Tests for Redis adapter implementation
+ * Tests for Redis adapter implementation of the cache interface
  */
 
 import type { IRedisClient } from '../src/adapters/redis-adapter';
 import { RedisAdapter } from '../src/adapters/redis-adapter';
 
 describe('0203 Redis Adapter', () => {
-  // Mock Redis client
+  // Create a mock Redis client for testing
   const createMockRedis = (): IRedisClient => {
     const store = new Map<string, string>();
 
@@ -39,7 +39,7 @@ describe('0203 Redis Adapter', () => {
   };
 
   describe('Basic Operations', () => {
-    it('should store and retrieve values', async () => {
+    it('should store, retrieve, and delete values', async () => {
       const mockRedis = createMockRedis();
       const adapter = new RedisAdapter(mockRedis);
 
@@ -89,7 +89,7 @@ describe('0203 Redis Adapter', () => {
 
       await adapter.set('mykey', 'myvalue');
 
-      // The underlying Redis should have the prefixed key
+      // Verify the underlying Redis stores with the prefixed key
       expect(await mockRedis.exists('test_prefix:mykey')).toBe(1);
       expect(await mockRedis.exists('mykey')).toBe(0);
     });
@@ -100,14 +100,14 @@ describe('0203 Redis Adapter', () => {
 
       await adapter.set('mykey', 'myvalue');
 
-      // Should use default prefix
+      // Verify default prefix is applied
       expect(await mockRedis.exists('email_validator:mykey')).toBe(1);
       expect(await mockRedis.exists('mykey')).toBe(0);
     });
   });
 
   describe('JSON Serialization', () => {
-    it('should serialize and deserialize complex objects', async () => {
+    it('should serialize and deserialize objects with nested structures', async () => {
       const mockRedis = createMockRedis();
       const adapter = new RedisAdapter(mockRedis);
 
@@ -122,6 +122,7 @@ describe('0203 Redis Adapter', () => {
       await adapter.set('complex', complexObject);
       const retrieved = await adapter.get('complex');
 
+      // Verify object survives round-trip serialization
       expect(retrieved).toEqual(complexObject);
     });
 
@@ -135,7 +136,7 @@ describe('0203 Redis Adapter', () => {
       await adapter.set('withDate', objectWithDate);
       const retrieved = await adapter.get('withDate');
 
-      // Date objects should be correctly serialized and deserialized
+      // Date objects are correctly preserved through serialization
       expect(retrieved).toEqual(objectWithDate);
       expect(typeof retrieved).toBe('object');
       expect(retrieved).toHaveProperty('createdAt');
@@ -172,8 +173,8 @@ describe('0203 Redis Adapter', () => {
       const mockRedis = createMockRedis();
       const adapter = new RedisAdapter(mockRedis);
 
-      // Set with custom TTL (we can't easily test expiration in unit tests)
-      // but we can verify it doesn't throw
+      // Set with explicit TTL - value is immediately retrievable
+      // Note: actual expiration cannot be easily tested in unit tests
       await adapter.set('key', 'value', 60000); // 60 seconds
 
       expect(await adapter.get('key')).toBe('value');
@@ -182,7 +183,7 @@ describe('0203 Redis Adapter', () => {
     it('should use default TTL when none provided', async () => {
       const mockRedis = createMockRedis();
       const adapter = new RedisAdapter(mockRedis, {
-        defaultTtlMs: 5000, // 5 seconds
+        defaultTtlMs: 5000, // 5 second default TTL
       });
 
       await adapter.set('key', 'value');
@@ -196,11 +197,11 @@ describe('0203 Redis Adapter', () => {
       const adapter = new RedisAdapter(mockRedis, {
         jsonSerializer: {
           stringify: (value) => {
-            // Custom serialization that adds a wrapper
+            // Wrap values in a custom envelope during serialization
             return JSON.stringify({ _wrapped: true, _data: value });
           },
           parse: (value) => {
-            // Custom deserialization that removes the wrapper
+            // Unwrap values during deserialization
             const parsed = JSON.parse(value);
             return parsed._wrapped ? parsed._data : parsed;
           },
@@ -210,11 +211,11 @@ describe('0203 Redis Adapter', () => {
       const testData = { key: 'value' };
       await adapter.set('custom', testData);
 
-      // Should correctly deserialize using custom parser
+      // Deserialization uses custom parser and returns original data
       const retrieved = await adapter.get('custom');
       expect(retrieved).toEqual(testData);
 
-      // The raw value in Redis should be wrapped
+      // Verify raw Redis value is wrapped
       const rawValue = await mockRedis.get('email_validator:custom');
       const parsedRaw = JSON.parse(rawValue!);
       expect(parsedRaw._wrapped).toBe(true);
@@ -222,7 +223,7 @@ describe('0203 Redis Adapter', () => {
   });
 
   describe('Error Handling', () => {
-    it('should handle Redis get errors', async () => {
+    it('should return null when Redis get operation fails', async () => {
       const mockRedis = {
         get: async () => {
           throw new Error('Redis connection error');
@@ -235,7 +236,7 @@ describe('0203 Redis Adapter', () => {
 
       const adapter = new RedisAdapter(mockRedis);
 
-      // Should return null on error
+      // Get errors are handled gracefully with null return
       expect(await adapter.get('key')).toBeNull();
     });
 
@@ -252,11 +253,11 @@ describe('0203 Redis Adapter', () => {
 
       const adapter = new RedisAdapter(mockRedis);
 
-      // Should not throw on set error
+      // Set errors are caught and handled without throwing
       await expect(adapter.set('key', 'value')).resolves.not.toThrow();
     });
 
-    it('should handle Redis delete errors', async () => {
+    it('should return false when Redis delete operation fails', async () => {
       const mockRedis = {
         get: async (): Promise<any> => null,
         set: async () => 'OK',
@@ -269,11 +270,11 @@ describe('0203 Redis Adapter', () => {
 
       const adapter = new RedisAdapter(mockRedis);
 
-      // Should return false on error
+      // Delete errors result in false return value
       expect(await adapter.delete('key')).toBe(false);
     });
 
-    it('should handle Redis exists errors', async () => {
+    it('should return false when Redis exists operation fails', async () => {
       const mockRedis = {
         get: async (): Promise<any> => null,
         set: async () => 'OK',
@@ -286,22 +287,22 @@ describe('0203 Redis Adapter', () => {
 
       const adapter = new RedisAdapter(mockRedis);
 
-      // Should return false on error
+      // Exists errors result in false return value
       expect(await adapter.has('key')).toBe(false);
     });
   });
 
   describe('Type Safety', () => {
-    it('should maintain type information', async () => {
+    it('should preserve type information through get/set operations', async () => {
       const mockRedis = createMockRedis();
 
-      // Test with specific type
+      // Test with string type parameter
       const stringAdapter = new RedisAdapter<string>(mockRedis);
       await stringAdapter.set('string', 'value');
       const stringValue = await stringAdapter.get('string');
       expect(typeof stringValue).toBe('string');
 
-      // Test with array type
+      // Test with array type parameter
       const arrayAdapter = new RedisAdapter<string[]>(mockRedis);
       const testArray = ['a', 'b', 'c'];
       await arrayAdapter.set('array', testArray);

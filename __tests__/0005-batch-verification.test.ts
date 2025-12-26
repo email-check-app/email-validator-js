@@ -1,3 +1,7 @@
+/**
+ * Test suite for batch email verification functionality
+ */
+
 import { promises as dnsPromises } from 'node:dns';
 import net, { Socket } from 'node:net';
 import expect from 'expect';
@@ -19,14 +23,14 @@ describe('0005 Batch Email Verification', () => {
 
   describe('#verifyEmailBatch', () => {
     beforeEach(() => {
-      // Stub DNS resolution
+      // Stub DNS resolution for all tests
       sandbox.stub(dnsPromises, 'resolveMx').resolves([
         { exchange: 'mx1.example.com', priority: 10 },
         { exchange: 'mx2.example.com', priority: 20 },
       ]);
     });
 
-    it('should verify multiple emails in parallel', async () => {
+    it('should verify multiple email addresses in parallel with concurrency control', async () => {
       const emails = [
         'user1@testdomain.com',
         'user2@testdomain.com',
@@ -48,7 +52,7 @@ describe('0005 Batch Email Verification', () => {
       expect(result.results.size).toBe(5);
     });
 
-    it('should respect concurrency limit', async () => {
+    it('should respect the concurrency limit to avoid overwhelming the system', async () => {
       const emails = Array.from({ length: 10 }, (_, i) => `user${i}@testdomain.com`);
       let maxConcurrent = 0;
       let currentConcurrent = 0;
@@ -78,11 +82,11 @@ describe('0005 Batch Email Verification', () => {
       expect(maxConcurrent).toBeLessThanOrEqual(3);
     });
 
-    it('should handle errors gracefully', async () => {
+    it('should handle DNS errors gracefully and continue processing other emails', async () => {
       sandbox.restore();
       sandbox = sinon.createSandbox();
 
-      // Make DNS fail for some domains
+      // Make DNS fail for specific domains to test error handling
       sandbox.stub(dnsPromises, 'resolveMx').callsFake(async (domain: string) => {
         if (domain === 'error.com') {
           throw new Error('DNS lookup failed');
@@ -101,7 +105,7 @@ describe('0005 Batch Email Verification', () => {
       expect(result.results.get('user2@error.com')).toBeTruthy();
     });
 
-    it('should return detailed results', async () => {
+    it('should return detailed verification results including disposable and free email detection', async () => {
       const emails = ['user1@testdomain.com', 'user2@yopmail.com'];
 
       const result = await verifyEmailBatch({
@@ -123,7 +127,7 @@ describe('0005 Batch Email Verification', () => {
       expect(disposableResult.isDisposable).toBe(true);
     });
 
-    it('should track processing time', async () => {
+    it('should track and report total batch processing time', async () => {
       const emails = ['user1@testdomain.com', 'user2@testdomain.com'];
 
       const result = await verifyEmailBatch({

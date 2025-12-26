@@ -21,9 +21,9 @@ jest.mock('dns', () => ({
 
 const mockResolveMx = dns.promises.resolveMx as jest.MockedFunction<typeof dns.promises.resolveMx>;
 
-describe('0003 Email Provider Detection', () => {
+describe('0003 Email Provider Detection from MX Hosts', () => {
   describe('isGmail', () => {
-    it('should identify Gmail MX hosts', () => {
+    it('should identify Gmail MX hosts by hostname pattern', () => {
       expect(isGmail('gmail-smtp-in.l.google.com.')).toBe(true);
       expect(isGmail('alt1.gmail-smtp-in.l.google.com.')).toBe(true);
       expect(isGmail('aspmx.l.google.com.')).toBe(true);
@@ -32,7 +32,7 @@ describe('0003 Email Provider Detection', () => {
   });
 
   describe('isYahoo', () => {
-    it('should identify Yahoo MX hosts', () => {
+    it('should identify Yahoo MX hosts by hostname pattern', () => {
       expect(isYahoo('mta7.am0.yahoodns.net.')).toBe(true);
       expect(isYahoo('mx-eu.mail.am0.yahoodns.net.')).toBe(true);
       expect(isYahoo('yahoo.com')).toBe(false);
@@ -40,7 +40,7 @@ describe('0003 Email Provider Detection', () => {
   });
 
   describe('isHotmailB2C', () => {
-    it('should identify Hotmail B2C MX hosts', () => {
+    it('should identify Hotmail B2C (consumer) MX hosts by hostname pattern', () => {
       expect(isHotmailB2C('hotmail-com.olc.protection.outlook.com.')).toBe(true);
       expect(isHotmailB2C('outlook-com.olc.protection.outlook.com.')).toBe(true);
       expect(isHotmailB2C('eur.olc.protection.outlook.com.')).toBe(true);
@@ -49,7 +49,7 @@ describe('0003 Email Provider Detection', () => {
   });
 
   describe('isHotmailB2B', () => {
-    it('should identify Hotmail B2B MX hosts', () => {
+    it('should identify Hotmail B2B (business/enterprise) MX hosts by hostname pattern', () => {
       expect(isHotmailB2B('mail.protection.outlook.com.')).toBe(true);
       expect(isHotmailB2B('company-com.mail.protection.outlook.com.')).toBe(true);
       expect(isHotmailB2B('hotmail-com.olc.protection.outlook.com.')).toBe(false);
@@ -57,7 +57,7 @@ describe('0003 Email Provider Detection', () => {
   });
 
   describe('isProofpoint', () => {
-    it('should identify Proofpoint MX hosts', () => {
+    it('should identify Proofpoint MX hosts by hostname pattern', () => {
       expect(isProofpoint('mail.pphosted.com.')).toBe(true);
       expect(isProofpoint('example.ppe-hosted.com.')).toBe(true);
       expect(isProofpoint('pphosted.com.')).toBe(true);
@@ -66,7 +66,7 @@ describe('0003 Email Provider Detection', () => {
   });
 
   describe('isMimecast', () => {
-    it('should identify Mimecast MX hosts', () => {
+    it('should identify Mimecast MX hosts by hostname pattern', () => {
       expect(isMimecast('smtp.mimecast.com.')).toBe(true);
       expect(isMimecast('eu.mimecast.com.')).toBe(true);
       expect(isMimecast('example.com')).toBe(false);
@@ -74,42 +74,42 @@ describe('0003 Email Provider Detection', () => {
   });
 
   describe('getProviderFromMxHost', () => {
-    it('should detect Gmail provider', () => {
+    it('should detect GMAIL provider from Gmail MX hosts', () => {
       expect(getProviderFromMxHost('gmail-smtp-in.l.google.com.')).toBe(EmailProvider.GMAIL);
     });
 
-    it('should detect Yahoo provider', () => {
+    it('should detect YAHOO provider from Yahoo MX hosts', () => {
       expect(getProviderFromMxHost('mta7.am0.yahoodns.net.')).toBe(EmailProvider.YAHOO);
     });
 
-    it('should detect Hotmail B2C provider', () => {
+    it('should detect HOTMAIL_B2C (consumer) provider from Outlook MX hosts', () => {
       expect(getProviderFromMxHost('hotmail-com.olc.protection.outlook.com.')).toBe(EmailProvider.HOTMAIL_B2C);
     });
 
-    it('should detect Hotmail B2B provider', () => {
+    it('should detect HOTMAIL_B2B (business) provider from Office 365 MX hosts', () => {
       expect(getProviderFromMxHost('mail.protection.outlook.com.')).toBe(EmailProvider.HOTMAIL_B2B);
     });
 
-    it('should detect Proofpoint provider', () => {
+    it('should detect PROOFPOINT provider from Proofpoint MX hosts', () => {
       expect(getProviderFromMxHost('mail.pphosted.com.')).toBe(EmailProvider.PROOFPOINT);
     });
 
-    it('should detect Mimecast provider', () => {
+    it('should detect MIMECAST provider from Mimecast MX hosts', () => {
       expect(getProviderFromMxHost('smtp.mimecast.com.')).toBe(EmailProvider.MIMECAST);
     });
 
-    it('should default to EverythingElse for unknown providers', () => {
+    it('should return EVERYTHING_ELSE for unknown or custom MX hosts', () => {
       expect(getProviderFromMxHost('mail.example.com.')).toBe(EmailProvider.EVERYTHING_ELSE);
     });
   });
 });
 
-describe('0003 Check If Email Exists Core', () => {
+describe('0003 Core Email Verification Functionality', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('should successfully verify a valid email', async () => {
+  it('should successfully verify a valid email with MX records', async () => {
     const mockMxRecords = [{ exchange: 'gmail-smtp-in.l.google.com.', priority: 5 }];
     mockResolveMx.mockResolvedValue(mockMxRecords);
 
@@ -117,7 +117,7 @@ describe('0003 Check If Email Exists Core', () => {
       emailAddress: 'test@gmail.com',
       fromEmail: 'test@example.com',
       helloName: 'example.com',
-      verifySmtp: false, // Keep false for unit tests to avoid actual SMTP connections
+      verifySmtp: false, // Disabled for unit tests to avoid actual SMTP connections
     };
 
     const result = await checkIfEmailExistsCore(params);
@@ -141,7 +141,7 @@ describe('0003 Check If Email Exists Core', () => {
     );
   });
 
-  it('should handle MX record lookup failures', async () => {
+  it('should handle MX record lookup failures gracefully', async () => {
     mockResolveMx.mockRejectedValue(new Error('DNS lookup failed'));
 
     const params: ICheckIfEmailExistsCoreParams = {
@@ -186,7 +186,7 @@ describe('0003 Check If Email Exists Core', () => {
     );
   });
 
-  it('should use cached results when available', async () => {
+  it('should use cached MX records when available', async () => {
     const mockCache = {
       mx: {
         get: jest.fn().mockResolvedValue(['gmail-smtp-in.l.google.com.']),
@@ -214,7 +214,7 @@ describe('0003 Check If Email Exists Core', () => {
     );
   });
 
-  it('should handle different providers correctly', async () => {
+  it('should detect and handle different email providers correctly', async () => {
     const testCases = [
       {
         email: 'user@yahoo.com',
@@ -257,16 +257,16 @@ describe.skip('0003 Integration Tests', () => {
   // These tests require actual network connections and should be run manually
   // or in a CI environment with proper mocking
 
-  it('should handle real Gmail addresses (integration test)', async () => {
+  it('should verify real Gmail address with actual DNS lookup', async () => {
     // Restore original DNS resolution for integration test
     mockResolveMx.mockRestore();
 
     const params: ICheckIfEmailExistsCoreParams = {
-      emailAddress: 'support@gmail.com', // This is a known valid Gmail address
+      emailAddress: 'support@gmail.com', // Known valid Gmail address
       fromEmail: 'test@example.com',
       helloName: 'example.com',
       timeout: 10000,
-      verifySmtp: false, // Keep false for integration tests
+      verifySmtp: false, // Disabled for integration tests
     };
 
     const result = await checkIfEmailExistsCore(params);

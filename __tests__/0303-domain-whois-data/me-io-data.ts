@@ -1,4 +1,6 @@
 export const meIoData = {
+  // Note: Input data is for example.io but tests use me.io as the domain parameter
+  // This allows testing of the parser with mismatched domain names
   input: `Domain Name: example.io
 Registry Domain ID: ba2026709d8e4a708757a4c4c75c67c6-DONUTS
 Registrar WHOIS Server: whois.namecheap.com

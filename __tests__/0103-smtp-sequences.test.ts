@@ -1,6 +1,8 @@
 // SMTP Custom Sequence Tests
 //
-// Tests custom SMTP step sequences and protocol control
+// Tests custom SMTP protocol step sequences including predefined sequences,
+// custom MAIL FROM/VRFY configuration, STARTTLS handling, performance
+// comparison, and error handling.
 
 import { clearDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
@@ -459,12 +461,12 @@ describe('0103 SMTP Sequences', () => {
     );
 
     it(
-      'should handle sequence without MAIL_FROM',
+      'should handle sequence without MAIL_FROM step',
       async () => {
         const params = createTestParams({
           options: {
             sequence: {
-              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.RCPT_TO], // Missing MAIL_FROM
+              steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.RCPT_TO], // MAIL_FROM skipped
             },
             ports: [587],
           },

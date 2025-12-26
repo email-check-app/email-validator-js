@@ -1,5 +1,5 @@
 /**
- * Isolated test for network timeout handling
+ * Isolated test suite for network timeout handling during email verification
  */
 
 import { checkIfEmailExistsCore } from '../src/check-if-email-exists';
@@ -21,7 +21,7 @@ describe('0004 Network Timeout Handling', () => {
     mockResolveMx.mockReset();
   });
 
-  test('should handle network timeouts gracefully', async () => {
+  test('should handle DNS network timeout errors gracefully', async () => {
     mockResolveMx.mockImplementation(() => {
       return new Promise((_, reject) => {
         const error = new Error('ETIMEDOUT operation timed out');
@@ -34,15 +34,15 @@ describe('0004 Network Timeout Handling', () => {
       emailAddress: 'test@slow-domain.com',
       verifyMx: true,
       verifySmtp: false,
-      timeout: 50, // Very short timeout
+      timeout: 50, // Very short timeout to trigger timeout error
     });
 
-    expect(result.is_reachable).toBe('invalid'); // MX timeout makes it unreachable/invalid
+    expect(result.is_reachable).toBe('invalid'); // MX timeout makes the email unreachable/invalid
     expect(result.mx?.error).toBeDefined();
     expect(result.mx?.error).toContain('operation timed out');
   });
 
-  test('should handle MX lookup success', async () => {
+  test('should successfully complete MX lookup when DNS responds quickly', async () => {
     mockResolveMx.mockResolvedValue([{ exchange: 'mail.example.com', preference: 10 }]);
 
     const result = await checkIfEmailExistsCore({
@@ -51,12 +51,12 @@ describe('0004 Network Timeout Handling', () => {
       verifySmtp: false,
     });
 
-    expect(result.is_reachable).toBe('unknown'); // No SMTP verification
+    expect(result.is_reachable).toBe('unknown'); // No SMTP verification performed
     expect(result.mx?.success).toBe(true);
     expect(result.smtp).toBeNull();
   });
 
-  test('should handle MX lookup failure', async () => {
+  test('should handle DNS lookup failures with proper error reporting', async () => {
     mockResolveMx.mockRejectedValue(new Error('DNS lookup failed'));
 
     const result = await checkIfEmailExistsCore({
@@ -68,5 +68,6 @@ describe('0004 Network Timeout Handling', () => {
     expect(result.is_reachable).toBe('invalid'); // MX lookup failed
     expect(result.mx?.success).toBe(false);
     expect(result.mx?.error).toBeDefined();
+    expect(result.mx?.error).toContain('DNS lookup failed');
   });
 });

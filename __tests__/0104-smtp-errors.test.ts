@@ -1,6 +1,8 @@
 // SMTP Error Handling Tests
 //
-// Tests error scenarios and edge cases
+// Tests error scenarios including connection failures, invalid parameters,
+// timeout errors, port errors, TLS errors, sequence errors, resource
+// exhaustion, and graceful degradation.
 
 import { clearDefaultCache, getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
@@ -36,30 +38,30 @@ describe('0104 SMTP Errors', () => {
       expect(smtpResult.isDeliverable).toBe(false);
     });
 
-    it('should handle connection refused', async () => {
+    it('should handle connection refused on localhost', async () => {
       const params = createTestParams({
         mxRecords: ['localhost'],
         options: {
-          ports: [25], // Assuming no SMTP server on localhost
+          ports: [25], // No SMTP server typically running on localhost
           timeout: 2000,
         },
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      // May connect but fail SMTP protocol
+      // May connect but will fail SMTP protocol handshake
       expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
     });
 
-    it('should handle DNS resolution failures', async () => {
+    it('should handle empty MX record hostname', async () => {
       const params = createTestParams({
-        mxRecords: [''].filter(Boolean), // Empty hostname
+        mxRecords: [''].filter(Boolean), // Results in empty array
         options: {
           timeout: 2000,
         },
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBe(false); // Empty hostname should return false
+      expect(smtpResult.isDeliverable).toBe(false); // Empty MX records should return false
     });
   });
 
@@ -269,7 +271,7 @@ describe('0104 SMTP Errors', () => {
   });
 
   describe('Sequence Errors', () => {
-    it('should handle empty sequence', async () => {
+    it('should handle empty sequence gracefully', async () => {
       const params = createTestParams({
         options: {
           sequence: {
@@ -280,7 +282,7 @@ describe('0104 SMTP Errors', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBe(true); // no steps means nothing to verify, should return true
+      expect(smtpResult.isDeliverable).toBe(true); // No steps means nothing to fail
     });
 
     it('should handle invalid sequence steps', async () => {
@@ -395,7 +397,7 @@ describe('0104 SMTP Errors', () => {
   });
 
   describe('Memory and Resource Leaks', () => {
-    it('should not accumulate listeners on error', async () => {
+    it('should not accumulate event listeners on connection errors', async () => {
       const params = createTestParams({
         mxRecords: ['invalid.test'],
         options: {
@@ -404,13 +406,13 @@ describe('0104 SMTP Errors', () => {
         },
       });
 
-      // Run multiple failing requests
+      // Run multiple failing requests to check for listener accumulation
       for (let i = 0; i < 10; i++) {
         const { smtpResult } = await verifyMailboxSMTP(params);
         expect(smtpResult.isDeliverable).toBe(false);
       }
 
-      // If no errors thrown, resources are likely cleaned up properly
+      // If no errors thrown after multiple failures, resources are cleaned up
       expect(true).toBe(true);
     });
 

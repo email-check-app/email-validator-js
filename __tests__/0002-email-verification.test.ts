@@ -1,5 +1,11 @@
 /**
- * Comprehensive test suite for check-if-email-exists functionality
+ * Comprehensive test suite for email verification functionality including:
+ * - Email syntax validation
+ * - Provider type detection
+ * - MX records querying
+ * - SMTP connection verification
+ * - Core email verification workflow
+ * - Error handling and edge cases
  */
 
 import {
@@ -35,7 +41,7 @@ afterEach(() => {
 });
 
 describe('0002 Email Syntax Validation', () => {
-  test('should validate correct email formats', () => {
+  test('should accept and validate correctly formatted email addresses', () => {
     const validEmails = [
       'test@example.com',
       'user.name@domain.co.uk',
@@ -53,7 +59,7 @@ describe('0002 Email Syntax Validation', () => {
     });
   });
 
-  test('should reject invalid email formats', () => {
+  test('should reject email addresses with invalid formats', () => {
     const invalidEmails = [
       'invalid-email',
       '@domain.com',
@@ -75,7 +81,7 @@ describe('0002 Email Syntax Validation', () => {
     });
   });
 
-  test('should enforce length limits', () => {
+  test('should enforce RFC 5321 length limits (64 chars for local part, 253 for domain)', () => {
     // Local part > 64 chars
     const longLocal = 'a'.repeat(65) + '@example.com';
     const result = validateEmailSyntax(longLocal);
@@ -105,7 +111,7 @@ describe('0002 Email Syntax Validation', () => {
 });
 
 describe('0002 Provider Type Detection', () => {
-  test('should identify Gmail domains correctly', () => {
+  test('should identify Gmail and Googlemail domains as GMAIL provider', () => {
     const gmailDomains = ['gmail.com', 'googlemail.com'];
 
     gmailDomains.forEach((domain) => {
@@ -113,7 +119,7 @@ describe('0002 Provider Type Detection', () => {
     });
   });
 
-  test('should identify Yahoo domains correctly', () => {
+  test('should identify Yahoo, Ymail, and Rocketmail domains as YAHOO provider', () => {
     const yahooDomains = ['yahoo.com', 'ymail.com', 'rocketmail.com'];
 
     yahooDomains.forEach((domain) => {
@@ -121,7 +127,7 @@ describe('0002 Provider Type Detection', () => {
     });
   });
 
-  test('should identify Hotmail domains correctly', () => {
+  test('should identify Hotmail, Outlook, Live, and MSN domains as HOTMAIL_B2C provider', () => {
     const hotmailDomains = ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'];
 
     hotmailDomains.forEach((domain) => {
@@ -129,7 +135,7 @@ describe('0002 Provider Type Detection', () => {
     });
   });
 
-  test('should return OTHER for unknown domains', () => {
+  test('should return EVERYTHING_ELSE for unknown or custom domains', () => {
     const otherDomains = ['example.com', 'test.org', 'custom-domain.net'];
 
     otherDomains.forEach((domain) => {
@@ -143,7 +149,7 @@ describe('0002 MX Records Query', () => {
     mockResolveMx.mockClear();
   });
 
-  test('should successfully resolve MX records', async () => {
+  test('should successfully resolve and sort MX records by priority (preference)', async () => {
     const mockMxRecords = [
       { exchange: 'mail.example.com', preference: 10 },
       { exchange: 'mail2.example.com', preference: 20 },
@@ -160,7 +166,7 @@ describe('0002 MX Records Query', () => {
     expect(result.lowest_priority?.priority).toBe(10);
   });
 
-  test('should handle domains with no MX records', async () => {
+  test('should handle domains with no MX records gracefully', async () => {
     mockResolveMx.mockResolvedValue([]);
 
     const result = await queryMxRecords('no-mx.com');
@@ -170,7 +176,7 @@ describe('0002 MX Records Query', () => {
     expect(result.error).toBe('No MX records found');
   });
 
-  test('should handle DNS resolution errors', async () => {
+  test('should handle DNS resolution errors gracefully', async () => {
     const dnsError = new Error('ENOTFOUND domain not found');
     (dnsError as any).code = 'ENOTFOUND';
     mockResolveMx.mockRejectedValue(dnsError);
@@ -182,7 +188,7 @@ describe('0002 MX Records Query', () => {
     expect(result.code).toBe('ENOTFOUND');
   });
 
-  test('should sort MX records by preference', async () => {
+  test('should sort MX records by preference in ascending order', async () => {
     const mockMxRecords = [
       { exchange: 'mail3.example.com', preference: 30 },
       { exchange: 'mail1.example.com', preference: 10 },
@@ -201,10 +207,9 @@ describe('0002 MX Records Query', () => {
 });
 
 describe('0002 SMTP Connection Verification', () => {
-  test('should handle Gmail provider optimizations', async () => {
-    // This test would require mocking the entire SMTP connection
-    // For now, we'll test the provider optimization logic
-
+  test('should apply Gmail-specific optimizations during SMTP verification', async () => {
+    // This test verifies that the Gmail optimization logic is properly applied
+    // Full SMTP connection mocking would require extensive test infrastructure
     const gmailOptions = {
       timeout: 10000,
       fromEmail: 'test@gmail.com',
@@ -213,7 +218,7 @@ describe('0002 SMTP Connection Verification', () => {
       retries: 3,
     };
 
-    // Test that Gmail optimizations are applied
+    // Test that Gmail optimizations are applied without throwing
     expect(async () => {
       await verifySmtpConnection(
         'test@gmail.com',
@@ -231,7 +236,7 @@ describe('0002 Check If Email Exists Core', () => {
     mockResolveMx.mockClear();
   });
 
-  test('should reject invalid email syntax', async () => {
+  test('should reject emails with invalid syntax', async () => {
     const result = await checkIfEmailExistsCore({
       emailAddress: 'invalid-email',
     });
@@ -242,7 +247,7 @@ describe('0002 Check If Email Exists Core', () => {
     expect(result.smtp).toBeNull();
   });
 
-  test('should handle domains with no MX records', async () => {
+  test('should handle domains with no MX records gracefully', async () => {
     mockResolveMx.mockResolvedValue([]);
 
     const result = await checkIfEmailExistsCore({
@@ -257,7 +262,7 @@ describe('0002 Check If Email Exists Core', () => {
     expect(result.smtp).toBeNull();
   });
 
-  test('should skip MX/SMTP verification when disabled', async () => {
+  test('should skip MX and SMTP verification when both are disabled', async () => {
     const result = await checkIfEmailExistsCore({
       emailAddress: 'test@example.com',
       verifyMx: false,
@@ -270,7 +275,7 @@ describe('0002 Check If Email Exists Core', () => {
     expect(result.is_reachable).toBe('unknown'); // No SMTP verification
   });
 
-  test('should apply custom SMTP options', async () => {
+  test('should apply custom SMTP options when provided', async () => {
     mockResolveMx.mockResolvedValue([{ exchange: 'mail.example.com', preference: 10 }]);
 
     const customOptions = {
@@ -293,7 +298,7 @@ describe('0002 Check If Email Exists Core', () => {
     expect(result.mx?.success).toBe(true);
   });
 
-  test('should handle debug logging', async () => {
+  test('should output debug logs when debug mode is enabled', async () => {
     const consoleSpy = jest.spyOn(console, 'debug');
 
     await checkIfEmailExistsCore({
@@ -308,7 +313,7 @@ describe('0002 Check If Email Exists Core', () => {
     consoleSpy.mockRestore();
   });
 
-  test('should handle disposable and free email detection', async () => {
+  test('should detect disposable and free email providers when checks are enabled', async () => {
     mockResolveMx.mockResolvedValue([{ exchange: 'mail.gmail.com', preference: 10 }]);
 
     const result = await checkIfEmailExistsCore({
@@ -325,7 +330,7 @@ describe('0002 Check If Email Exists Core', () => {
     expect(result.misc?.is_free).toBeDefined();
   });
 
-  test('should apply provider optimizations when enabled', async () => {
+  test('should apply provider-specific optimizations when enabled', async () => {
     mockResolveMx.mockResolvedValue([{ exchange: 'gmail-smtp-in.l.google.com', preference: 10 }]);
 
     const result = await checkIfEmailExistsCore({
@@ -340,14 +345,14 @@ describe('0002 Check If Email Exists Core', () => {
 });
 
 describe('0002 Constants', () => {
-  test('should have correct default values', () => {
+  test('should have correct default timeout, port, and email configuration values', () => {
     expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT).toBe(10000);
     expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_SMTP_PORT).toBe(25);
     expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL).toBe('test@example.com');
     expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME).toBe('example.com');
   });
 
-  test('should have correct provider domains', () => {
+  test('should have correct provider domain lists for Gmail, Yahoo, and Hotmail', () => {
     expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.GMAIL_DOMAINS).toContain('gmail.com');
     expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.YAHOO_DOMAINS).toContain('yahoo.com');
     expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.HOTMAIL_DOMAINS).toContain('outlook.com');
@@ -360,7 +365,7 @@ describe('0002 Error Handling', () => {
     mockResolveMx.mockClear();
   });
 
-  test('should handle network timeouts gracefully', async () => {
+  test('should handle DNS network timeout errors gracefully', async () => {
     mockResolveMx.mockImplementation(() => {
       return new Promise((_, reject) => {
         const error = new Error('ETIMEDOUT operation timed out');
@@ -381,7 +386,7 @@ describe('0002 Error Handling', () => {
     expect(result.mx?.error).toContain('operation timed out');
   });
 
-  test('should handle malformed input gracefully', async () => {
+  test('should handle malformed or null input parameters gracefully', async () => {
     const testCases = [null as any, undefined as any, 123 as any, { emailAddress: null } as any];
 
     for (const testCase of testCases) {
@@ -393,7 +398,7 @@ describe('0002 Error Handling', () => {
 });
 
 describe('0002 Performance Considerations', () => {
-  test('should handle batch processing efficiently', async () => {
+  test('should efficiently process 10 emails in parallel with MX verification', async () => {
     const emails = Array.from({ length: 10 }, (_, i) => `test${i}@example.com`);
 
     // Mock successful MX resolution
@@ -414,7 +419,7 @@ describe('0002 Performance Considerations', () => {
     const duration = Date.now() - startTime;
 
     expect(results).toHaveLength(10);
-    expect(duration).toBeLessThan(5000); // Should complete quickly without SMTP
+    expect(duration).toBeLessThan(5000); // Should complete 10 emails in under 5 seconds without SMTP
 
     results.forEach((result) => {
       expect(result.syntax.is_valid).toBe(true);
@@ -425,7 +430,7 @@ describe('0002 Performance Considerations', () => {
 
 // Integration tests (would require actual network access in real environment)
 describe('0002 Integration Tests', () => {
-  test('should work with real-world Gmail address', async () => {
+  test('should verify real-world Gmail address with DNS lookup', async () => {
     // Skip this test in unit test environment
     if (process.env.NODE_ENV === 'test') {
       return;

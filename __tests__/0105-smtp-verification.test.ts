@@ -1,5 +1,9 @@
 /**
- * Simplified tests for SMTP verification functionality
+ * SMTP Provider and Configuration Tests
+ *
+ * Tests email provider identification (Gmail, Yahoo, Hotmail, etc.),
+ * SMTP error handling scenarios, and SMTP configuration validation.
+ * These tests verify provider-specific logic without making actual network calls.
  */
 
 import { EmailProvider } from '../src/check-if-email-exists';

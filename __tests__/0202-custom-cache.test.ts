@@ -37,7 +37,7 @@ describe('0202 Custom Cache', () => {
   });
 
   describe('Custom Cache Creation', () => {
-    it('should create cache with LRU adapters', () => {
+    it('should create a complete ICache instance using LRU adapters', () => {
       const cache: ICache = {
         mx: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.mx, DEFAULT_CACHE_OPTIONS.ttl.mx),
         disposable: new LRUAdapter<DisposableEmailResult>(
@@ -66,11 +66,12 @@ describe('0202 Custom Cache', () => {
       expect(cache.free).toBeInstanceOf(LRUAdapter);
       expect(cache.domainValid).toBeInstanceOf(LRUAdapter);
       expect(cache.smtp).toBeInstanceOf(LRUAdapter);
+      expect(cache.smtpPort).toBeInstanceOf(LRUAdapter);
       expect(cache.domainSuggestion).toBeInstanceOf(LRUAdapter);
       expect(cache.whois).toBeInstanceOf(LRUAdapter);
     });
 
-    it('should work with custom cache instances', async () => {
+    it('should use custom cache instances for email validation', async () => {
       const customCache: ICache = {
         mx: new LRUAdapter<string[]>(5, 60000), // 1 minute
         disposable: new LRUAdapter<DisposableEmailResult>(5, 60000),
@@ -82,7 +83,7 @@ describe('0202 Custom Cache', () => {
         whois: new LRUAdapter<any>(5, 60000),
       };
 
-      // Test with custom cache
+      // Test email validation functions with custom cache
       const isDisposable = await isDisposableEmail({
         emailOrDomain: '10minutemail.com',
         cache: customCache,
@@ -95,7 +96,7 @@ describe('0202 Custom Cache', () => {
       });
       expect(isFree).toBe(true);
 
-      // Verify data is in custom cache (functions populate cache with rich result types)
+      // Verify results are stored in custom cache with rich result types
       const cachedDisposable = await customCache.disposable.get('10minutemail.com');
       expect(cachedDisposable).toBeTruthy();
       expect(
@@ -112,7 +113,7 @@ describe('0202 Custom Cache', () => {
   });
 
   describe('Cache Isolation', () => {
-    it('should isolate cache instances', async () => {
+    it('should maintain isolation between separate cache instances', async () => {
       const cache1: ICache = {
         mx: new LRUAdapter<string[]>(10, 60000),
         disposable: new LRUAdapter<DisposableEmailResult>(10, 60000),
@@ -135,11 +136,11 @@ describe('0202 Custom Cache', () => {
         whois: new LRUAdapter<any>(10, 60000),
       };
 
-      // Store different values in each cache (must use rich result types)
+      // Store different values for the same key in each cache
       await cache1.disposable.set('test.com', { isDisposable: true, checkedAt: Date.now() });
       await cache2.disposable.set('test.com', { isDisposable: false, checkedAt: Date.now() });
 
-      // Verify caches are isolated
+      // Verify each cache maintains its own independent value
       expect(await cache1.disposable.get('test.com')).toEqual({ isDisposable: true, checkedAt: expect.any(Number) });
       expect(await cache2.disposable.get('test.com')).toEqual({ isDisposable: false, checkedAt: expect.any(Number) });
     });

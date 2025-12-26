@@ -10,13 +10,13 @@ describe('0500 Serverless Core', () => {
   });
 
   describe('EdgeCache', () => {
-    it('should store and retrieve values', () => {
+    it('should store and retrieve cached values', () => {
       const cache = new EdgeCache<string>(10, 1000);
       cache.set('test', 'value');
       expect(cache.get('test')).toBe('value');
     });
 
-    it('should respect TTL', (done) => {
+    it('should expire entries after TTL (Time-To-Live) elapses', (done) => {
       const cache = new EdgeCache<string>(10, 100); // 100ms TTL
       cache.set('test', 'value');
       expect(cache.get('test')).toBe('value');
@@ -27,7 +27,7 @@ describe('0500 Serverless Core', () => {
       }, 150);
     });
 
-    it('should respect max size', () => {
+    it('should evict oldest entries when max size is exceeded', () => {
       const cache = new EdgeCache<number>(3, 10000);
       cache.set('1', 1);
       cache.set('2', 2);
@@ -37,7 +37,7 @@ describe('0500 Serverless Core', () => {
       expect(cache.size()).toBeLessThanOrEqual(3);
     });
 
-    it('should clear cache', () => {
+    it('should clear all cached entries', () => {
       const cache = new EdgeCache<string>(10, 1000);
       cache.set('test', 'value');
       expect(cache.get('test')).toBe('value');
@@ -47,7 +47,7 @@ describe('0500 Serverless Core', () => {
   });
 
   describe('validateEmailCore', () => {
-    it('should validate valid email syntax', async () => {
+    it('should validate email syntax and return basic metadata', async () => {
       const result = await validateEmailCore('test@valid-domain.org');
       expect(result.valid).toBe(true);
       expect(result.email).toBe('test@valid-domain.org');
@@ -56,29 +56,29 @@ describe('0500 Serverless Core', () => {
       expect(result.validators.syntax?.valid).toBe(true);
     });
 
-    it('should invalidate invalid email syntax', async () => {
+    it('should reject emails with invalid syntax', async () => {
       const result = await validateEmailCore('invalid-email');
       expect(result.valid).toBe(false);
       expect(result.validators.syntax?.valid).toBe(false);
     });
 
-    it('should detect typos in domains', async () => {
+    it('should detect domain typos and suggest corrections', async () => {
       const result = await validateEmailCore('user@gmial.com');
       expect(result.validators.typo?.valid).toBe(false);
       expect(result.validators.typo?.suggestion).toBe('gmail.com');
     });
 
-    it('should detect disposable emails', async () => {
+    it('should detect and flag disposable email providers', async () => {
       const result = await validateEmailCore('test@mailinator.com');
       expect(result.validators.disposable?.valid).toBe(false);
     });
 
-    it('should detect free email providers', async () => {
+    it('should detect and flag free email providers', async () => {
       const result = await validateEmailCore('test@gmail.com');
       expect(result.validators.free?.valid).toBe(false);
     });
 
-    it('should cache results', async () => {
+    it('should return cached results for repeated validations', async () => {
       const email = 'cached@valid-domain.org';
 
       // First call
@@ -90,7 +90,7 @@ describe('0500 Serverless Core', () => {
       expect(result1).toEqual(result2);
     });
 
-    it('should skip cache when requested', async () => {
+    it('should bypass cache when skipCache option is true', async () => {
       const email = 'nocache@valid-domain.org';
 
       await validateEmailCore(email);
@@ -99,7 +99,7 @@ describe('0500 Serverless Core', () => {
       expect(result.email).toBe(email);
     });
 
-    it('should allow disabling specific validators', async () => {
+    it('should skip specific validators when corresponding flags are set to false', async () => {
       const result = await validateEmailCore('test@gmail.com', {
         validateTypo: false,
         validateDisposable: false,
@@ -113,7 +113,7 @@ describe('0500 Serverless Core', () => {
   });
 
   describe('validateEmailBatch', () => {
-    it('should validate multiple emails', async () => {
+    it('should validate an array of emails and return array of results', async () => {
       const emails = ['valid@valid-domain.org', 'invalid-email', 'typo@gmial.com'];
 
       const results = await validateEmailBatch(emails);
@@ -124,7 +124,7 @@ describe('0500 Serverless Core', () => {
       expect(results[2].validators.typo?.suggestion).toBe('gmail.com');
     });
 
-    it('should respect batch size option', async () => {
+    it('should process batches of emails according to batch size option', async () => {
       const emails = Array(10).fill('test@valid-domain.org');
 
       const results = await validateEmailBatch(emails, { batchSize: 3 });
@@ -137,19 +137,19 @@ describe('0500 Serverless Core', () => {
   });
 
   describe('suggestDomain', () => {
-    it('should suggest correct domain for common typos', () => {
+    it('should suggest the correct domain for common misspellings', () => {
       expect(suggestDomain('gmial.com')).toBe('gmail.com');
       expect(suggestDomain('yahooo.com')).toBe('yahoo.com');
       expect(suggestDomain('hotmial.com')).toBe('hotmail.com');
       expect(suggestDomain('outlok.com')).toBe('outlook.com');
     });
 
-    it('should return null for correct domains', () => {
+    it('should return null for correctly spelled domains', () => {
       expect(suggestDomain('gmail.com')).toBeNull();
       expect(suggestDomain('yahoo.com')).toBeNull();
     });
 
-    it('should use custom domains when provided', () => {
+    it('should use custom domain list when provided in options', () => {
       const suggestion = suggestDomain('compny.com', {
         customDomains: ['company.com', 'business.org'],
         threshold: 2,
@@ -157,7 +157,7 @@ describe('0500 Serverless Core', () => {
       expect(suggestion).toBe('company.com');
     });
 
-    it('should respect threshold option', () => {
+    it('should only suggest domains within edit distance threshold', () => {
       // With low threshold (strict) - use a domain with distance > 1
       expect(suggestDomain('ggggmail.com', { threshold: 1 })).toBeNull();
 
@@ -167,7 +167,7 @@ describe('0500 Serverless Core', () => {
   });
 
   describe('Cache control', () => {
-    it('should clear all caches', async () => {
+    it('should clear all cached email validation results', async () => {
       // Add some data to cache
       await validateEmailCore('test1@valid-domain.org');
       await validateEmailCore('test2@valid-domain.org');

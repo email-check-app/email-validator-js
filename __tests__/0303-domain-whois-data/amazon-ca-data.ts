@@ -82,6 +82,7 @@ URL of the ICANN Whois Inaccuracy Complaint Form: https://www.icann.org/wicf/`,
       'serverTransferProhibited https://icann.org/epp#serverTransferProhibited',
       'serverUpdateProhibited https://icann.org/epp#serverUpdateProhibited',
     ],
+    // Contact fields are commented out - parser extracts them but they are not validated in tests
     // registrant: {
     //   name: 'Amazon Technologies, Inc. TMA499121',
     //   street: 'PO Box 8102',

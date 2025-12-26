@@ -7,7 +7,7 @@ describe('0302 WHOIS', () => {
   // Consider mocking for unit tests in production environments
 
   describe('getDomainAge', () => {
-    it('should return domain age for a well-known domain', async () => {
+    it('should return domain age information for a registered domain', async () => {
       const result = await getDomainAge('example.com');
 
       // example.com is a reserved domain that should always exist
@@ -38,7 +38,7 @@ describe('0302 WHOIS', () => {
     it('should return null for invalid domain format', async () => {
       const result = await getDomainAge('not-a-valid-domain');
 
-      // Should return null for domains without TLD
+      // Should return null for domains without a valid TLD
       expect(result).toBeNull();
     });
 
@@ -60,7 +60,7 @@ describe('0302 WHOIS', () => {
   });
 
   describe('getDomainRegistrationStatus', () => {
-    it('should return registration status for a registered domain', async () => {
+    it('should return registration status for a known registered domain', async () => {
       const result = await getDomainRegistrationStatus('example.com');
 
       // example.com is a reserved domain
@@ -91,7 +91,7 @@ describe('0302 WHOIS', () => {
     }, 10000);
 
     it('should handle potentially unregistered domain', async () => {
-      // Using a very long random domain that's unlikely to be registered
+      // Using a random domain that is unlikely to be registered
       const randomDomain = `test-${Date.now()}-${Math.random().toString(36).substring(7)}.com`;
       const result = await getDomainRegistrationStatus(randomDomain);
 
@@ -110,7 +110,7 @@ describe('0302 WHOIS', () => {
       }
     }, 10000);
 
-    it('should extract domain from email', async () => {
+    it('should extract domain from email address', async () => {
       const result = await getDomainRegistrationStatus('admin@example.com');
 
       if (result) {
@@ -151,16 +151,16 @@ describe('0302 WHOIS', () => {
       expect(result).toBeNull();
     });
 
-    it('should return non-registered status for invalid format', async () => {
+    it('should return null for invalid domain format', async () => {
       const result = await getDomainRegistrationStatus('not-a-domain');
 
-      // Should return null for invalid domains without TLD
+      // Should return null for invalid domains without a valid TLD
       expect(result).toBeNull();
     });
   });
 
   describe('WHOIS Data Structure', () => {
-    it('should have correct structure for DomainAgeInfo', async () => {
+    it('should have correct structure for DomainAgeInfo interface', async () => {
       const result = await getDomainAge('example.com');
 
       if (result) {
@@ -177,7 +177,7 @@ describe('0302 WHOIS', () => {
       }
     }, 10000);
 
-    it('should have correct structure for DomainRegistrationInfo', async () => {
+    it('should have correct structure for DomainRegistrationInfo interface', async () => {
       const result = await getDomainRegistrationStatus('example.com');
 
       if (result) {

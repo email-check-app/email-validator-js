@@ -1,8 +1,15 @@
 import expect from 'expect';
 import { verifyEmail } from '../src';
 
+/**
+ * Real Socket Connection Tests
+ *
+ * Tests SMTP verification with real network connections to actual mail servers.
+ * These tests make actual network calls and verify behavior with real domains.
+ * NOTE: These tests are integration tests that require network connectivity.
+ */
 describe('0108 Socket Real', () => {
-  it('should success on real email gmail', async () => {
+  it('should verify a valid Google email address', async () => {
     const result = await verifyEmail({
       emailAddress: 'gosquad@google.com',
       verifyMx: true,
@@ -14,7 +21,7 @@ describe('0108 Socket Real', () => {
     expect(result.validSmtp).toBe(true);
   });
 
-  it('should success on invalid email hello.com', async () => {
+  it('should return false for non-existent hello.com email', async () => {
     const result = await verifyEmail({
       emailAddress: 'foohxxello2s8871@hello.com',
       verifyMx: true,
@@ -25,7 +32,7 @@ describe('0108 Socket Real', () => {
     expect(result.validSmtp).toBe(false);
   });
 
-  it('should fail on invalid domain', async () => {
+  it('should fail when domain has no MX records', async () => {
     const result = await verifyEmail({
       emailAddress: 'email@kk.com',
       verifyMx: true,
@@ -36,13 +43,13 @@ describe('0108 Socket Real', () => {
     expect(result.validSmtp).toBe(null); // SMTP returns null when MX records are invalid
   });
 
-  it('returns immediately if email is malformed invalid', async () => {
+  it('returns early for malformed email address', async () => {
     const result = await verifyEmail({ emailAddress: 'bar.com' });
     expect(result.validFormat).toBe(false);
     expect(result.validMx).toBe(null);
     expect(result.validSmtp).toBe(null);
   });
-  it('should use custom port with mapped domain: ovh.ca -> mx ovh.net', async () => {
+  it('should handle OVH domain email verification', async () => {
     const result = await verifyEmail({
       emailAddress: 'support@ovh.com',
       debug: true,
@@ -53,7 +60,7 @@ describe('0108 Socket Real', () => {
     expect(result.validMx).toBe(true);
     expect(result.validSmtp).toBe(null);
   });
-  it('should use custom port with mapped domain: qq.com', async () => {
+  it('should handle QQ domain email verification', async () => {
     const result = await verifyEmail({
       emailAddress: '10000000000000@qq.com',
       debug: true,

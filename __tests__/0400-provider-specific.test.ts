@@ -232,47 +232,49 @@ describe('0400 Provider Specific', () => {
   });
 
   describe('Provider-specific Domain Lists', () => {
-    test('should include all Gmail domains', () => {
+    test('should recognize all Gmail domains', () => {
       const gmailDomains = ['gmail.com', 'googlemail.com'];
       gmailDomains.forEach((domain) => {
         expect(getProviderType(domain)).toBe(EmailProvider.GMAIL);
       });
     });
 
-    test('should include all Yahoo domains', () => {
+    test('should recognize all Yahoo domains', () => {
       const yahooDomains = ['yahoo.com', 'ymail.com', 'rocketmail.com'];
       yahooDomains.forEach((domain) => {
         expect(getProviderType(domain)).toBe(EmailProvider.YAHOO);
       });
     });
 
-    test('should include all Hotmail domains', () => {
+    test('should recognize all Hotmail domains', () => {
       const hotmailDomains = ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'];
       hotmailDomains.forEach((domain) => {
         expect(getProviderType(domain)).toBe(EmailProvider.HOTMAIL_B2C);
       });
     });
 
-    test('should detect Microsoft 365 business domains', () => {
+    test('should classify Microsoft 365 business domains as EVERYTHING_ELSE (requires MX lookup)', () => {
       const b2bDomains = [
         'company.onmicrosoft.com',
         'mail.company.com', // Would need MX lookup to confirm B2B
       ];
-      // Note: In real implementation, B2B detection would be based on MX records
-      expect(getProviderType('company.onmicrosoft.com')).toBe(EmailProvider.EVERYTHING_ELSE);
+      // Note: B2B detection requires MX record lookup, so onmicrosoft.com is classified as EVERYTHING_ELSE
+      b2bDomains.forEach((domain) => {
+        expect(getProviderType(domain)).toBe(EmailProvider.EVERYTHING_ELSE);
+      });
     });
 
-    test('should detect enterprise security providers', () => {
+    test('should classify enterprise security provider domains as EVERYTHING_ELSE (requires MX lookup)', () => {
       const securityDomains = [
         'company.emailprotection.outlook.com', // Mimecast
         'company.protection.outlook.com', // Proofpoint
         'pphosted.com', // Mimecast pattern
         'mimecast.com', // Mimecast direct
       ];
+      // Note: Security provider detection requires MX record lookup
       securityDomains.forEach((domain) => {
         expect(getProviderType(domain)).toBe(EmailProvider.EVERYTHING_ELSE);
       });
-      // Note: Security provider detection would be based on MX records in real implementation
     });
 
     test('should not match subdomains of provider domains', () => {
@@ -379,7 +381,7 @@ describe('0400 Provider Specific', () => {
   });
 
   describe('Integration Tests with Mock Data', () => {
-    test('should handle verification without SMTP for speed', async () => {
+    test('should perform fast verification by skipping SMTP checks', async () => {
       const testEmails = ['user@gmail.com', 'user@yahoo.com', 'user@outlook.com', 'user@example.com'];
 
       for (const email of testEmails) {

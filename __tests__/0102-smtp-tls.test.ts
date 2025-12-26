@@ -1,6 +1,7 @@
 // SMTP TLS Configuration Tests
 //
-// Tests TLS/SSL configurations and security settings
+// Tests TLS/SSL security configurations including certificate validation,
+// TLS version settings, STARTTLS behavior, and performance comparisons.
 
 import { clearDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
@@ -141,7 +142,7 @@ describe('0102 SMTP TLS', () => {
         });
 
         const { smtpResult } = await verifyMailboxSMTP(params);
-        // May fail due to cert validation, but should handle gracefully
+        // May fail due to strict certificate validation, but should not throw
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')

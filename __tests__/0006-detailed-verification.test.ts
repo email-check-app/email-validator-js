@@ -1,3 +1,7 @@
+/**
+ * Test suite for detailed email verification with comprehensive error reporting
+ */
+
 import { promises as dnsPromises } from 'node:dns';
 import net, { Socket } from 'node:net';
 import expect from 'expect';
@@ -18,7 +22,7 @@ describe('0006 Detailed Email Verification', () => {
   });
 
   describe('#verifyEmail', () => {
-    it('should return detailed format validation error', async () => {
+    it('should return detailed validation error for invalid email format', async () => {
       const result = await verifyEmail({
         emailAddress: 'invalid-email',
         verifyMx: true,
@@ -30,7 +34,7 @@ describe('0006 Detailed Email Verification', () => {
       expect(result.metadata?.verificationTime).toBeGreaterThanOrEqual(0);
     });
 
-    it('should detect disposable emails', async () => {
+    it('should detect disposable email providers when checkDisposable is enabled', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'mx.yopmail.com', priority: 10 }]);
 
       const result = await verifyEmail({
@@ -44,7 +48,7 @@ describe('0006 Detailed Email Verification', () => {
       expect(result.metadata?.error).toBe(VerificationErrorCode.DISPOSABLE_EMAIL);
     });
 
-    it('should detect free email providers', async () => {
+    it('should detect free email providers when checkFree is enabled', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'gmail-smtp-in.l.google.com', priority: 10 }]);
 
       const result = await verifyEmail({
@@ -57,7 +61,7 @@ describe('0006 Detailed Email Verification', () => {
       expect(result.validFormat).toBe(true);
     });
 
-    it('should provide MX records in result', async () => {
+    it('should return MX records in the verification result', async () => {
       const mxRecords = [
         { exchange: 'mx1.example.com', priority: 10 },
         { exchange: 'mx2.example.com', priority: 20 },
@@ -72,7 +76,7 @@ describe('0006 Detailed Email Verification', () => {
       expect(result.validMx).toBe(true);
     });
 
-    it('should handle no MX records', async () => {
+    it('should handle domains with no MX records', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([]);
 
       const result = await verifyEmail({
@@ -84,7 +88,7 @@ describe('0006 Detailed Email Verification', () => {
       expect(result.metadata?.error).toBe(VerificationErrorCode.NO_MX_RECORDS);
     });
 
-    it('should handle SMTP verification failure', async () => {
+    it('should handle SMTP verification failure with proper error reporting', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
       const socket = new Socket({});
@@ -109,7 +113,7 @@ describe('0006 Detailed Email Verification', () => {
       expect(result.metadata?.error).toBe(VerificationErrorCode.SMTP_CONNECTION_FAILED);
     });
 
-    it('should handle SMTP connection failure', async () => {
+    it('should handle SMTP connection failure with proper error reporting', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
       const socket = {
@@ -136,7 +140,7 @@ describe('0006 Detailed Email Verification', () => {
       expect(result.metadata?.error).toBe(VerificationErrorCode.NO_MX_RECORDS);
     });
 
-    it('should indicate when results are cached', async () => {
+    it('should indicate when verification results are retrieved from cache', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
       const socket = new Socket({});
@@ -150,10 +154,10 @@ describe('0006 Detailed Email Verification', () => {
 
       setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
-      // Create a shared cache instance
+      // Create a shared cache instance for testing cache behavior
       const sharedCache = getDefaultCache();
 
-      // First call - not cached
+      // First call - should not be cached
       const result1 = await verifyEmail({
         emailAddress: 'test@example.com',
         verifyMx: true,
@@ -163,7 +167,7 @@ describe('0006 Detailed Email Verification', () => {
       });
       expect(result1.metadata?.cached).toBe(false);
 
-      // Second call - should be cached
+      // Second call - should return cached result
       const result2 = await verifyEmail({
         emailAddress: 'test@example.com',
         verifyMx: true,
@@ -174,7 +178,7 @@ describe('0006 Detailed Email Verification', () => {
       expect(result2.metadata?.cached).toBe(true);
     });
 
-    it('should validate email length constraints', async () => {
+    it('should validate email length constraints per RFC 5321', async () => {
       const longLocal = 'a'.repeat(65);
       const result1 = await verifyEmail({
         emailAddress: `${longLocal}@example.com`,
@@ -188,7 +192,7 @@ describe('0006 Detailed Email Verification', () => {
       expect(result2.validFormat).toBe(false);
     });
 
-    it('should detect invalid patterns', async () => {
+    it('should detect and reject invalid email patterns', async () => {
       const invalidPatterns = [
         'test..test@example.com',
         '.test@example.com',

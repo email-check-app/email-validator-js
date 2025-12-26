@@ -1,6 +1,7 @@
 // SMTP Port Configuration Tests
 //
-// Tests different port configurations and behaviors
+// Tests port-specific behavior including single port testing, multiple port
+// configurations, port-specific TLS behavior, retry logic, and edge cases.
 
 import { clearDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
@@ -74,10 +75,10 @@ describe('0101 SMTP Ports', () => {
       expect(smtpResult.isDeliverable).toBe(false);
     });
 
-    it('should handle reserved ports', async () => {
+    it('should handle non-SMTP reserved ports gracefully', async () => {
       const params = createTestParams({
         options: {
-          ports: [80, 443], // HTTP/HTTPS ports
+          ports: [80, 443], // HTTP/HTTPS ports (not SMTP)
           timeout: 2000,
         },
       });

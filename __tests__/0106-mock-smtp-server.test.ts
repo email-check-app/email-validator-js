@@ -1,6 +1,9 @@
 /**
  * Mock SMTP Server Tests
- * Based on the original Rust implementation's testing patterns
+ *
+ * Tests the mock SMTP server implementation used for testing, including
+ * provider-specific response simulation (Gmail, Yahoo, Hotmail/Outlook),
+ * and SMTP error parsing for various email providers.
  */
 
 import {

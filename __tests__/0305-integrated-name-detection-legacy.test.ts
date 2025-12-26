@@ -3,7 +3,7 @@ import { verifyEmail, verifyEmailBatch } from '../src';
 import type { NameDetectionMethod } from '../src/types';
 
 describe('0305-integrated-name-detection-legacy', () => {
-  describe('verifyEmail with name detection', () => {
+  describe('verifyEmail with name detection enabled', () => {
     it('should include detected name when detectName is true', async () => {
       const result = await verifyEmail({
         emailAddress: 'john.doe@example.com',
@@ -17,7 +17,7 @@ describe('0305-integrated-name-detection-legacy', () => {
       expect(result.detectedName?.confidence).toBeGreaterThanOrEqual(0.9);
     });
 
-    it('should not include detected name when detectName is false', async () => {
+    it('should not include detected name when detectName is explicitly false', async () => {
       const result = await verifyEmail({
         emailAddress: 'john.doe@example.com',
         detectName: false,
@@ -69,7 +69,7 @@ describe('0305-integrated-name-detection-legacy', () => {
     });
   });
 
-  describe('verifyEmail with name detection and additional options', () => {
+  describe('verifyEmail with name detection in detailed mode', () => {
     it('should include detected name when detectName is true', async () => {
       const result = await verifyEmail({
         emailAddress: 'jane.smith@example.com',
@@ -85,7 +85,7 @@ describe('0305-integrated-name-detection-legacy', () => {
       expect(result.detectedName?.confidence).toBeGreaterThanOrEqual(0.8);
     });
 
-    it('should not include detected name when detectName is false', async () => {
+    it('should not include detected name when detectName is explicitly false', async () => {
       const result = await verifyEmail({
         emailAddress: 'jane.smith@example.com',
         detectName: false,
@@ -109,7 +109,7 @@ describe('0305-integrated-name-detection-legacy', () => {
       expect(result.detectedName).toBeUndefined(); // No detection attempted for invalid emails
     });
 
-    it('should detect name for disposable emails', async () => {
+    it('should detect name from disposable email addresses', async () => {
       const result = await verifyEmail({
         emailAddress: 'john.doe@yopmail.com',
         detectName: true,
@@ -126,8 +126,8 @@ describe('0305-integrated-name-detection-legacy', () => {
     });
   });
 
-  describe('verifyEmailBatch with name detection', () => {
-    it('should detect names for multiple emails', async () => {
+  describe('verifyEmailBatch with name detection enabled', () => {
+    it('should detect names for multiple email addresses', async () => {
       const emails = ['john.doe@example.com', 'jane_smith@example.com', 'admin@example.com', 'bob@example.com'];
 
       const result = await verifyEmailBatch({
@@ -160,7 +160,7 @@ describe('0305-integrated-name-detection-legacy', () => {
       expect(bobResult?.detectedName?.lastName).toBeUndefined();
     });
 
-    it('should detect names in detailed batch mode', async () => {
+    it('should detect names in batch with detailed verification disabled', async () => {
       const emails = ['alice.wonderland@example.com', 'support@example.com'];
 
       const result = await verifyEmailBatch({
@@ -185,7 +185,7 @@ describe('0305-integrated-name-detection-legacy', () => {
       expect(supportResult?.detectedName).toBeNull();
     });
 
-    it('should use custom detection method in batch', async () => {
+    it('should use custom name detection method in batch', async () => {
       const customMethod: NameDetectionMethod = (email: string) => {
         if (email.includes('test')) {
           return {

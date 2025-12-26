@@ -30,7 +30,8 @@ export const bbcCoUkData = {
     WHOIS lookup made at 04:50:11 29-Aug-2025`,
   output: {
     domainName: 'bbc.co.uk',
-    // Note: UK domain whois format is different and not all fields are parsed
+    // Note: UK domain WHOIS format uses a different structure
+    // Most fields are commented out because the parser does not currently handle this format
     // registrar: 'British Broadcasting Corporation',
     // registrarUrl: 'https://www.bbc.co.uk',
     // creationDate: 'before Aug-1996',

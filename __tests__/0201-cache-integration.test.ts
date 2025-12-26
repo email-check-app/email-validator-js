@@ -1,6 +1,6 @@
 /**
  * Integration tests for cache functionality
- * Tests that caching works correctly with email verification
+ * Tests that caching works correctly with email validation functions
  */
 
 import { LRUAdapter } from '../src/adapters/lru-adapter';
@@ -15,7 +15,7 @@ describe('0201 Cache Integration', () => {
 
   describe('Disposable Email Cache', () => {
     it('should cache disposable email results', async () => {
-      // Create a custom cache to track calls
+      // Create a tracking cache to monitor get/set calls
       let cacheHits = 0;
       let cacheSets = 0;
 
@@ -52,20 +52,20 @@ describe('0201 Cache Integration', () => {
         whois: new LRUAdapter<any>(DEFAULT_CACHE_OPTIONS.maxSize.whois, DEFAULT_CACHE_OPTIONS.ttl.whois),
       };
 
-      // First call should miss cache
+      // First call performs lookup and caches result
       const result1 = await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: customCache });
       expect(cacheHits).toBe(1);
       expect(cacheSets).toBe(1);
 
-      // Second call should hit cache
+      // Second call retrieves from cache (no new set)
       const result2 = await isDisposableEmail({ emailOrDomain: 'test@10minutemail.com', cache: customCache });
       expect(result1).toBe(result2);
-      expect(cacheHits).toBe(2); // One more get call
-      expect(cacheSets).toBe(1); // No new set calls
+      expect(cacheHits).toBe(2); // Incremented by one more get
+      expect(cacheSets).toBe(1); // Unchanged - no new set operations
     });
 
     it('should cache non-disposable email results', async () => {
-      // Create a custom cache to track calls
+      // Create a tracking cache to monitor get/set calls
       let cacheHits = 0;
       let cacheSets = 0;
 
@@ -102,22 +102,22 @@ describe('0201 Cache Integration', () => {
         whois: new LRUAdapter<any>(DEFAULT_CACHE_OPTIONS.maxSize.whois, DEFAULT_CACHE_OPTIONS.ttl.whois),
       };
 
-      // First call should miss cache
+      // First call performs lookup and caches result
       const result1 = await isDisposableEmail({ emailOrDomain: 'test@gmail.com', cache: customCache });
       expect(cacheHits).toBe(1);
       expect(cacheSets).toBe(1);
 
-      // Second call should hit cache
+      // Second call retrieves from cache (no new set)
       const result2 = await isDisposableEmail({ emailOrDomain: 'test@gmail.com', cache: customCache });
       expect(result1).toBe(result2);
-      expect(cacheHits).toBe(2); // One more get call
-      expect(cacheSets).toBe(1); // No new set calls
+      expect(cacheHits).toBe(2); // Incremented by one more get
+      expect(cacheSets).toBe(1); // Unchanged - no new set operations
     });
   });
 
   describe('Free Email Cache', () => {
     it('should cache free email results', async () => {
-      // Create a custom cache to track calls
+      // Create a tracking cache to monitor get/set calls
       let cacheHits = 0;
       let cacheSets = 0;
 
@@ -157,22 +157,22 @@ describe('0201 Cache Integration', () => {
         whois: new LRUAdapter<any>(DEFAULT_CACHE_OPTIONS.maxSize.whois, DEFAULT_CACHE_OPTIONS.ttl.whois),
       };
 
-      // First call should miss cache
+      // First call performs lookup and caches result
       const result1 = await isFreeEmail({ emailOrDomain: 'test@gmail.com', cache: customCache });
       expect(cacheHits).toBe(1);
       expect(cacheSets).toBe(1);
 
-      // Second call should hit cache
+      // Second call retrieves from cache (no new set)
       const result2 = await isFreeEmail({ emailOrDomain: 'test@gmail.com', cache: customCache });
       expect(result1).toBe(result2);
-      expect(cacheHits).toBe(2); // One more get call
-      expect(cacheSets).toBe(1); // No new set calls
+      expect(cacheHits).toBe(2); // Incremented by one more get
+      expect(cacheSets).toBe(1); // Unchanged - no new set operations
     });
   });
 
   describe('MX Records Cache', () => {
     it('should cache MX record lookups', async () => {
-      // Create a custom cache to track calls
+      // Create a tracking cache to monitor get/set calls
       let cacheHits = 0;
       let cacheSets = 0;
 
@@ -212,25 +212,25 @@ describe('0201 Cache Integration', () => {
         whois: new LRUAdapter<any>(DEFAULT_CACHE_OPTIONS.maxSize.whois, DEFAULT_CACHE_OPTIONS.ttl.whois),
       };
 
-      // Use a mock domain that should resolve
+      // Use a domain that should resolve successfully
       const testDomain = 'google.com';
 
-      // First call should miss cache
+      // First call performs DNS lookup and caches result
       const result1 = await resolveMxRecords({ domain: testDomain, cache: customCache });
       expect(Array.isArray(result1)).toBe(true);
       expect(cacheHits).toBe(1);
       expect(cacheSets).toBe(1);
 
-      // Second call should hit cache (if the first call had results)
+      // Second call retrieves from cache (no new set)
       const result2 = await resolveMxRecords({ domain: testDomain, cache: customCache });
       expect(result1).toEqual(result2);
-      expect(cacheHits).toBe(2); // One more get call
+      expect(cacheHits).toBe(2); // Incremented by one more get
     });
   });
 
   describe('Cache Isolation', () => {
     it('should isolate results between different cache instances', async () => {
-      // Create two separate caches
+      // Create two independent cache instances
       const cache1: ICache = {
         disposable: new LRUAdapter<DisposableEmailResult>(100, 86400000),
         mx: new LRUAdapter<string[]>(100, 3600000),
@@ -253,38 +253,38 @@ describe('0201 Cache Integration', () => {
         whois: new LRUAdapter<any>(100, 3600000),
       };
 
-      // Store different values in each cache
+      // Store conflicting values in each cache to test isolation
       await cache1.disposable.set('test.com', { isDisposable: true, checkedAt: Date.now() });
       await cache2.disposable.set('test.com', { isDisposable: false, checkedAt: Date.now() });
 
-      // Verify caches are isolated
+      // Verify caches maintain independent values
       expect((await cache1.disposable.get('test.com'))?.isDisposable).toBe(true);
       expect((await cache2.disposable.get('test.com'))?.isDisposable).toBe(false);
 
-      // Test with actual functions
+      // Test with actual functions - results should match but cache independently
       const result1 = await isDisposableEmail({ emailOrDomain: 'test@tempmail.org', cache: cache1 });
       const result2 = await isDisposableEmail({ emailOrDomain: 'test@tempmail.org', cache: cache2 });
 
-      // Both should return the same logical result, but cached separately
+      // Both return the same logical result, cached separately
       expect(result1).toBe(result2);
     });
   });
 
   describe('Default Cache Behavior', () => {
     it('should use default cache when no custom cache is provided', async () => {
-      // Test that functions work without cache parameter
+      // Functions work without explicit cache parameter (uses default singleton)
       const result1 = await isDisposableEmail({ emailOrDomain: '10minutemail.com' });
       const result2 = await isDisposableEmail({ emailOrDomain: '10minutemail.com' });
 
-      // Both should return the same result
+      // Both return the same result
       expect(result1).toBe(result2);
-      expect(result1).toBe(true); // 10minutemail.com is a disposable service
+      expect(result1).toBe(true); // 10minutemail.com is a known disposable domain
     });
   });
 
   describe('Cache Error Handling', () => {
     it('should handle cache errors gracefully', async () => {
-      // Create a cache that throws errors
+      // Create a cache that throws errors on all operations
       const faultyCache: ICache = {
         mx: {
           get: () => Promise.reject(new Error('Cache read error')),
@@ -344,9 +344,9 @@ describe('0201 Cache Integration', () => {
         },
       };
 
-      // Function should still work even with faulty cache
+      // Function should still work despite cache errors (falls back to direct lookup)
       const result = await isDisposableEmail({ emailOrDomain: 'gmail.com', cache: faultyCache });
-      expect(result).toBe(false); // Gmail is not disposable
+      expect(result).toBe(false); // Gmail is not a disposable email provider
     });
   });
 });

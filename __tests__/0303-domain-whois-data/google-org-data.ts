@@ -83,6 +83,7 @@ URL of the ICANN Whois Inaccuracy Complaint Form: https://icann.org/wicf/
       'clientUpdateProhibited https://icann.org/epp#clientUpdateProhibited',
       'serverUpdateProhibited https://icann.org/epp#serverUpdateProhibited',
     ],
+    // Registrant fields are commented out as they contain REDACTED values
     // registrant: {
     //   organization: 'Google LLC',
     //   country: 'US',

@@ -1,6 +1,6 @@
 /**
  * Edge Cases and Integration Tests
- * Based on the original Rust implementation's comprehensive test suite
+ * Comprehensive test suite based on RFC standards and real-world email scenarios
  */
 
 import {
@@ -13,7 +13,7 @@ import {
 import type { EmailTestCase, VerificationMetrics } from '../src/email-verifier-types';
 
 describe('0007 Edge Cases and Integration Tests', () => {
-  // Comprehensive edge case test data
+  // Comprehensive edge case test data covering valid and invalid email formats
   const edgeCaseTests: EmailTestCase[] = [
     // Valid edge cases
     {
@@ -234,7 +234,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
   });
 
   describe('RFC Compliance Tests', () => {
-    test('should enforce RFC 5321 length limits', () => {
+    test('should enforce RFC 5321 length limits (64 chars for local part, 253 for domain)', () => {
       // Test local part length limit (64 characters)
       const validLocal = 'a'.repeat(64);
       const validEmail = `${validLocal}@example.com`;
@@ -246,7 +246,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       expect(result.is_valid).toBe(false);
       expect(result.error).toContain('Local part exceeds 64 characters');
 
-      // Test domain length limit (253 characters total, 63 per label)
+      // Test domain length limit (253 characters total, 63 per label per RFC 1035)
       // Create a domain that exceeds 253 characters total
       const manyLabels = Array.from({ length: 10 }, () => 'a'.repeat(63)); // 10 labels of 63 chars each
       const tooLongDomain = manyLabels.join('.') + '.com'; // This will exceed 253 chars total
@@ -256,7 +256,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       expect(domainResult.error).toContain('Domain exceeds 253 characters');
     });
 
-    test('should handle boundary conditions correctly', () => {
+    test('should handle boundary conditions at exact RFC limits', () => {
       // Exactly 64 characters in local part
       const boundaryLocal = 'a'.repeat(64);
       const boundaryEmail = `${boundaryLocal}@example.com`;
@@ -267,7 +267,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
   });
 
   describe('Case Sensitivity Tests', () => {
-    test('should handle case insensitive validation', () => {
+    test('should convert email addresses to lowercase and handle case-insensitive validation', () => {
       const testCases = [
         'UPPERCASE@EXAMPLE.COM',
         'MixedCase@Example.Com',
@@ -283,7 +283,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       });
     });
 
-    test('should handle case insensitive provider detection', () => {
+    test('should perform case-insensitive provider detection', () => {
       const caseTests = [
         ['GMAIL.COM', EmailProvider.GMAIL],
         ['YAHOO.COM', EmailProvider.YAHOO],
@@ -299,7 +299,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
   });
 
   describe('Unicode and International Characters', () => {
-    test('should handle punycode domains', () => {
+    test('should accept punycode (ASCII-encoded) international domain names', () => {
       const punycodeEmails = [
         'test@xn--d1acufc.xn--p1ai', // Russian domain
         'user@xn--fsq004x.com', // Chinese domain
@@ -312,7 +312,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       });
     });
 
-    test('should reject Unicode in local part (current regex limitation)', () => {
+    test('should reject Unicode characters in local part (current regex limitation)', () => {
       const unicodeEmails = ['josé@example.com', '用户@example.com', 'пользователь@example.com', 'test@münchen.de'];
 
       unicodeEmails.forEach((email) => {
@@ -323,7 +323,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
   });
 
   describe('Provider-specific Edge Cases', () => {
-    test('should handle Gmail dot behavior', () => {
+    test('should handle Gmail dot variations (dots are ignored in Gmail addresses)', () => {
       const gmailVariations = ['test@gmail.com', 't.est@gmail.com', 't.e.s.t@gmail.com', 'te.st@gmail.com'];
 
       gmailVariations.forEach((email) => {
@@ -333,7 +333,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       });
     });
 
-    test('should handle provider alternative domains', () => {
+    test('should detect provider alternative domains (googlemail.com, ymail.com, etc.)', () => {
       const alternativeDomainTests = [
         { email: 'test@googlemail.com', provider: EmailProvider.GMAIL },
         { email: 'test@ymail.com', provider: EmailProvider.YAHOO },
@@ -351,7 +351,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
   });
 
   describe('Input Validation', () => {
-    test('should handle non-string inputs gracefully', () => {
+    test('should handle non-string inputs gracefully without throwing', () => {
       const invalidInputs = [null, undefined, 123, {}, [], true, Symbol('test'), () => {}];
 
       invalidInputs.forEach((input) => {
@@ -367,7 +367,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
   });
 
   describe('Performance Tests', () => {
-    test('should handle large number of validations efficiently', async () => {
+    test('should validate 100 email addresses efficiently in under 1 second', async () => {
       const emails = Array.from({ length: 100 }, (_, i) => `user${i}@example.com`);
       const startTime = Date.now();
 
@@ -376,10 +376,10 @@ describe('0007 Edge Cases and Integration Tests', () => {
       });
 
       const duration = Date.now() - startTime;
-      expect(duration).toBeLessThan(1000); // Should complete in less than 1 second
+      expect(duration).toBeLessThan(1000); // Should complete 100 validations in under 1 second
     });
 
-    test('should handle concurrent validations', async () => {
+    test('should handle concurrent email validations efficiently', async () => {
       const testEmails = ['test@gmail.com', 'test@yahoo.com', 'test@outlook.com', 'test@example.com'];
 
       const promises = testEmails.map((email) =>
@@ -401,7 +401,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
   });
 
   describe('Integration Tests with Different Configurations', () => {
-    test('should work with minimal configuration', async () => {
+    test('should work correctly with minimal configuration', async () => {
       const result = await checkIfEmailExistsCore({
         emailAddress: 'test@example.com',
       });
@@ -410,7 +410,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       expect(result.syntax.is_valid).toBe(true);
     });
 
-    test('should work with all verification enabled', async () => {
+    test('should work correctly with all verification options enabled', async () => {
       const result = await checkIfEmailExistsCore({
         emailAddress: 'test@example.com',
         verifyMx: false, // Disable for test speed
@@ -427,7 +427,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       expect(result.misc!.provider_type).toBeDefined();
     });
 
-    test('should handle Yahoo API configuration', async () => {
+    test('should handle Yahoo API configuration options correctly', async () => {
       const result = await checkIfEmailExistsCore({
         emailAddress: 'test@yahoo.com',
         useYahooApi: true,
@@ -447,7 +447,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
       expect(result.misc?.provider_type).toBe(EmailProvider.YAHOO);
     });
 
-    test('should handle headless browser configuration', async () => {
+    test('should handle headless browser configuration options correctly', async () => {
       const result = await checkIfEmailExistsCore({
         emailAddress: 'test@gmail.com',
         headlessOptions: {
@@ -467,7 +467,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
   });
 
   describe('Error Handling Integration', () => {
-    test('should handle malformed input gracefully', async () => {
+    test('should handle malformed or null input parameters gracefully', async () => {
       const malformedInputs = [
         null as any,
         undefined as any,
@@ -488,22 +488,22 @@ describe('0007 Edge Cases and Integration Tests', () => {
       }
     });
 
-    test('should handle timeout scenarios', async () => {
+    test('should handle timeout scenarios without throwing errors', async () => {
       const result = await checkIfEmailExistsCore({
         emailAddress: 'test@example.com',
-        timeout: 1, // Very short timeout
+        timeout: 1, // Very short timeout (1ms)
         verifyMx: false,
         verifySmtp: false,
       });
 
       expect(result.email).toBe('test@example.com');
-      // Should complete without timeout since we're not doing network calls
+      // Should complete without timeout since no network calls are made
       expect(result.duration).toBeLessThan(1000);
     });
   });
 
   describe('Memory and Resource Management', () => {
-    test('should not leak memory with repeated validations', () => {
+    test('should not leak memory across 100 repeated validations', () => {
       // This test validates that repeated validations don't accumulate memory
       const iterations = 100;
       const memoryBefore = process.memoryUsage().heapUsed;
@@ -512,7 +512,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
         validateEmailSyntax(`test${i}@example.com`);
       }
 
-      // Force garbage collection if available
+      // Force garbage collection if available to get accurate measurement
       if (global.gc) {
         global.gc();
       }
@@ -526,7 +526,7 @@ describe('0007 Edge Cases and Integration Tests', () => {
   });
 
   describe('Consistency and Reliability Tests', () => {
-    test('should produce consistent results for the same input', () => {
+    test('should produce identical results across 10 repeated validations of the same email', () => {
       const email = 'test@example.com';
       const iterations = 10;
       const results = [];
@@ -536,14 +536,14 @@ describe('0007 Edge Cases and Integration Tests', () => {
         results.push(result);
       }
 
-      // All results should be identical
+      // All results should be identical across all iterations
       const firstResult = results[0];
       results.forEach((result) => {
         expect(result).toEqual(firstResult);
       });
     });
 
-    test('should handle edge cases consistently across providers', () => {
+    test('should handle edge cases consistently across different email providers', () => {
       const edgeCases = [
         'a@b.c', // Minimal valid format
         'test+tag@example.com', // Plus addressing

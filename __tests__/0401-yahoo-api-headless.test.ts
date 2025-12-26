@@ -15,7 +15,7 @@ describe('0401 Yahoo API Headless', () => {
   });
 
   describe('Basic Functionality', () => {
-    test('should detect existing Yahoo email', async () => {
+    test('should return deliverable=true for existing Yahoo email via IDENTIFIER_NOT_AVAILABLE error', async () => {
       // Mock the signup page response
       const signupPageResponse = {
         ok: true,
@@ -47,7 +47,7 @@ describe('0401 Yahoo API Headless', () => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
-    test('should detect non-existing Yahoo email', async () => {
+    test('should return deliverable=false for available (non-existing) Yahoo email', async () => {
       // Mock the signup page response
       const signupPageResponse = {
         ok: true,
@@ -78,7 +78,7 @@ describe('0401 Yahoo API Headless', () => {
       expect(result.error).toBeUndefined();
     });
 
-    test('should reject non-Yahoo domains', async () => {
+    test('should reject non-Yahoo domains early without making API calls', async () => {
       const result = await verifyYahooApi('test@gmail.com');
 
       expect(result.is_valid).toBe(false);
@@ -87,7 +87,7 @@ describe('0401 Yahoo API Headless', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    test('should handle HTTP errors', async () => {
+    test('should return invalid result for HTTP error responses', async () => {
       // Mock HTTP error response
       const errorResponse = {
         ok: false,
@@ -104,7 +104,7 @@ describe('0401 Yahoo API Headless', () => {
       expect(result.error).toBe('HTTP 500: Internal Server Error');
     });
 
-    test('should handle network timeouts', async () => {
+    test('should return invalid result when request times out', async () => {
       // Mock a timeout
       mockFetch.mockRejectedValue(new DOMException('Request timeout', 'AbortError'));
 

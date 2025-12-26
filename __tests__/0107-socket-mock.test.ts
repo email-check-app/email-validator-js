@@ -1,6 +1,5 @@
 import { promises as dnsPromises, type MxRecord } from 'node:dns';
 import net, { Socket } from 'node:net';
-import * as trace_events from 'node:trace_events';
 import expect from 'expect';
 import sinon, { type SinonSandbox, type SinonStub } from 'sinon';
 import { clearDefaultCache, verifyEmail } from '../src';
@@ -59,6 +58,12 @@ function stubSocket(self: SelfMockType) {
   });
 }
 
+/**
+ * Socket Mock Tests
+ *
+ * Tests SMTP verification with mocked socket connections, simulating various
+ * SMTP server responses, errors, and edge cases without real network calls.
+ */
 const self: SelfMockType = {};
 
 describe('0107 Socket Mock', () => {
@@ -92,7 +97,7 @@ describe('0107 Socket Mock', () => {
       expect(result.validSmtp).toBe(true);
     });
 
-    it('returns immediately if email is malformed invalid', async () => {
+    it('returns early if email format is invalid', async () => {
       const result = await verifyEmail({ emailAddress: 'bar.com' });
       sinon.assert.notCalled(self.resolveMxStub);
       sinon.assert.notCalled(self.connectStub);
@@ -171,7 +176,7 @@ describe('0107 Socket Mock', () => {
         expect(result.validMx).toBe(true);
       });
 
-      it('should return null on socket error', async () => {
+      it('returns null when socket connection error occurs', async () => {
         self.connectStub.restore(); // Restore previous stub
         const socket = new Socket({});
 
@@ -197,7 +202,7 @@ describe('0107 Socket Mock', () => {
         expect(result.validFormat).toBe(true);
       });
 
-      it('dodges multiline spam detecting greetings', async () => {
+      it('handles multiline SMTP greetings correctly', async () => {
         self.connectStub.restore(); // Restore previous stub
         const socket = new Socket({});
         let greeted = false;
@@ -237,7 +242,7 @@ describe('0107 Socket Mock', () => {
         expect(result.validSmtp).toBe(true);
       });
 
-      it('regression: does not write infinitely if there is a socket error', async () => {
+      it('regression: prevents infinite write loop on socket error', async () => {
         const writeSpy = self.sandbox.spy();
         const endSpy = self.sandbox.spy();
 

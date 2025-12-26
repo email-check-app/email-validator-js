@@ -1,6 +1,8 @@
 // Basic SMTP Verification Tests
 //
-// Tests core SMTP verification functionality
+// Tests core SMTP verification functionality including default configuration,
+// parameter validation, debug mode, hostname configuration, cache behavior,
+// and multiple domain handling.
 
 import { clearDefaultCache, getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
@@ -200,7 +202,7 @@ describe('0100 SMTP Basic', () => {
 
   describe('Cache Behavior', () => {
     it(
-      'should cache successful port configuration',
+      'should cache and reuse successful verification results',
       async () => {
         const params = createTestParams({
           domain: 'gmail.com',

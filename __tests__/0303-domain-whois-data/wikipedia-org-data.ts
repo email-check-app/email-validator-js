@@ -74,6 +74,7 @@ URL of the ICANN Whois Inaccuracy Complaint Form: https://icann.org/wicf/
       'clientTransferProhibited https://icann.org/epp#clientTransferProhibited',
       'clientUpdateProhibited https://icann.org/epp#clientUpdateProhibited',
     ],
+    // Registrant fields are commented out as they contain REDACTED values
     // registrant: {
     //   organization: 'Wikimedia Foundation, Inc.',
     //   country: 'US',

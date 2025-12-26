@@ -54,7 +54,7 @@ describe('0501 Serverless AWS Lambda', () => {
   });
 
   describe('GET /health', () => {
-    it('should return health status', async () => {
+    it('should return 200 with healthy status and timestamp', async () => {
       const event = {
         httpMethod: 'GET',
         path: '/health',
@@ -73,7 +73,7 @@ describe('0501 Serverless AWS Lambda', () => {
   });
 
   describe('POST /validate', () => {
-    it('should validate a single email', async () => {
+    it('should validate a single email and return validation result', async () => {
       const event = {
         httpMethod: 'POST',
         path: '/validate',
@@ -90,7 +90,7 @@ describe('0501 Serverless AWS Lambda', () => {
       expect(body.email).toBe('test@example.com');
     });
 
-    it('should return 400 for missing email', async () => {
+    it('should return 400 when email field is missing from request body', async () => {
       const event: APIGatewayProxyEvent = {
         httpMethod: 'POST',
         path: '/validate',
@@ -106,7 +106,7 @@ describe('0501 Serverless AWS Lambda', () => {
       expect(body.error).toBe('Email is required');
     });
 
-    it('should handle invalid JSON', async () => {
+    it('should return 400 when request body contains invalid JSON', async () => {
       const event: APIGatewayProxyEvent = {
         httpMethod: 'POST',
         path: '/validate',
@@ -122,7 +122,7 @@ describe('0501 Serverless AWS Lambda', () => {
       expect(body.error).toBe('Invalid request body');
     });
 
-    it('should handle base64 encoded body', async () => {
+    it('should decode and handle base64 encoded request body', async () => {
       const bodyContent = JSON.stringify({ email: 'test@example.com' });
       const event: APIGatewayProxyEvent = {
         httpMethod: 'POST',
@@ -141,7 +141,7 @@ describe('0501 Serverless AWS Lambda', () => {
   });
 
   describe('POST /validate/batch', () => {
-    it('should validate multiple emails', async () => {
+    it('should validate an array of emails and return array of results', async () => {
       const emails = ['test1@example.com', 'test2@example.com', 'test3@example.com'];
       const event: APIGatewayProxyEvent = {
         httpMethod: 'POST',
@@ -159,7 +159,7 @@ describe('0501 Serverless AWS Lambda', () => {
       expect(body.results[0].email).toBe('test1@example.com');
     });
 
-    it('should return 400 for missing emails array', async () => {
+    it('should return 400 when emails array is missing from request', async () => {
       const event: APIGatewayProxyEvent = {
         httpMethod: 'POST',
         path: '/validate/batch',
@@ -175,7 +175,7 @@ describe('0501 Serverless AWS Lambda', () => {
       expect(body.error).toBe('Emails array is required');
     });
 
-    it('should return 400 for too many emails', async () => {
+    it('should return 400 when batch exceeds maximum of 100 emails', async () => {
       const emails = Array(101).fill('test@example.com');
       const event: APIGatewayProxyEvent = {
         httpMethod: 'POST',
@@ -194,7 +194,7 @@ describe('0501 Serverless AWS Lambda', () => {
   });
 
   describe('CORS handling', () => {
-    it('should handle preflight OPTIONS request', async () => {
+    it('should return 204 with CORS headers for OPTIONS preflight request', async () => {
       const event: APIGatewayProxyEvent = {
         httpMethod: 'OPTIONS',
         path: '/validate',
@@ -211,7 +211,7 @@ describe('0501 Serverless AWS Lambda', () => {
       expect(result.headers?.['Access-Control-Allow-Headers']).toContain('Content-Type');
     });
 
-    it('should include CORS headers in responses', async () => {
+    it('should include Access-Control-Allow-Origin header in all responses', async () => {
       const event: APIGatewayProxyEvent = {
         httpMethod: 'POST',
         path: '/validate',
@@ -230,7 +230,7 @@ describe('0501 Serverless AWS Lambda', () => {
   });
 
   describe('Error handling', () => {
-    it('should return 404 for unknown routes', async () => {
+    it('should return 404 with error message for unrecognized routes', async () => {
       const event: APIGatewayProxyEvent = {
         httpMethod: 'GET',
         path: '/unknown',
@@ -246,7 +246,7 @@ describe('0501 Serverless AWS Lambda', () => {
       expect(body.error).toBe('Not found');
     });
 
-    it('should return 405 for unsupported methods', async () => {
+    it('should return 405 when HTTP method is not allowed for the route', async () => {
       const event: APIGatewayProxyEvent = {
         httpMethod: 'DELETE',
         path: '/validate',
@@ -262,7 +262,7 @@ describe('0501 Serverless AWS Lambda', () => {
       expect(body.error).toBe('Method not allowed');
     });
 
-    it('should handle internal server errors gracefully', async () => {
+    it('should return 500 with error message when internal exception occurs', async () => {
       // Mock an error in validateEmailCore
       const { validateEmailCore } = require('../src/serverless/core');
       validateEmailCore.mockRejectedValueOnce(new Error('Internal error'));
@@ -284,7 +284,7 @@ describe('0501 Serverless AWS Lambda', () => {
   });
 
   describe('Query parameters and options', () => {
-    it('should pass options from query parameters', async () => {
+    it('should pass boolean string options from query parameters to validator', async () => {
       const event: APIGatewayProxyEvent = {
         httpMethod: 'POST',
         path: '/validate',

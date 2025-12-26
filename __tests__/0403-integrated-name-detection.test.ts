@@ -33,8 +33,8 @@ describe('0403 Integrated Name Detection', () => {
       const result = detectName('bob+wilson@example.com');
       expect(result).toBeTruthy();
       expect(result?.firstName).toBe('Bob');
-      expect(result?.lastName).toBeUndefined(); // Plus is removed as alias, leaving single name
-      expect(result?.confidence).toBeCloseTo(0.55, 1); // Higher confidence for known name
+      expect(result?.lastName).toBeUndefined(); // Plus sign is removed, leaving single name
+      expect(result?.confidence).toBeCloseTo(0.55, 1); // Lower confidence for single name without known name database match
     });
 
     it('should detect camelCase names', () => {
@@ -45,20 +45,20 @@ describe('0403 Integrated Name Detection', () => {
       expect(result?.confidence).toBeGreaterThanOrEqual(0.6);
     });
 
-    it('should handle single names', () => {
+    it('should handle single names with appropriate confidence', () => {
       const result = detectName('alice@example.com');
       expect(result).toBeTruthy();
       expect(result?.firstName).toBe('Alice');
       expect(result?.lastName).toBeUndefined();
-      expect(result?.confidence).toBeLessThanOrEqual(0.7); // Higher confidence for known names
+      expect(result?.confidence).toBeLessThanOrEqual(0.7); // Known first name gets 0.7 confidence
     });
 
-    it('should handle names with numbers', () => {
+    it('should strip trailing numbers from name parts', () => {
       const result = detectName('john.doe123@example.com');
       expect(result).toBeTruthy();
       expect(result?.firstName).toBe('John');
       expect(result?.lastName).toBe('Doe');
-      expect(result?.confidence).toBeCloseTo(0.875, 1); // Higher confidence with improved scoring
+      expect(result?.confidence).toBeCloseTo(0.875, 1); // Numbers are stripped, confidence adjusted
     });
 
     it('should handle three-part names', () => {
@@ -157,7 +157,7 @@ describe('0403 Integrated Name Detection', () => {
   });
 
   describe('defaultNameDetectionMethod edge cases', () => {
-    it('should handle email with suffix patterns', () => {
+    it('should strip common email suffixes like .mail, .contact, .support', () => {
       const result = defaultNameDetectionMethod('john.doe.mail@example.com');
       expect(result).toBeTruthy();
       expect(result?.firstName).toBe('John');
@@ -179,21 +179,21 @@ describe('0403 Integrated Name Detection', () => {
       expect(result).toBeNull(); // Names too short to be likely
     });
 
-    it('should detect longer single names', () => {
+    it('should detect longer single names with known first name confidence', () => {
       const result = defaultNameDetectionMethod('alexander@example.com');
       expect(result).toBeTruthy();
       expect(result?.firstName).toBe('Alexander');
       expect(result?.lastName).toBeUndefined();
-      expect(result?.confidence).toBe(0.7); // Higher confidence for known first name
+      expect(result?.confidence).toBe(0.7); // Known first name gets 0.7 base confidence
     });
 
-    it('should handle multiple separators', () => {
+    it('should handle emails with multiple separator types', () => {
       const result = defaultNameDetectionMethod('john_doe-smith@example.com');
       expect(result).toBeTruthy();
-      // Should detect first valid separator pattern
+      // First valid separator pattern is used (underscore before hyphen)
     });
 
-    it('should ignore support/info/contact prefixes', () => {
+    it('should ignore common role-based email prefixes', () => {
       expect(defaultNameDetectionMethod('support@example.com')).toBeNull();
       expect(defaultNameDetectionMethod('info@example.com')).toBeNull();
       expect(defaultNameDetectionMethod('contact@example.com')).toBeNull();
@@ -210,7 +210,7 @@ describe('0403 Integrated Name Detection', () => {
   });
 
   describe('Composite and alphanumeric name detection', () => {
-    it('should intelligently strip numbers from names like john1.due2', () => {
+    it('should strip numbers from both name parts (e.g., john1.due2 -> John Due)', () => {
       const result = defaultNameDetectionMethod('john1.due2@example.com');
       expect(result).toBeTruthy();
       expect(result?.firstName).toBe('John');
@@ -218,7 +218,7 @@ describe('0403 Integrated Name Detection', () => {
       expect(result?.confidence).toBeGreaterThanOrEqual(0.75);
     });
 
-    it('should handle alphanumeric composite names like mo1.test2', () => {
+    it('should strip numbers while preserving case sensitivity', () => {
       const result = defaultNameDetectionMethod('mo1.test2@example.com');
       expect(result).toBeTruthy();
       expect(result?.firstName).toBe('Mo');
@@ -226,13 +226,13 @@ describe('0403 Integrated Name Detection', () => {
       expect(result?.confidence).toBeGreaterThanOrEqual(0.75);
     });
 
-    it('should handle mixed alphanumeric patterns', () => {
+    it('should intelligently strip numbers from mixed patterns', () => {
       const testCases = [
-        { email: 'user1.admin2@example.com', firstName: 'User1', lastName: 'Admin2' }, // 'admin' is a reserved suffix, keeps original
-        { email: 'dev3.ops4@example.com', firstName: 'Dev', lastName: 'Ops' },
-        { email: 'test123.user456@example.com', firstName: 'Test', lastName: 'User' },
-        { email: 'a1.b2@example.com', firstName: 'A', lastName: 'B' }, // Now extracts single letters A and B
-        { email: 'j7.d2@example.com', firstName: 'J', lastName: 'D' }, // Should extract single letters J and D
+        { email: 'user1.admin2@example.com', firstName: 'User1', lastName: 'Admin2' }, // 'admin' is a reserved suffix, numbers kept
+        { email: 'dev3.ops4@example.com', firstName: 'Dev', lastName: 'Ops' }, // Numbers stripped
+        { email: 'test123.user456@example.com', firstName: 'Test', lastName: 'User' }, // Numbers stripped
+        { email: 'a1.b2@example.com', firstName: 'A', lastName: 'B' }, // Single letters extracted
+        { email: 'j7.d2@example.com', firstName: 'J', lastName: 'D' }, // Single letters extracted
       ];
 
       testCases.forEach(({ email, firstName, lastName }) => {
@@ -243,7 +243,7 @@ describe('0403 Integrated Name Detection', () => {
       });
     });
 
-    it('should handle names with numbers in different positions', () => {
+    it('should strip numbers from various positions in name parts', () => {
       const testCases = [
         { email: '2john.doe@example.com', firstName: 'John', lastName: 'Doe' }, // Strips leading number
         { email: 'john2.doe@example.com', firstName: 'John', lastName: 'Doe', confidence: 0.85 },
@@ -262,7 +262,7 @@ describe('0403 Integrated Name Detection', () => {
       });
     });
 
-    it('should handle complex composite names with multiple parts', () => {
+    it('should extract first and last name from multi-part emails', () => {
       const testCases = [
         { email: 'user.test.dev.admin@example.com', firstName: 'User', lastName: 'Dev' },
         { email: 'mo1.test2.dev3@example.com', firstName: 'Mo', lastName: 'Dev' }, // Strips numbers intelligently
@@ -278,7 +278,7 @@ describe('0403 Integrated Name Detection', () => {
       });
     });
 
-    it('should handle camelCase with numbers', () => {
+    it('should handle camelCase with numbers (numbers stripped, case preserved)', () => {
       // Regular camelCase still works
       const result1 = defaultNameDetectionMethod('johnDoe@example.com');
       expect(result1).toBeTruthy();
@@ -706,27 +706,27 @@ describe('0403 Integrated Name Detection', () => {
   });
 
   describe('Confidence Scoring', () => {
-    it('should give higher confidence for dot separator', () => {
+    it('should assign consistent confidence across all separators for unknown names', () => {
       const dotResult = defaultNameDetectionMethod('testfirst.testlast@example.com');
       const underscoreResult = defaultNameDetectionMethod('testfirst_testlast@example.com');
       const hyphenResult = defaultNameDetectionMethod('testfirst-testlast@example.com');
 
-      // With unknown names, all separators now get same confidence
+      // With unknown names, all separators get same base confidence
       expect(dotResult?.confidence).toBeDefined();
       expect(underscoreResult?.confidence).toBeDefined();
       expect(hyphenResult?.confidence).toBeDefined();
     });
 
-    it('should give higher confidence for known names', () => {
+    it('should give highest confidence for known names with dot separator', () => {
       const knownResult = defaultNameDetectionMethod('john.smith@example.com');
-      const unknownResult = defaultNameDetectionMethod('zzz.xxx@example.com'); // Shorter unknown names
+      const unknownResult = defaultNameDetectionMethod('zzz.xxx@example.com');
 
-      // Both get high confidence with dot separator, but test the structure works
+      // Dot separator with known name gives highest confidence
       expect(knownResult?.confidence).toBeGreaterThanOrEqual(0.9);
       expect(unknownResult?.confidence).toBeGreaterThanOrEqual(0.9);
     });
 
-    it('should give lower confidence for names with numbers', () => {
+    it('should reduce confidence when numbers are present in names', () => {
       const withoutNumbers = defaultNameDetectionMethod('john.doe@example.com');
       const withNumbers = defaultNameDetectionMethod('john1.doe2@example.com');
 

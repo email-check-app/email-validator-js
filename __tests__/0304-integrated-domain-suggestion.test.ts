@@ -3,7 +3,7 @@ import { verifyEmail, verifyEmailBatch } from '../src';
 import type { DomainSuggestionMethod } from '../src/types';
 
 describe('0304-integrated-domain-suggestion', () => {
-  describe('verifyEmail with domain suggestion', () => {
+  describe('verifyEmail with domain suggestion enabled', () => {
     it('should include domain suggestion for typos', async () => {
       const result = await verifyEmail({
         emailAddress: 'john@gmial.com',
@@ -26,7 +26,7 @@ describe('0304-integrated-domain-suggestion', () => {
       expect(result.domainSuggestion).toBeUndefined();
     });
 
-    it('should not suggest for valid common domains', async () => {
+    it('should return null suggestion for valid common domains', async () => {
       const result = await verifyEmail({
         emailAddress: 'john@gmail.com',
         suggestDomain: true,
@@ -36,7 +36,7 @@ describe('0304-integrated-domain-suggestion', () => {
       expect(result.domainSuggestion).toBeNull();
     });
 
-    it('should use custom domain suggestion method', async () => {
+    it('should use custom domain suggestion method when provided', async () => {
       const customMethod: DomainSuggestionMethod = (domain: string) => {
         if (domain === 'company.co') {
           return {
@@ -70,7 +70,7 @@ describe('0304-integrated-domain-suggestion', () => {
       expect(result.domainSuggestion).toBeUndefined();
     });
 
-    it('should use custom common domains list', async () => {
+    it('should use custom common domains list when provided', async () => {
       const customDomains = ['mycompany.com', 'ourservice.org'];
 
       const result = await verifyEmail({
@@ -84,8 +84,8 @@ describe('0304-integrated-domain-suggestion', () => {
     });
   });
 
-  describe('verifyEmail with domain suggestion', () => {
-    it('should include domain suggestion by default in detailed mode', async () => {
+  describe('verifyEmail with domain suggestion in detailed mode', () => {
+    it('should include domain suggestion by default when verification is disabled', async () => {
       const result = await verifyEmail({
         emailAddress: 'jane@yaho.com',
         verifyMx: false,
@@ -97,7 +97,7 @@ describe('0304-integrated-domain-suggestion', () => {
       expect(result.domainSuggestion?.suggested).toBe('jane@yahoo.com');
     });
 
-    it('should not suggest when suggestDomain is false', async () => {
+    it('should not suggest domain when suggestDomain is explicitly false', async () => {
       const result = await verifyEmail({
         emailAddress: 'jane@yaho.com',
         suggestDomain: false,
@@ -109,7 +109,7 @@ describe('0304-integrated-domain-suggestion', () => {
       expect(result.domainSuggestion).toBeUndefined(); // undefined when disabled
     });
 
-    it('should not suggest for invalid format emails', async () => {
+    it('should not suggest domain for invalid email format', async () => {
       const result = await verifyEmail({
         emailAddress: 'not.an.email.gmial.com',
         verifyMx: false,
@@ -120,7 +120,7 @@ describe('0304-integrated-domain-suggestion', () => {
       expect(result.domainSuggestion).toBeUndefined();
     });
 
-    it('should combine with name detection', async () => {
+    it('should combine domain suggestion with name detection', async () => {
       const result = await verifyEmail({
         emailAddress: 'john.doe@gmial.com',
         detectName: true,
@@ -156,7 +156,7 @@ describe('0304-integrated-domain-suggestion', () => {
       expect(user2Result?.domainSuggestion?.suggested).toBe('user2@yahoo.com');
 
       const user3Result = result.results.get('user3@gmail.com');
-      expect(user3Result?.domainSuggestion).toBeNull(); // No suggestion for valid domain
+      expect(user3Result?.domainSuggestion).toBeNull(); // No suggestion for valid domains
 
       const user4Result = result.results.get('user4@hotmai.com');
       expect(user4Result?.domainSuggestion?.suggested).toBe('user4@hotmail.com');
@@ -178,7 +178,7 @@ describe('0304-integrated-domain-suggestion', () => {
       expect(aliceResult?.domainSuggestion?.suggested).toBe('alice@outlook.com');
 
       const bobResult = result.results.get('bob@proton.me');
-      expect(bobResult?.domainSuggestion).toBeNull(); // Valid domain
+      expect(bobResult?.domainSuggestion).toBeNull(); // No suggestion for valid domain
     });
 
     it('should use custom suggestion method in batch', async () => {
@@ -213,7 +213,7 @@ describe('0304-integrated-domain-suggestion', () => {
       expect(test3Result?.domainSuggestion).toBeNull();
     });
 
-    it('should combine with name detection in batch', async () => {
+    it('should combine domain suggestion with name detection in batch', async () => {
       const emails = ['john.doe@gmial.com'];
 
       const result = await verifyEmailBatch({
