@@ -70,8 +70,8 @@ describe('SMTP Port Configuration', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBeNull();
+      const { smtpResult } = await verifyMailboxSMTP(params);
+      expect(smtpResult.isDeliverable).toBeNull();
     });
 
     it('should handle reserved ports', async () => {
@@ -82,8 +82,8 @@ describe('SMTP Port Configuration', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBeNull();
+      const { smtpResult } = await verifyMailboxSMTP(params);
+      expect(smtpResult.isDeliverable).toBeNull();
     });
   });
 
@@ -136,8 +136,8 @@ describe('SMTP Port Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -152,8 +152,8 @@ describe('SMTP Port Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -171,8 +171,8 @@ describe('SMTP Port Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -187,8 +187,8 @@ describe('SMTP Port Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -203,8 +203,8 @@ describe('SMTP Port Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -219,8 +219,8 @@ describe('SMTP Port Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -262,8 +262,8 @@ describe('SMTP Port Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('slow')
     );
@@ -278,10 +278,10 @@ describe('SMTP Port Configuration', () => {
       });
 
       const start = Date.now();
-      const { result } = await verifyMailboxSMTP(params);
+      const { smtpResult } = await verifyMailboxSMTP(params);
       const duration = Date.now() - start;
 
-      expect(result).toBeNull();
+      expect(smtpResult.isDeliverable).toBeNull();
       // Should attempt 3 times (initial + 2 retries)
       // With 1 second timeout each, should take at least 3 seconds
       expect(duration).toBeGreaterThan(500);
@@ -331,9 +331,9 @@ describe('SMTP Port Configuration', () => {
             },
           });
 
-          const { result } = await verifyMailboxSMTP(params);
-          expect(TestUtils.isValidResult(result)).toBe(true);
-          console.log(`${domain.name} on port ${domain.preferredPort}: ${result}`);
+          const { smtpResult } = await verifyMailboxSMTP(params);
+          expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
+          console.log(`${domain.name} on port ${domain.preferredPort}: ${smtpResult.isDeliverable}`);
         }
       },
       TestUtils.getTestTimeout('slow')
@@ -348,8 +348,8 @@ describe('SMTP Port Configuration', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBeNull();
+      const { smtpResult } = await verifyMailboxSMTP(params);
+      expect(smtpResult.isDeliverable).toBeNull();
     });
 
     it('should handle port 0', async () => {
@@ -360,8 +360,8 @@ describe('SMTP Port Configuration', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBeNull();
+      const { smtpResult } = await verifyMailboxSMTP(params);
+      expect(smtpResult.isDeliverable).toBeNull();
     });
 
     it('should handle negative port numbers', async () => {
@@ -372,8 +372,8 @@ describe('SMTP Port Configuration', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBe(false);
+      const { smtpResult } = await verifyMailboxSMTP(params);
+      expect(smtpResult.isDeliverable).toBe(false);
     });
 
     it('should handle very high port numbers', async () => {
@@ -384,8 +384,8 @@ describe('SMTP Port Configuration', () => {
         },
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBe(null);
+      const { smtpResult } = await verifyMailboxSMTP(params);
+      expect(smtpResult.isDeliverable).toBe(null);
     });
   });
 });
