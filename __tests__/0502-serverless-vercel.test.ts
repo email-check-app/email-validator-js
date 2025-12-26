@@ -2,8 +2,8 @@
  * Tests for Vercel Edge Functions adapter
  */
 
-// Mock the serverless core module
-jest.mock('../src/serverless/core', () => ({
+// Mock the serverless verifier module
+jest.mock('../src/serverless/verifier', () => ({
   validateEmailCore: jest.fn().mockImplementation(async (email: string) => ({
     valid: email.includes('@'),
     email,
@@ -101,7 +101,7 @@ describe('0502 Serverless Vercel', () => {
       }) as unknown as Request;
 
       const response = await handler(request);
-      const { validateEmailCore } = require('../src/serverless/core');
+      const { validateEmailCore } = require('../src/serverless/verifier');
 
       expect(response.status).toBe(200);
       expect(validateEmailCore).toHaveBeenCalledWith('user@gmial.com', {
@@ -196,7 +196,7 @@ describe('0502 Serverless Vercel', () => {
       }) as unknown as Request;
 
       const response = await handler(request);
-      const { validateEmailBatch } = require('../src/serverless/core');
+      const { validateEmailBatch } = require('../src/serverless/verifier');
 
       expect(response.status).toBe(200);
       expect(validateEmailBatch).toHaveBeenCalledWith(emails, { batchSize: 1 });
@@ -256,7 +256,7 @@ describe('0502 Serverless Vercel', () => {
     });
 
     it('should return 500 with error message when internal exception occurs', async () => {
-      const { validateEmailCore } = require('../src/serverless/core');
+      const { validateEmailCore } = require('../src/serverless/verifier');
       validateEmailCore.mockRejectedValueOnce(new Error('Internal error'));
 
       const request = new MockRequest('https://example.vercel.app/api/validate', {

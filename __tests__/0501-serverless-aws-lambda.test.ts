@@ -5,8 +5,8 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { handler } from '../src/serverless/adapters/aws-lambda';
 
-// Mock the serverless core module
-jest.mock('../src/serverless/core', () => ({
+// Mock the serverless verifier module
+jest.mock('../src/serverless/verifier', () => ({
   validateEmailCore: jest.fn().mockImplementation(async (email: string) => ({
     valid: email.includes('@'),
     email,
@@ -264,7 +264,7 @@ describe('0501 Serverless AWS Lambda', () => {
 
     it('should return 500 with error message when internal exception occurs', async () => {
       // Mock an error in validateEmailCore
-      const { validateEmailCore } = require('../src/serverless/core');
+      const { validateEmailCore } = require('../src/serverless/verifier');
       validateEmailCore.mockRejectedValueOnce(new Error('Internal error'));
 
       const event = {
@@ -298,7 +298,7 @@ describe('0501 Serverless AWS Lambda', () => {
       } as unknown as APIGatewayProxyEvent;
 
       const result = (await handler(event, mockContext)) as APIGatewayProxyResult;
-      const { validateEmailCore } = require('../src/serverless/core');
+      const { validateEmailCore } = require('../src/serverless/verifier');
 
       expect(result.statusCode).toBe(200);
       expect(validateEmailCore).toHaveBeenCalledWith('test@example.com', {
