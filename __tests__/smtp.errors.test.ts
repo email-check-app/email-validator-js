@@ -33,7 +33,7 @@ describe('SMTP Error Handling', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBeNull();
+      expect(smtpResult.isDeliverable).toBe(false);
     });
 
     it('should handle connection refused', async () => {
@@ -153,7 +153,7 @@ describe('SMTP Error Handling', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBeNull();
+      expect(smtpResult.isDeliverable).toBe(false);
     });
 
     it('should handle timeout during SMTP handshake', async () => {
@@ -166,7 +166,7 @@ describe('SMTP Error Handling', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBeNull();
+      expect(smtpResult.isDeliverable).toBe(false);
     });
 
     it('should respect timeout across retries', async () => {
@@ -182,7 +182,7 @@ describe('SMTP Error Handling', () => {
       const { smtpResult } = await verifyMailboxSMTP(params);
       const duration = Date.now() - start;
 
-      expect(smtpResult.isDeliverable).toBeNull();
+      expect(smtpResult.isDeliverable).toBe(false);
       // Should timeout 4 times (1 initial + 3 retries)
       expect(duration).toBeGreaterThan(3500);
       expect(duration).toBeLessThan(25000);
@@ -202,7 +202,7 @@ describe('SMTP Error Handling', () => {
         });
 
         const { smtpResult } = await verifyMailboxSMTP(params);
-        expect(smtpResult.isDeliverable).toBeNull();
+        expect(smtpResult.isDeliverable).toBe(false);
       }
     });
 
@@ -220,7 +220,7 @@ describe('SMTP Error Handling', () => {
 
         const { smtpResult } = await verifyMailboxSMTP(params);
         // Should fail gracefully
-        expect(smtpResult.isDeliverable === null || TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       }
     });
 
@@ -250,7 +250,7 @@ describe('SMTP Error Handling', () => {
 
       const { smtpResult } = await verifyMailboxSMTP(params);
       // May fail cert validation but should handle gracefully
-      expect(TestUtils.isValidResult(smtpResult.isDeliverable) || smtpResult.isDeliverable === null).toBe(true);
+      expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
     }, 10000);
 
     it('should handle TLS version mismatch', async () => {
@@ -264,7 +264,7 @@ describe('SMTP Error Handling', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(TestUtils.isValidResult(smtpResult.isDeliverable) || smtpResult.isDeliverable === null).toBe(true);
+      expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
     }, 10000);
   });
 
@@ -390,7 +390,7 @@ describe('SMTP Error Handling', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(TestUtils.isValidResult(smtpResult.isDeliverable) || smtpResult.isDeliverable === null).toBe(true);
+      expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
     });
   });
 
@@ -407,7 +407,7 @@ describe('SMTP Error Handling', () => {
       // Run multiple failing requests
       for (let i = 0; i < 10; i++) {
         const { smtpResult } = await verifyMailboxSMTP(params);
-        expect(smtpResult.isDeliverable).toBeNull();
+        expect(smtpResult.isDeliverable).toBe(false);
       }
 
       // If no errors thrown, resources are likely cleaned up properly

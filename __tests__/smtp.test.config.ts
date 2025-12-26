@@ -152,6 +152,7 @@ export function createTestParams(overrides = {}) {
     domain: 'gmail.com',
     mxRecords: TEST_DATA.MX_RECORDS.gmail as unknown as string[],
     options: {},
+    debug: true,
     ...overrides,
   };
 }
