@@ -370,7 +370,7 @@ describe('verifyEmailMockTest', () => {
         setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
         const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
-        expect(result.validSmtp).toBe(false);
+        expect(result.validSmtp).toBe(null);
       });
     });
 

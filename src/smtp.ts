@@ -202,7 +202,7 @@ export async function verifyMailboxSMTP(
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       if (attempt > 0) {
-        const delay = Math.min(500 * 2 ** (attempt - 1), 1000);
+        const delay = Math.min(200 * 2 ** (attempt - 1), 800);
         log(`Retry ${attempt + 1}, waiting ${delay}ms`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }

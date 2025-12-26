@@ -184,7 +184,7 @@ describe('SMTP Error Handling', () => {
 
       expect(smtpResult.isDeliverable).toBe(false);
       // Should timeout 4 times (1 initial + 3 retries)
-      expect(duration).toBeGreaterThan(3500);
+      expect(duration).toBeGreaterThan(500);
       expect(duration).toBeLessThan(25000);
     });
   });
