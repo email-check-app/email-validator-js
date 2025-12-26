@@ -83,6 +83,7 @@ describe('verifyEmailMockTest', () => {
         emailAddress: 'foo@bar.com',
         verifyMx: true,
         verifySmtp: true,
+        debug: true,
       });
       sinon.assert.called(self.resolveMxStub);
       sinon.assert.called(self.connectStub);
@@ -102,7 +103,12 @@ describe('verifyEmailMockTest', () => {
 
     describe('mailbox verification', () => {
       it('returns true when mailbox exists', async () => {
-        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        const result = await verifyEmail({
+          emailAddress: 'bar@foo.com',
+          verifySmtp: true,
+          verifyMx: true,
+          debug: true,
+        });
         expect(result.validSmtp).toBe(true);
       });
 
@@ -110,7 +116,12 @@ describe('verifyEmailMockTest', () => {
         self.resolveMxStub.restore();
         stubResolveMx(self, 'yahoo.com');
 
-        const result = await verifyEmail({ emailAddress: 'bar@yahoo.com', verifySmtp: true, verifyMx: true });
+        const result = await verifyEmail({
+          emailAddress: 'bar@yahoo.com',
+          verifySmtp: true,
+          verifyMx: true,
+          debug: true,
+        });
 
         expect(result.validSmtp).toBe(true);
       });
@@ -152,6 +163,7 @@ describe('verifyEmailMockTest', () => {
           emailAddress: 'bar@foo.com',
           verifySmtp: true,
           verifyMx: true,
+          debug: true,
         });
 
         expect(result.validSmtp).toBe(false);
@@ -178,6 +190,7 @@ describe('verifyEmailMockTest', () => {
           emailAddress: 'bar@foo.com',
           verifySmtp: true,
           verifyMx: true,
+          debug: true,
         });
         expect(result.validSmtp).toBe(null);
         expect(result.validMx).toBe(true);
@@ -248,7 +261,7 @@ describe('verifyEmailMockTest', () => {
 
         self.connectStub = self.connectStub.returns(socket as unknown as Socket);
 
-        await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true, debug: true });
         sinon.assert.notCalled(writeSpy);
         sinon.assert.notCalled(endSpy);
       });
