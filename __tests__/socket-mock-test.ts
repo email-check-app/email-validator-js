@@ -192,7 +192,7 @@ describe('verifyEmailMockTest', () => {
           verifyMx: true,
           debug: true,
         });
-        expect(result.validSmtp).toBe(null);
+        expect(result.validSmtp).toBe(false);
         expect(result.validMx).toBe(true);
         expect(result.validFormat).toBe(true);
       });
@@ -299,7 +299,7 @@ describe('verifyEmailMockTest', () => {
         });
 
         const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
-        expect(result.validSmtp).toBe(null);
+        expect(result.validSmtp).toBe(false);
       });
 
       it('returns false on bad mailbox errors', async () => {
@@ -352,10 +352,10 @@ describe('verifyEmailMockTest', () => {
         setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
         const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
-        expect(result.validSmtp).toBe(null);
+        expect(result.validSmtp).toBe(false);
       });
 
-      it('returns null on spam errors-#2', async () => {
+      it('returns false on spam errors-#2', async () => {
         const msg =
           '553 5.3.0 flpd575 DNSBL:RBL 521< 54.74.114.115 >_is_blocked.For assistance forward this email to abuse_rbl@abuse-att.net';
         const socket = new Socket({});
@@ -370,7 +370,7 @@ describe('verifyEmailMockTest', () => {
         setTimeout(() => socket.emit('data', '220 Welcome'), 10);
 
         const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
-        expect(result.validSmtp).toBe(null);
+        expect(result.validSmtp).toBe(false);
       });
     });
 
