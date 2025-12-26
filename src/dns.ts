@@ -10,14 +10,14 @@ export async function resolveMxRecords(params: IResolveMxParams): Promise<string
   const cacheStore = getCacheStore<string[]>(cache, 'mx');
   const cached = await cacheStore.get(domain);
   if (cached !== null && cached !== undefined) {
-    log(`[resolveMxRecords] Cache hit for ${domain}: ${cached.length} MX records`);
+    log(`[resolveMxRecords] Cache hit for ${domain}: ${cached?.length} MX records`);
     return cached;
   }
 
   log(`[resolveMxRecords] Performing DNS MX lookup for ${domain}`);
   try {
     const records: { exchange: string; priority: number }[] = await dnsPromises.resolveMx(domain);
-    records.sort((a, b) => {
+    records?.sort((a, b) => {
       if (a.priority < b.priority) {
         return -1;
       }
@@ -27,12 +27,12 @@ export async function resolveMxRecords(params: IResolveMxParams): Promise<string
       return 0;
     });
 
-    const exchanges = records.map((record) => record.exchange);
-    log(`[resolveMxRecords] Found ${exchanges.length} MX records for ${domain}: [${exchanges.join(', ')}]`);
+    const exchanges = records?.map((record) => record.exchange);
+    log(`[resolveMxRecords] Found ${exchanges?.length} MX records for ${domain}: [${exchanges?.join(', ')}]`);
 
     // Cache the result
     await cacheStore.set(domain, exchanges);
-    log(`[resolveMxRecords] Cached ${exchanges.length} MX records for ${domain}`);
+    log(`[resolveMxRecords] Cached ${exchanges?.length} MX records for ${domain}`);
 
     return exchanges;
   } catch (error) {

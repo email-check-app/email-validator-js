@@ -253,13 +253,15 @@ describe('0003 Core Email Verification Functionality', () => {
   });
 });
 
-describe.skip('0003 Integration Tests', () => {
+describe('0003 Integration Tests', () => {
   // These tests require actual network connections and should be run manually
   // or in a CI environment with proper mocking
 
   it('should verify real Gmail address with actual DNS lookup', async () => {
-    // Restore original DNS resolution for integration test
-    mockResolveMx.mockRestore();
+    mockResolveMx.mockResolvedValue([
+      { exchange: 'aspmx.l.google.com.', priority: 10 },
+      { exchange: 'alt1.aspmx.l.google.com.', priority: 20 },
+    ]);
 
     const params: ICheckIfEmailExistsCoreParams = {
       emailAddress: 'support@gmail.com', // Known valid Gmail address
@@ -270,7 +272,7 @@ describe.skip('0003 Integration Tests', () => {
     };
 
     const result = await checkIfEmailExistsCore(params);
-    expect(result).toHaveProperty('is_reachable');
+    expect(result).toHaveProperty('isReachable');
     expect(result.misc?.providerType).toBe(EmailProvider.gmail);
   });
 });

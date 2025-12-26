@@ -1,6 +1,7 @@
 import { promises as dns } from 'node:dns';
 import { Socket } from 'node:net';
 import type { ICache } from './cache-interface';
+import { resolveMxRecords } from './dns';
 import {
   CheckIfEmailExistsCoreResult,
   CheckIfEmailExistsSmtpOptions,
@@ -15,14 +16,14 @@ import {
 import { isDisposableEmail, isFreeEmail } from './index';
 // Constants for common providers
 export const checkIfEmailExistsConstants = {
-  gmailDomains: ['gmail.com', 'googlemail.com'] as const,
-  yahooDomains: ['yahoo.com', 'ymail.com', 'rocketmail.com'] as const,
-  hotmailDomains: ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'] as const,
+  gmailDomains: ['gmail.com', 'googlemail.com'],
+  yahooDomains: ['yahoo.com', 'ymail.com', 'rocketmail.com'],
+  hotmailDomains: ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'],
   defaultTimeout: 10000,
   defaultSmtpPort: 25,
   defaultFromEmail: 'test@example.com',
   defaultHelloName: 'example.com',
-} as const;
+};
 
 // Re-export types for backward compatibility
 export {
@@ -67,7 +68,7 @@ export function validateEmailSyntax(email: string): EmailSyntaxResult {
   const emailRegex =
     /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
-  const emailLower = email.toLowerCase().trim();
+  const emailLower = email?.toLowerCase().trim();
 
   // Length checks according to RFC first
   if (!emailLower.includes('@')) {
@@ -79,14 +80,14 @@ export function validateEmailSyntax(email: string): EmailSyntaxResult {
 
   const [localPart, domain] = emailLower.split('@');
 
-  if (localPart.length > 64) {
+  if (localPart?.length > 64) {
     return {
       isValid: false,
       error: 'Local part exceeds 64 characters',
     };
   }
 
-  if (domain.length > 253) {
+  if (domain?.length > 253) {
     return {
       isValid: false,
       error: 'Domain exceeds 253 characters',
@@ -139,7 +140,7 @@ export function isGmail(host: string): boolean {
     /\.google\.com$/,
   ];
 
-  return gmailPatterns.some((pattern) => pattern.test(host.toLowerCase()));
+  return gmailPatterns.some((pattern) => pattern.test(host?.toLowerCase()));
 }
 
 export function isYahoo(host: string): boolean {
@@ -152,7 +153,7 @@ export function isYahoo(host: string): boolean {
     /yahoodns\.net$/,
   ];
 
-  return yahooPatterns.some((pattern) => pattern.test(host.toLowerCase()));
+  return yahooPatterns.some((pattern) => pattern.test(host?.toLowerCase()));
 }
 
 export function isHotmailB2C(host: string): boolean {
@@ -166,8 +167,8 @@ export function isHotmailB2C(host: string): boolean {
 
   // Ensure it's B2C only if it matches B2C patterns but NOT B2B patterns
   return (
-    hotmailB2CPatterns.some((pattern) => pattern.test(host.toLowerCase())) &&
-    !hotmailB2BPatterns.some((pattern) => pattern.test(host.toLowerCase()))
+    hotmailB2CPatterns.some((pattern) => pattern.test(host?.toLowerCase())) &&
+    !hotmailB2BPatterns.some((pattern) => pattern.test(host?.toLowerCase()))
   );
 }
 
@@ -178,19 +179,19 @@ export function isHotmailB2B(host: string): boolean {
     /^[^.]+\.protection\.outlook\.com$/,
   ];
 
-  return hotmailB2BPatterns.some((pattern) => pattern.test(host.toLowerCase()));
+  return hotmailB2BPatterns.some((pattern) => pattern.test(host?.toLowerCase()));
 }
 
 export function isProofpoint(host: string): boolean {
   const proofpointPatterns = [/pphosted\.com/, /ppe-hosted\.com/, /proofpoint/];
 
-  return proofpointPatterns.some((pattern) => pattern.test(host.toLowerCase()));
+  return proofpointPatterns.some((pattern) => pattern.test(host?.toLowerCase()));
 }
 
 export function isMimecast(host: string): boolean {
   const mimecastPatterns = [/smtp\.mimecast\.com/, /eu\.mimecast\.com/, /mimecast/];
 
-  return mimecastPatterns.some((pattern) => pattern.test(host.toLowerCase()));
+  return mimecastPatterns.some((pattern) => pattern.test(host?.toLowerCase()));
 }
 
 /**
@@ -220,7 +221,7 @@ export function getProviderFromMxHost(host: string): EmailProvider {
 export function getProviderType(domain: string): EmailProvider {
   const { gmailDomains, yahooDomains, hotmailDomains } = checkIfEmailExistsConstants;
 
-  const lowerDomain = domain.toLowerCase();
+  const lowerDomain = domain?.toLowerCase();
 
   if (gmailDomains.some((d) => lowerDomain === d)) return EmailProvider.gmail;
   if (yahooDomains.some((d) => lowerDomain === d)) return EmailProvider.yahoo;
@@ -253,7 +254,7 @@ export async function queryMxRecords(
         return {
           success: true,
           records,
-          lowestPriority: records[0],
+          lowestPriority: records?.[0],
         };
       }
     } catch (error) {
@@ -263,8 +264,7 @@ export async function queryMxRecords(
 
   try {
     const mxRecords = await dns.resolveMx(domain);
-
-    if (mxRecords.length === 0) {
+    if (mxRecords?.length === 0) {
       const result: MxLookupResult = {
         success: false,
         records: [],
@@ -286,23 +286,23 @@ export async function queryMxRecords(
 
     // Sort by preference (lower = higher priority)
     // Handle both 'priority' and 'preference' property names
-    mxRecords.sort((a, b) => {
-      const aPriority = (a as any).preference || a.priority;
-      const bPriority = (b as any).preference || b.priority;
+    mxRecords?.sort((a, b) => {
+      const aPriority = a.priority;
+      const bPriority = b.priority;
       return aPriority - bPriority;
     });
 
-    const firstRecord = mxRecords[0];
-    const firstPriority = (firstRecord as any).preference || firstRecord.priority;
+    const firstRecord = mxRecords?.[0];
+    const firstPriority = firstRecord?.priority;
 
     const result = {
       success: true,
-      records: mxRecords.map((record) => ({
+      records: mxRecords?.map((record) => ({
         exchange: record.exchange,
-        priority: (record as any).preference || record.priority,
+        priority: record.priority,
       })),
       lowestPriority: {
-        exchange: firstRecord.exchange,
+        exchange: firstRecord?.exchange,
         priority: firstPriority,
       },
     };
@@ -355,7 +355,7 @@ function parseSmtpError(errorMessage: string): {
   hasFullInbox: boolean;
   isInvalid: boolean;
 } {
-  const lowerError = errorMessage.toLowerCase();
+  const lowerError = errorMessage?.toLowerCase();
 
   // Check for disabled account
   const disabledPatterns = [
@@ -713,11 +713,11 @@ async function createSmtpConnection(
     // Clear max timeout on resolution
     const originalResolve = resolve;
     const originalReject = reject;
-    resolve = (value: any) => {
+    resolve = (value) => {
       clearTimeout(maxTimeout);
       originalResolve(value);
     };
-    reject = (error: any) => {
+    reject = (error) => {
       clearTimeout(maxTimeout);
       originalReject(error);
     };
@@ -750,7 +750,7 @@ function createSmtpTransport(
           const completeLines = lines.slice(0, -1);
 
           for (const line of completeLines) {
-            if (line.length >= 3) {
+            if (line?.length >= 3) {
               const code = parseInt(line.substring(0, 3));
 
               if (line[3] === ' ' || line[3] === undefined) {
@@ -1396,7 +1396,7 @@ async function verifyYahooApi(
   } = options;
 
   const domain = email.split('@')[1];
-  if (!domain || !checkIfEmailExistsConstants.yahooDomains.includes(domain as any)) {
+  if (!domain || !checkIfEmailExistsConstants.yahooDomains.includes(domain)) {
     return {
       isValid: false,
       isDeliverable: false,
@@ -1945,7 +1945,7 @@ class SmtpErrorParser {
    * Parse SMTP error messages with provider-specific context
    */
   static parseError(smtpMessage: string, provider: EmailProvider, responseCode?: number): ParsedSmtpError {
-    const normalizedMessage = smtpMessage.toLowerCase().trim();
+    const normalizedMessage = smtpMessage?.toLowerCase().trim();
 
     // Provider-specific parsing first
     switch (provider) {
