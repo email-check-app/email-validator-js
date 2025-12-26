@@ -2,7 +2,7 @@
  * Comprehensive tests for email syntax validation, provider detection, and edge case handling
  */
 
-import { EmailProvider, getProviderType, validateEmailSyntax } from '../src/check-if-email-exists';
+import { validateEmailSyntax } from '../src/check-if-email-exists';
 
 describe('0001 Email Syntax Validation', () => {
   describe('valid email formats', () => {

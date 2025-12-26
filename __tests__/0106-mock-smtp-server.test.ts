@@ -6,13 +6,8 @@
  * and SMTP error parsing for various email providers.
  */
 
-import {
-  checkIfEmailExistsCore,
-  EmailProvider,
-  SmtpErrorParser,
-  validateEmailSyntax,
-} from '../src/check-if-email-exists';
-import type { MockSmtpServer, ParsedSmtpError } from '../src/email-verifier-types';
+import { EmailProvider, SmtpErrorParser } from '../src/check-if-email-exists';
+import type { MockSmtpServer } from '../src/email-verifier-types';
 
 // Mock SMTP Server implementation for testing
 class TestMockSmtpServer implements MockSmtpServer {

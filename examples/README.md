@@ -19,30 +19,30 @@ yarn test
 
 ### SMTP Verification Examples
 
-| Example | Description | Key Features |
-|---------|-------------|--------------|
-| [`smtp-usage.ts`](./smtp-usage.ts) | Basic SMTP verification usage | Simple API, caching, port configuration |
-| [`smtp-test.ts`](./smtp-test.ts) | Comprehensive test suite | Multi-port testing, TLS, timeout handling |
-| [`smtp-enhanced.ts`](./smtp-enhanced.ts) | Advanced SMTP features | TLS configuration, custom sequences |
-| [`smtp-comprehensive-tests.ts`](./smtp-comprehensive-tests.ts) | Extensive testing scenarios | Port testing, caching, error handling |
-| [`smtp-sequences.ts`](./smtp-sequences.ts) | Custom SMTP sequences | Command sequences, VRFY, HELO/EHLO |
-| [`smtp-cache-example.ts`](./smtp-cache-example.ts) | Caching strategies | Performance optimization, cache tuning |
+| Example                                                        | Description                   | Key Features                              |
+|----------------------------------------------------------------|-------------------------------|-------------------------------------------|
+| [`smtp-usage.ts`](./smtp-usage.ts)                             | Basic SMTP verification usage | Simple API, caching, port configuration   |
+| [`smtp-test.ts`](./smtp-test.ts)                               | Comprehensive test suite      | Multi-port testing, TLS, timeout handling |
+| [`smtp-enhanced.ts`](./smtp-enhanced.ts)                       | Advanced SMTP features        | TLS configuration, custom sequences       |
+| [`smtp-comprehensive-tests.ts`](./smtp-comprehensive-tests.ts) | Extensive testing scenarios   | Port testing, caching, error handling     |
+| [`smtp-sequences.ts`](./smtp-sequences.ts)                     | Custom SMTP sequences         | Command sequences, VRFY, HELO/EHLO        |
+| [`smtp-caching-example.ts`](./smtp-caching-example.ts)         | Caching strategies            | Performance optimization, cache tuning    |
 
 ### Cache Implementation Examples
 
-| Example | Description | Cache Type |
-|---------|-------------|------------|
-| [`custom-cache-memory.ts`](./custom-cache-memory.ts) | Custom in-memory cache | LRU, TTL, size limits |
-| [`custom-cache-redis.ts`](./custom-cache-redis.ts) | Redis cache integration | Distributed caching |
+| Example                                              | Description             | Cache Type            |
+|------------------------------------------------------|-------------------------|-----------------------|
+| [`custom-cache-memory.ts`](./custom-cache-memory.ts) | Custom in-memory cache  | LRU, TTL, size limits |
+| [`custom-cache-redis.ts`](./custom-cache-redis.ts)   | Redis cache integration | Distributed caching   |
 
 ### Other Features
 
-| Example | Description |
-|---------|-------------|
-| [`advanced-usage.ts`](./advanced-usage.ts) | Complete email validation workflow |
-| [`domain-suggestion-example.ts`](./domain-suggestion-example.ts) | Domain typo correction |
-| [`name-detection-example.ts`](./name-detection-example.ts) | Name extraction from emails |
-| [`algrothin-integration.ts`](./algrothin-integration.ts) | Third-party service integration |
+| Example                                                          | Description                        |
+|------------------------------------------------------------------|------------------------------------|
+| [`advanced-usage.ts`](./advanced-usage.ts)                       | Complete email validation workflow |
+| [`domain-suggestion-example.ts`](./domain-suggestion-example.ts) | Domain typo correction             |
+| [`name-detection-example.ts`](./name-detection-example.ts)       | Name extraction from emails        |
+| [`algolia-integration.ts`](./algolia-integration.ts)             | Third-party service integration    |
 
 ## 🔧 Running Examples
 
@@ -238,6 +238,7 @@ await verifyMailboxSMTP({
 ```
 
 Example debug output:
+
 ```
 [SMTP] Verifying user@example.com via mx.example.com
 [SMTP] Testing port 25

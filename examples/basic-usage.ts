@@ -2,12 +2,7 @@
  * Basic usage examples for check-if-email-exists functionality
  */
 
-import {
-  checkIfEmailExistsCore,
-  EmailProvider,
-  getProviderType,
-  validateEmailSyntax,
-} from '../src/check-if-email-exists';
+import { checkIfEmailExistsCore, EmailProvider, getProviderType, validateEmailSyntax } from '../src';
 
 /**
  * Example 1: Basic email verification

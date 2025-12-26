@@ -3,14 +3,11 @@
  */
 
 import {
-  type CheckIfEmailExistsCoreResult,
   type CheckIfEmailExistsSmtpOptions,
   checkIfEmailExistsConstants,
   checkIfEmailExistsCore,
   EmailProvider,
-  getProviderType,
   queryMxRecords,
-  validateEmailSyntax,
   verifySmtpConnection,
 } from '../src/check-if-email-exists';
 

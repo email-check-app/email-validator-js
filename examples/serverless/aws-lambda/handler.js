@@ -7,7 +7,7 @@
 // import { apiGatewayHandler, lambdaHandler, cacheHandler } from '@emailcheck/email-validator-js/serverless/aws';
 
 // For local development, use the built files:
-const {apiGatewayHandler, lambdaHandler, cacheHandler} = require('../../../dist/serverless/adapters/aws-lambda.js').default;
+import {apiGatewayHandler, cacheHandler, lambdaHandler} from '../../../dist/serverless/adapters/aws-lambda.js';
 
 // API Gateway HTTP endpoint
 export const validateEmailHTTP = apiGatewayHandler;

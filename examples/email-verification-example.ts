@@ -19,10 +19,7 @@ import {
   isHotmailB2B,
   isHotmailB2C,
   isYahoo,
-} from '../src/check-if-email-exists';
-
-// Import the existing disposable and free email checkers
-import { isDisposableEmail, isFreeEmail } from '../src/index';
+} from '../src';
 
 async function basicEmailVerification() {
   console.log('=== Basic Email Verification ===\n');

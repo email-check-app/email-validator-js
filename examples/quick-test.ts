@@ -8,7 +8,7 @@
  *   npx ts-node examples/quick-test.ts user@example.com --retries 2 --timeout 10000
  */
 
-import { checkIfEmailExistsCore, EmailProvider } from '../src/check-if-email-exists';
+import { checkIfEmailExistsCore } from '../src';
 
 const args = process.argv.slice(2);
 const email = args[0];
