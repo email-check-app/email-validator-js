@@ -371,7 +371,7 @@ describe('Provider-specific Email Verification', () => {
     });
 
     test('should have correct default values', () => {
-      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT).toBe(30000);
+      expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT).toBe(10000);
       expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_SMTP_PORT).toBe(25);
       expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_FROM_EMAIL).toBe('test@example.com');
       expect(CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_HELLO_NAME).toBe('example.com');

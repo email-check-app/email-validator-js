@@ -97,7 +97,7 @@ describe('SMTP Error Handling', () => {
     // Test timeout handling logic
     const timeoutMs = 5000;
     expect(timeoutMs).toBeGreaterThan(1000);
-    expect(timeoutMs).toBeLessThan(30000);
+    expect(timeoutMs).toBeLessThan(10000);
   });
 
   test('should handle connection retry logic', () => {

@@ -18,7 +18,7 @@ export const CHECK_IF_EMAIL_EXISTS_CONSTANTS = {
   GMAIL_DOMAINS: ['gmail.com', 'googlemail.com'] as const,
   YAHOO_DOMAINS: ['yahoo.com', 'ymail.com', 'rocketmail.com'] as const,
   HOTMAIL_DOMAINS: ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'] as const,
-  DEFAULT_TIMEOUT: 30000,
+  DEFAULT_TIMEOUT: 10000,
   DEFAULT_SMTP_PORT: 25,
   DEFAULT_FROM_EMAIL: 'test@example.com',
   DEFAULT_HELLO_NAME: 'example.com',

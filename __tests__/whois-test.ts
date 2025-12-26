@@ -232,6 +232,6 @@ describe('WHOIS Functions', () => {
           expect(typeof result.isRegistered).toBe('boolean');
         }
       }
-    }, 30000);
+    }, 10000);
   });
 });

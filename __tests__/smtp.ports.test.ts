@@ -71,7 +71,7 @@ describe('SMTP Port Configuration', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBeNull();
+      expect(smtpResult.isDeliverable).toBe(false);
     });
 
     it('should handle reserved ports', async () => {
@@ -83,7 +83,7 @@ describe('SMTP Port Configuration', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBeNull();
+      expect(smtpResult.isDeliverable).toBe(false);
     });
   });
 
@@ -281,7 +281,7 @@ describe('SMTP Port Configuration', () => {
       const { smtpResult } = await verifyMailboxSMTP(params);
       const duration = Date.now() - start;
 
-      expect(smtpResult.isDeliverable).toBeNull();
+      expect(smtpResult.isDeliverable).toBe(false);
       // Should attempt 3 times (initial + 2 retries)
       // With 1 second timeout each, should take at least 3 seconds
       expect(duration).toBeGreaterThan(500);
@@ -361,7 +361,7 @@ describe('SMTP Port Configuration', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBeNull();
+      expect(smtpResult.isDeliverable).toBe(false);
     });
 
     it('should handle negative port numbers', async () => {
@@ -385,7 +385,7 @@ describe('SMTP Port Configuration', () => {
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBe(null);
+      expect(smtpResult.isDeliverable).toBe(false);
     });
   });
 });
