@@ -4,9 +4,8 @@
 // timeout errors, port errors, TLS errors, sequence errors, resource
 // exhaustion, and graceful degradation.
 
-import { clearDefaultCache, getDefaultCache } from '../src/cache';
+import { clearDefaultCache, getDefaultCache, SMTPStep } from '../src';
 import { verifyMailboxSMTP } from '../src/smtp';
-import { SMTPStep } from '../src/types';
 import { createTestParams, TestUtils } from './utils/smtp.test.config';
 
 describe('0104 SMTP Errors', () => {

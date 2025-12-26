@@ -1,9 +1,8 @@
 import { promises as dnsPromises } from 'node:dns';
 import sinon, { type SinonSandbox } from 'sinon';
-import { isDisposableEmail, isFreeEmail, isValidEmailDomain } from '../src';
-import { LRUAdapter } from '../src/adapters/lru-adapter';
+import type { ICache } from '../src';
+import { isDisposableEmail, isFreeEmail, isValidEmailDomain, LRUAdapter } from '../src';
 import { clearDefaultCache, DEFAULT_CACHE_OPTIONS, getDefaultCache, resetDefaultCache } from '../src/cache';
-import type { ICache } from '../src/cache-interface';
 import { resolveMxRecords } from '../src/dns';
 import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from '../src/types';
 

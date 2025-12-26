@@ -7,7 +7,7 @@ import type { DomainSuggestion, ISuggestDomainParams } from './types';
  * List of common email domains for typo detection
  * Includes popular free providers, business providers, and hosting services
  */
-export const COMMON_EMAIL_DOMAINS = [
+export const commonEmailDomains = [
   // Popular free email providers
   'gmail.com',
   'yahoo.com',
@@ -146,7 +146,7 @@ function _isLikelyTypo(domain: string) {
 export function defaultDomainSuggestionMethod(domain: string, commonDomains?: string[]): DomainSuggestion | null {
   // For sync version, we need to create a synchronous implementation
   // without cache to avoid async issues
-  const domainsToCheck = commonDomains || COMMON_EMAIL_DOMAINS;
+  const domainsToCheck = commonDomains || commonEmailDomains;
   const lowerDomain = domain.toLowerCase();
 
   // If domain is already in the common list, no suggestion needed
@@ -234,7 +234,7 @@ async function defaultDomainSuggestionMethodImpl(
     return null;
   }
 
-  const domainsToCheck = commonDomains || COMMON_EMAIL_DOMAINS;
+  const domainsToCheck = commonDomains || commonEmailDomains;
   const lowerDomain = domain.toLowerCase();
 
   // Check cache first
@@ -390,7 +390,7 @@ export async function suggestEmailDomain(
  * @returns True if domain is common, false otherwise
  */
 export function isCommonDomain(domain: string, commonDomains?: string[]) {
-  const domainsToCheck = commonDomains || COMMON_EMAIL_DOMAINS;
+  const domainsToCheck = commonDomains || commonEmailDomains;
   return domainsToCheck.includes(domain.toLowerCase());
 }
 

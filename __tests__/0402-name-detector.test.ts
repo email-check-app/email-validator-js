@@ -1,4 +1,4 @@
-import { cleanNameForAlgorithm, detectName, detectNameForAlgorithm } from '../src/name-detector';
+import { cleanNameForAlgorithm, detectName, detectNameForAlgorithm } from '../src';
 
 describe('0402 Name Detector', () => {
   describe('cleanNameForAlgorithm', () => {

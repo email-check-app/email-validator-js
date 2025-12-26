@@ -1,5 +1,5 @@
+import type { NameDetectionMethod } from '../src';
 import { defaultNameDetectionMethod, detectName, detectNameFromEmail } from '../src';
-import type { NameDetectionMethod } from '../src/types';
 
 describe('0403 Integrated Name Detection', () => {
   describe('detectName', () => {

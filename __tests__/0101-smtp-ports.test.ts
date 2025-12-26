@@ -3,7 +3,7 @@
 // Tests port-specific behavior including single port testing, multiple port
 // configurations, port-specific TLS behavior, retry logic, and edge cases.
 
-import { clearDefaultCache } from '../src/cache';
+import { clearDefaultCache } from '../src';
 import { verifyMailboxSMTP } from '../src/smtp';
 import { createTestParams, measureTime, TEST_CONFIGS, TEST_DATA, TestUtils } from './utils/smtp.test.config';
 

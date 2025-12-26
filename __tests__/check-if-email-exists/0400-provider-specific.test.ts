@@ -9,8 +9,8 @@ import {
   EmailProvider,
   getProviderType,
   validateEmailSyntax,
-} from '../src/check-if-email-exists';
-import type { EmailTestCase } from '../src/email-verifier-types';
+} from '../../src/check-if-email-exists';
+import type { EmailTestCase } from '../../src/email-verifier-types';
 
 describe('0400 Provider Specific', () => {
   // Test cases based on original repository patterns

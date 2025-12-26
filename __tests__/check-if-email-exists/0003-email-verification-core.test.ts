@@ -10,7 +10,7 @@ import {
   isMimecast,
   isProofpoint,
   isYahoo,
-} from '../src/check-if-email-exists';
+} from '../../src/check-if-email-exists';
 
 // Mock the dependencies
 jest.mock('dns', () => ({

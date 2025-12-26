@@ -6,7 +6,7 @@
  * These tests verify provider-specific logic without making actual network calls.
  */
 
-import { EmailProvider } from '../src/check-if-email-exists';
+import { EmailProvider } from '../../src/email-verifier-types';
 
 // Test the provider optimizations logic without actual network calls
 describe('0105 SMTP Verification', () => {

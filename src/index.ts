@@ -24,34 +24,8 @@ export * from './adapters/redis-adapter';
 export { verifyEmailBatch } from './batch';
 export * from './cache';
 export * from './cache-interface';
-// Export check-if-email-exists types
-export type {
-  CheckIfEmailExistsCoreResult,
-  EmailProvider as EmailProviderType,
-  ICheckIfEmailExistsCoreParams,
-  MxLookupResult,
-  SmtpVerificationResult,
-} from './check-if-email-exists';
-// Export check-if-email-exists functionality
 export {
-  checkIfEmailExistsConstants,
-  checkIfEmailExistsCore,
-  EmailProvider,
-  getProviderFromMxHost,
-  getProviderType,
-  isGmail,
-  isHotmailB2B,
-  isHotmailB2C,
-  isMimecast,
-  isProofpoint,
-  isYahoo,
-  queryMxRecords,
-  SmtpErrorParser,
-  validateEmailSyntax,
-  verifySmtpConnection,
-} from './check-if-email-exists';
-export {
-  COMMON_EMAIL_DOMAINS,
+  commonEmailDomains,
   defaultDomainSuggestionMethod,
   getDomainSimilarity,
   isCommonDomain,

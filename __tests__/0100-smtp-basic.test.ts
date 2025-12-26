@@ -4,7 +4,7 @@
 // parameter validation, debug mode, hostname configuration, cache behavior,
 // and multiple domain handling.
 
-import { clearDefaultCache, getDefaultCache } from '../src/cache';
+import { clearDefaultCache, getDefaultCache } from '../src';
 import { verifyMailboxSMTP } from '../src/smtp';
 import { createTestParams, measureTime, TEST_DATA, TestUtils } from './utils/smtp.test.config';
 

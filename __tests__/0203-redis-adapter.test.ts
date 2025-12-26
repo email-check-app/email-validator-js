@@ -2,8 +2,8 @@
  * Tests for Redis adapter implementation of the cache interface
  */
 
-import type { IRedisClient } from '../src/adapters/redis-adapter';
-import { RedisAdapter } from '../src/adapters/redis-adapter';
+import type { IRedisClient } from '../src';
+import { RedisAdapter } from '../src';
 
 describe('0203 Redis Adapter', () => {
   // Create a mock Redis client for testing

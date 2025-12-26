@@ -2,8 +2,8 @@
  * Simple Yahoo API Tests - focusing on the core functionality
  */
 
-import { EmailProvider, verifyYahooApi } from '../src/check-if-email-exists';
-import type { YahooApiOptions } from '../src/email-verifier-types';
+import { EmailProvider, verifyYahooApi } from '../../src/check-if-email-exists';
+import type { YahooApiOptions } from '../../src/email-verifier-types';
 
 // Mock fetch for Yahoo API tests
 const mockFetch = jest.fn();

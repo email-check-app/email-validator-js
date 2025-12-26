@@ -4,9 +4,8 @@
 // custom MAIL FROM/VRFY configuration, STARTTLS handling, performance
 // comparison, and error handling.
 
-import { clearDefaultCache } from '../src/cache';
+import { clearDefaultCache, SMTPStep } from '../src';
 import { verifyMailboxSMTP } from '../src/smtp';
-import { SMTPStep } from '../src/types';
 import { createTestParams, TEST_SEQUENCES, TestUtils } from './utils/smtp.test.config';
 
 describe('0103 SMTP Sequences', () => {

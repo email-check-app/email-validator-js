@@ -1440,6 +1440,8 @@ email-validator-js/
 │   ├── batch.ts        # Batch processing
 │   └── types.ts        # TypeScript types
 ├── __tests__/          # Test files (200+ tests)
+│   ├── check-if-email-exists/  # Core verification tests (206 tests)
+│   └── [feature-specific-tests] # Other feature tests
 ├── examples/           # Usage examples (20+ files)
 └── dist/              # Compiled output
 ```

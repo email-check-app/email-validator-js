@@ -16,7 +16,7 @@ import {
   queryMxRecords,
   validateEmailSyntax,
   verifySmtpConnection,
-} from '../src/check-if-email-exists';
+} from '../../src/check-if-email-exists';
 
 // Mock DNS module
 jest.mock('dns', () => ({

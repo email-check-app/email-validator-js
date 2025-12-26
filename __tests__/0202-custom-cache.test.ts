@@ -1,8 +1,5 @@
-import { LRUAdapter } from '../src/adapters/lru-adapter';
-import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
-import type { ICache } from '../src/cache-interface';
-import { isDisposableEmail, isFreeEmail } from '../src/index';
-import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from '../src/types';
+import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, ICache, SmtpVerificationResult } from '../src';
+import { DEFAULT_CACHE_OPTIONS, isDisposableEmail, isFreeEmail, LRUAdapter } from '../src';
 
 describe('0202 Custom Cache', () => {
   // No global cache management needed with parameter-based injection

@@ -1,6 +1,6 @@
 import type { DomainSuggestionMethod } from '../src';
 import {
-  COMMON_EMAIL_DOMAINS,
+  commonEmailDomains,
   defaultDomainSuggestionMethod,
   getDomainSimilarity,
   isCommonDomain,
@@ -236,11 +236,11 @@ describe('0300 Domain Suggester', () => {
 
   describe('COMMON_EMAIL_DOMAINS export', () => {
     it('should export a list of common domains', () => {
-      expect(Array.isArray(COMMON_EMAIL_DOMAINS)).toBe(true);
-      expect(COMMON_EMAIL_DOMAINS.length).toBeGreaterThan(30);
-      expect(COMMON_EMAIL_DOMAINS).toContain('gmail.com');
-      expect(COMMON_EMAIL_DOMAINS).toContain('yahoo.com');
-      expect(COMMON_EMAIL_DOMAINS).toContain('outlook.com');
+      expect(Array.isArray(commonEmailDomains)).toBe(true);
+      expect(commonEmailDomains.length).toBeGreaterThan(30);
+      expect(commonEmailDomains).toContain('gmail.com');
+      expect(commonEmailDomains).toContain('yahoo.com');
+      expect(commonEmailDomains).toContain('outlook.com');
     });
   });
 });

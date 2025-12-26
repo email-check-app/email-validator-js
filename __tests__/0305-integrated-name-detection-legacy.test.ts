@@ -1,5 +1,5 @@
+import type { NameDetectionMethod } from '../src';
 import { verifyEmail, verifyEmailBatch } from '../src';
-import type { NameDetectionMethod } from '../src/types';
 
 describe('0305-integrated-name-detection-legacy', () => {
   describe('verifyEmail with name detection enabled', () => {

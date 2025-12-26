@@ -8,8 +8,8 @@ import {
   EmailProvider,
   getProviderType,
   validateEmailSyntax,
-} from '../src/check-if-email-exists';
-import type { EmailTestCase } from '../src/email-verifier-types';
+} from '../../src/check-if-email-exists';
+import type { EmailTestCase } from '../../src/email-verifier-types';
 
 describe('0007 Edge Cases and Integration Tests', () => {
   // Comprehensive edge case test data covering valid and invalid email formats

@@ -3,7 +3,7 @@
 // Tests TLS/SSL security configurations including certificate validation,
 // TLS version settings, STARTTLS behavior, and performance comparisons.
 
-import { clearDefaultCache } from '../src/cache';
+import { clearDefaultCache } from '../src';
 import { verifyMailboxSMTP } from '../src/smtp';
 import { createTestParams, TEST_CONFIGS, TestUtils } from './utils/smtp.test.config';
 

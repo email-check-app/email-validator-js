@@ -2,7 +2,7 @@
  * Isolated test suite for network timeout handling during email verification
  */
 
-import { checkIfEmailExistsCore } from '../src/check-if-email-exists';
+import { checkIfEmailExistsCore } from '../../src/check-if-email-exists';
 
 // Mock DNS module
 jest.mock('dns', () => ({

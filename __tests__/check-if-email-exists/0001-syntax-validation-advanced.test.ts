@@ -3,7 +3,7 @@
  * parsing accuracy, RFC compliance, provider detection, and performance tests
  */
 
-import { EmailProvider, getProviderType, validateEmailSyntax } from '../src/check-if-email-exists';
+import { EmailProvider, getProviderType, validateEmailSyntax } from '../../src/check-if-email-exists';
 
 describe('0001 Syntax Validation Advanced', () => {
   describe('length validation', () => {

@@ -2,7 +2,7 @@
  * Tests for serverless core functionality
  */
 
-import { clearCache, EdgeCache, suggestDomain, validateEmailBatch, validateEmailCore } from '../src/serverless/core';
+import { clearCache, EdgeCache, suggestDomain, validateEmailBatch, validateEmailCore } from '../src/serverless';
 
 describe('0500 Serverless Core', () => {
   beforeEach(() => {
