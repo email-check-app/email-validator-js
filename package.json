@@ -30,37 +30,32 @@
   "exports": {
     ".": {
       "require": "./dist/index.js",
-      "import": "./dist/index.js",
+      "import": "./dist/index.esm.js",
       "types": "./dist/index.d.ts"
     },
-    "./check-if-email-exists": {
-      "require": "./dist/check-if-email-exists.js",
-      "import": "./dist/check-if-email-exists.js",
-      "types": "./dist/check-if-email-exists.d.ts"
-    },
     "./serverless": {
-      "require": "./dist/serverless/index.js",
-      "import": "./dist/serverless/index.js",
+      "require": "./dist/serverless/index.cjs.js",
+      "import": "./dist/serverless/index.esm.js",
       "types": "./dist/serverless/index.d.ts"
     },
-    "./serverless/core": {
-      "require": "./dist/serverless/core.js",
-      "import": "./dist/serverless/core.js",
-      "types": "./dist/serverless/core.d.ts"
+    "./serverless/verifier": {
+      "require": "./dist/serverless/verifier.cjs.js",
+      "import": "./dist/serverless/verifier.esm.js",
+      "types": "./dist/serverless/verifier.d.ts"
     },
     "./serverless/aws": {
-      "require": "./dist/serverless/adapters/aws-lambda.js",
-      "import": "./dist/serverless/adapters/aws-lambda.js",
+      "require": "./dist/serverless/adapters/aws-lambda.cjs.js",
+      "import": "./dist/serverless/adapters/aws-lambda.esm.js",
       "types": "./dist/serverless/adapters/aws-lambda.d.ts"
     },
     "./serverless/vercel": {
-      "require": "./dist/serverless/adapters/vercel.js",
-      "import": "./dist/serverless/adapters/vercel.js",
+      "require": "./dist/serverless/adapters/vercel.cjs.js",
+      "import": "./dist/serverless/adapters/vercel.esm.js",
       "types": "./dist/serverless/adapters/vercel.d.ts"
     },
     "./serverless/cloudflare": {
-      "require": "./dist/serverless/adapters/cloudflare.js",
-      "import": "./dist/serverless/adapters/cloudflare.js",
+      "require": "./dist/serverless/adapters/cloudflare.cjs.js",
+      "import": "./dist/serverless/adapters/cloudflare.esm.js",
       "types": "./dist/serverless/adapters/cloudflare.d.ts"
     }
   },

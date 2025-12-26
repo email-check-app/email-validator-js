@@ -13,7 +13,6 @@ import {
   YahooApiOptions,
 } from './email-verifier-types';
 import { isDisposableEmail, isFreeEmail } from './index';
-import { resolveMxRecords } from './mx-resolver';
 // Constants for common providers
 export const checkIfEmailExistsConstants = {
   gmailDomains: ['gmail.com', 'googlemail.com'],

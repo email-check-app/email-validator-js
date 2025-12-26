@@ -46,25 +46,25 @@ yarn test
 
 ## 🔧 Running Examples
 
-### Development with ts-node (Recommended)
+### Development with tsx (Recommended)
 
 ```bash
-# Run with ts-node for full type checking during development
-npx ts-node examples/smtp-usage.ts
+# Run with tsx for full type checking during development
+npx tsx examples/smtp-usage.ts
 
 # Run comprehensive tests
-npx ts-node examples/smtp-test.ts
+npx tsx examples/smtp-test.ts
 
 # Run cache examples
-npx ts-node examples/custom-cache-memory.ts
+npx tsx examples/custom-cache-memory.ts
 
 # Run enhanced SMTP examples
-npx ts-node examples/smtp-enhanced.ts
-npx ts-node examples/smtp-comprehensive-tests.ts
-npx ts-node examples/smtp-sequences.ts
+npx tsx examples/smtp-enhanced.ts
+npx tsx examples/smtp-comprehensive-tests.ts
+npx tsx examples/smtp-sequences.ts
 ```
 
-**Note:** ts-node imports from `src/` for development with full type checking. This is the recommended way to run examples during development.
+**Note:** tsx imports from `src/` for development with full type checking. This is the recommended way to run examples during development.
 
 ### Direct TypeScript Execution (Future Feature)
 
@@ -82,13 +82,13 @@ node --experimental-strip-types examples/smtp-usage.ts
 
 ```bash
 # Test port connectivity only
-npx ts-node -e "
+npx tsx -e "
 import { testPortConnectivity } from './examples/smtp-test';
 testPortConnectivity();
 "
 
 # Test caching performance
-npx ts-node -e "
+npx tsx -e "
 import { testMultiPortWithCaching } from './examples/smtp-test';
 testMultiPortWithCaching();
 "
