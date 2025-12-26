@@ -64,7 +64,7 @@ const PORT_CONFIGS = {
   25: { tls: false, starttls: true },
   587: { tls: false, starttls: true },
   465: { tls: true, starttls: false },
-} as const;
+};
 
 export async function verifyMailboxSMTP(
   params: VerifyMailboxSMTPParams
