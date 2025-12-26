@@ -47,8 +47,8 @@ async function basicEmailVerification() {
         verifySmtp: false,
       });
 
-      console.log(`  ✓ Provider: ${result.misc?.provider_type}`);
-      console.log(`  ✓ Reachable: ${result.is_reachable}`);
+      console.log(`  ✓ Provider: ${result.misc?.providerType}`);
+      console.log(`  ✓ Reachable: ${result.isReachable}`);
       console.log(`  ✓ MX Records: ${result.mx?.records.map((r) => r.exchange).join(', ') || 'None'}`);
 
       if (result.error) {
@@ -82,16 +82,16 @@ async function advancedEmailVerification() {
     const result = await checkIfEmailExistsCore(config);
 
     console.log(`Email: ${result.email}`);
-    console.log(`Provider: ${result.misc?.provider_type}`);
-    console.log(`Reachable: ${result.is_reachable}`);
-    console.log(`Catch-all: ${result.smtp?.is_catch_all || false}`);
-    console.log(`Full Inbox: ${result.smtp?.has_full_inbox || false}`);
-    console.log(`Disabled: ${result.smtp?.is_disabled || false}`);
+    console.log(`Provider: ${result.misc?.providerType}`);
+    console.log(`Reachable: ${result.isReachable}`);
+    console.log(`Catch-all: ${result.smtp?.isCatchAll || false}`);
+    console.log(`Full Inbox: ${result.smtp?.hasFullInbox || false}`);
+    console.log(`Disabled: ${result.smtp?.isDisabled || false}`);
     console.log(`MX Records: ${result.mx?.records.map((r) => r.exchange).join(', ') || 'None'}`);
 
     // Provider-specific analysis
     console.log('\n--- Provider Analysis ---');
-    switch (result.misc?.provider_type) {
+    switch (result.misc?.providerType) {
       case EmailProvider.GMAIL:
         console.log('  Gmail address - high confidence in verification');
         break;
@@ -170,10 +170,10 @@ async function catchAllDetectionExample() {
         verifySmtp: false,
       });
 
-      console.log(`  Is Catch-All: ${result.smtp?.is_catch_all || false}`);
-      console.log(`  Is Reachable: ${result.is_reachable}`);
+      console.log(`  Is Catch-All: ${result.smtp?.isCatchAll || false}`);
+      console.log(`  Is Reachable: ${result.isReachable}`);
 
-      if (result.smtp?.is_catch_all) {
+      if (result.smtp?.isCatchAll) {
         console.log(`  ⚠️  This domain accepts emails for any username`);
       }
     } catch (error) {
@@ -213,7 +213,7 @@ async function bulkEmailVerification() {
 
       results.push({ email, result });
       console.log(
-        `✓ ${email} - ${result.is_reachable === 'safe' ? 'Deliverable' : 'Undeliverable'} (${result.misc?.provider_type})`
+        `✓ ${email} - ${result.isReachable === 'safe' ? 'Deliverable' : 'Undeliverable'} (${result.misc?.providerType})`
       );
     } catch (error) {
       console.log(`✗ ${email} - Error: ${error.message}`);
@@ -224,8 +224,8 @@ async function bulkEmailVerification() {
   // Summary statistics
   console.log('\n--- Summary ---');
   const verified = results.filter((r) => r.result !== null).length;
-  const deliverable = results.filter((r) => r.result?.is_reachable === 'safe').length;
-  const catchAll = results.filter((r) => r.result?.smtp?.is_catch_all).length;
+  const deliverable = results.filter((r) => r.result?.isReachable === 'safe').length;
+  const catchAll = results.filter((r) => r.result?.smtp?.isCatchAll).length;
 
   console.log(`Total emails: ${emailList.length}`);
   console.log(`Successfully verified: ${verified}`);

@@ -44,15 +44,15 @@ async function basicCheckIfExistsDemo() {
         enableProviderOptimizations: true,
       });
 
-      console.log(`📊 Result: ${result.is_reachable.toUpperCase()}`);
+      console.log(`📊 Result: ${result.isReachable.toUpperCase()}`);
       console.log(`⏱️  Duration: ${result.duration}ms`);
 
       // Syntax validation
-      console.log(`✅ Syntax: ${result.syntax.is_valid ? 'Valid' : 'Invalid'}`);
-      if (result.syntax.is_valid) {
+      console.log(`✅ Syntax: ${result.syntax.isValid ? 'Valid' : 'Invalid'}`);
+      if (result.syntax.isValid) {
         console.log(`   Email: ${result.email}`);
         console.log(`   Domain: ${result.syntax.domain}`);
-        console.log(`   Local: ${result.syntax.local_part}`);
+        console.log(`   Local: ${result.syntax.localPart}`);
       } else {
         console.log(`   Error: ${result.syntax.error}`);
       }
@@ -63,7 +63,7 @@ async function basicCheckIfExistsDemo() {
         if (result.mx.success) {
           console.log(`   Records: ${result.mx.records.length}`);
           console.log(
-            `   Primary: ${result.mx.lowest_priority?.exchange} (pref: ${result.mx.lowest_priority?.priority})`
+            `   Primary: ${result.mx.lowestPriority?.exchange} (pref: ${result.mx.lowestPriority?.priority})`
           );
         } else {
           console.log(`   Error: ${result.mx.error}`);
@@ -73,17 +73,17 @@ async function basicCheckIfExistsDemo() {
       // Provider information
       if (result.misc) {
         console.log(`🏷️  Provider Info:`);
-        console.log(`   Type: ${result.misc.provider_type}`);
-        console.log(`   Disposable: ${result.misc.is_disposable ? 'Yes ⚠️' : 'No ✅'}`);
-        console.log(`   Free provider: ${result.misc.is_free ? 'Yes 📧' : 'No'}`);
+        console.log(`   Type: ${result.misc.providerType}`);
+        console.log(`   Disposable: ${result.misc.isDisposable ? 'Yes ⚠️' : 'No ✅'}`);
+        console.log(`   Free provider: ${result.misc.isFree ? 'Yes 📧' : 'No'}`);
       }
 
       // SMTP (would be shown if enabled)
       if (result.smtp) {
         console.log(`🔌 SMTP: ${result.smtp.success ? 'Connected' : 'Failed'}`);
         if (result.smtp.success) {
-          console.log(`   Deliverable: ${result.smtp.is_deliverable ? 'Yes' : 'No'}`);
-          console.log(`   Can connect: ${result.smtp.can_connect ? 'Yes' : 'No'}`);
+          console.log(`   Deliverable: ${result.smtp.isDeliverable ? 'Yes' : 'No'}`);
+          console.log(`   Can connect: ${result.smtp.canConnect ? 'Yes' : 'No'}`);
         }
       }
     } catch (error) {
@@ -153,8 +153,8 @@ async function providerOptimizationsDemo() {
         enableProviderOptimizations: true,
       });
 
-      console.log(`   Result: ${result.is_reachable} (${result.duration}ms)`);
-      console.log(`   Provider detected: ${result.misc?.provider_type}`);
+      console.log(`   Result: ${result.isReachable} (${result.duration}ms)`);
+      console.log(`   Provider detected: ${result.misc?.providerType}`);
     } catch (error) {
       console.log(`   Error: ${(error as Error).message}`);
     }
@@ -182,12 +182,12 @@ async function customSmtpVerificationDemo() {
   }
 
   const mxResult = await queryMxRecords(domain);
-  if (!mxResult.success || !mxResult.lowest_priority) {
+  if (!mxResult.success || !mxResult.lowestPriority) {
     console.log('❌ No MX records found');
     return;
   }
 
-  console.log(`📬 Using MX server: ${mxResult.lowest_priority.exchange}\n`);
+  console.log(`📬 Using MX server: ${mxResult.lowestPriority.exchange}\n`);
 
   // Test different SMTP configurations
   const smtpConfigs: Array<{ name: string; options: CheckIfEmailExistsSmtpOptions }> = [
@@ -222,7 +222,7 @@ async function customSmtpVerificationDemo() {
       const smtpResult = await verifySmtpConnection(
         testEmail,
         domain,
-        mxResult.lowest_priority.exchange,
+        mxResult.lowestPriority.exchange,
         config.options,
         EmailProvider.EVERYTHING_ELSE
       );
@@ -230,10 +230,10 @@ async function customSmtpVerificationDemo() {
       const duration = Date.now() - startTime;
 
       console.log(`   Success: ${smtpResult.success}`);
-      console.log(`   Deliverable: ${smtpResult.is_deliverable}`);
-      console.log(`   Can connect: ${smtpResult.can_connect}`);
+      console.log(`   Deliverable: ${smtpResult.isDeliverable}`);
+      console.log(`   Can connect: ${smtpResult.canConnect}`);
       console.log(`   Duration: ${duration}ms`);
-      console.log(`   Provider: ${smtpResult.provider_used}`);
+      console.log(`   Provider: ${smtpResult.providerUsed}`);
 
       if (smtpResult.error) {
         console.log(`   Error: ${smtpResult.error}`);
@@ -296,7 +296,7 @@ async function performanceComparisonDemo() {
         const duration = Date.now() - startTime;
         durations.push(duration);
 
-        console.log(`   Run ${i + 1}: ${duration}ms (${result.is_reachable})`);
+        console.log(`   Run ${i + 1}: ${duration}ms (${result.isReachable})`);
       } catch (error) {
         console.log(`   Run ${i + 1}: Error - ${(error as Error).message}`);
       }
@@ -364,9 +364,9 @@ async function errorHandlingDemo() {
 
       if (result.error) {
         console.log(`   ⚠️  Handled gracefully: ${result.error}`);
-        console.log(`   📊 Reachable: ${result.is_reachable}`);
+        console.log(`   📊 Reachable: ${result.isReachable}`);
       } else {
-        console.log(`   📊 Result: ${result.is_reachable} (${result.duration}ms)`);
+        console.log(`   📊 Result: ${result.isReachable} (${result.duration}ms)`);
       }
     } catch (error) {
       console.log(`   ❌ Unexpected error: ${(error as Error).message}`);
@@ -438,13 +438,13 @@ async function realWorldScenariosDemo() {
         results.push({ email, result });
 
         let status = '❓';
-        if (result.is_reachable === 'safe') status = '✅';
-        else if (result.is_reachable === 'invalid') status = '❌';
-        else if (result.is_reachable === 'risky') status = '⚠️';
+        if (result.isReachable === 'safe') status = '✅';
+        else if (result.isReachable === 'invalid') status = '❌';
+        else if (result.isReachable === 'risky') status = '⚠️';
 
-        console.log(`   ${status} ${email}: ${result.is_reachable} (${result.duration}ms)`);
+        console.log(`   ${status} ${email}: ${result.isReachable} (${result.duration}ms)`);
 
-        if (result.misc?.is_disposable) {
+        if (result.misc?.isDisposable) {
           console.log(`      ⚠️  Disposable email detected`);
         }
       } catch (error) {
@@ -453,9 +453,9 @@ async function realWorldScenariosDemo() {
     }
 
     // Summary for this scenario
-    const validCount = results.filter((r) => r.result.is_reachable === 'safe').length;
-    const invalidCount = results.filter((r) => r.result.is_reachable === 'invalid').length;
-    const riskyCount = results.filter((r) => r.result.is_reachable === 'risky').length;
+    const validCount = results.filter((r) => r.result.isReachable === 'safe').length;
+    const invalidCount = results.filter((r) => r.result.isReachable === 'invalid').length;
+    const riskyCount = results.filter((r) => r.result.isReachable === 'risky').length;
 
     console.log(`\n   📊 Summary: ${validCount} valid, ${invalidCount} invalid, ${riskyCount} risky`);
   }

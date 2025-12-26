@@ -74,15 +74,15 @@ async function quickTest() {
     console.log('');
     console.log('Results:');
     console.log(`  Email: ${result.email}`);
-    console.log(`  Provider: ${result.misc?.provider_type}`);
-    console.log(`  Reachable: ${result.is_reachable === 'safe' ? '✅' : '❌'}`);
-    console.log(`  Catch-all: ${result.smtp?.is_catch_all ? '⚠️  Yes' : 'No'}`);
+    console.log(`  Provider: ${result.misc?.providerType}`);
+    console.log(`  Reachable: ${result.isReachable === 'safe' ? '✅' : '❌'}`);
+    console.log(`  Catch-all: ${result.smtp?.isCatchAll ? '⚠️  Yes' : 'No'}`);
 
-    if (result.smtp?.has_full_inbox) {
+    if (result.smtp?.hasFullInbox) {
       console.log(`  Full Inbox: ⚠️  Yes`);
     }
 
-    if (result.smtp?.is_disabled) {
+    if (result.smtp?.isDisabled) {
       console.log(`  Disabled: ⚠️  Yes`);
     }
 
@@ -93,7 +93,7 @@ async function quickTest() {
     }
 
     // Exit with appropriate code for scripting
-    process.exit(result.is_reachable === 'safe' ? 0 : 1);
+    process.exit(result.isReachable === 'safe' ? 0 : 1);
   } catch (error) {
     const duration = Date.now() - startTime;
 

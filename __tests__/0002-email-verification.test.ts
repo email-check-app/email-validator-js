@@ -52,9 +52,9 @@ describe('0002 Email Syntax Validation', () => {
 
     validEmails.forEach((email) => {
       const result = validateEmailSyntax(email);
-      expect(result.is_valid).toBe(true);
+      expect(result.isValid).toBe(true);
       expect(result.email).toBe(email.toLowerCase());
-      expect(result.local_part).toBeDefined();
+      expect(result.localPart).toBeDefined();
       expect(result.domain).toBeDefined();
     });
   });
@@ -76,7 +76,7 @@ describe('0002 Email Syntax Validation', () => {
 
     invalidEmails.forEach((email) => {
       const result = validateEmailSyntax(email);
-      expect(result.is_valid).toBe(false);
+      expect(result.isValid).toBe(false);
       expect(result.error).toBeDefined();
     });
   });
@@ -85,13 +85,13 @@ describe('0002 Email Syntax Validation', () => {
     // Local part > 64 chars
     const longLocal = 'a'.repeat(65) + '@example.com';
     const result = validateEmailSyntax(longLocal);
-    expect(result.is_valid).toBe(false);
+    expect(result.isValid).toBe(false);
     expect(result.error).toContain('exceeds 64 characters');
 
     // Domain > 253 chars
     const longDomain = 'user@' + 'a'.repeat(254) + '.com';
     const result2 = validateEmailSyntax(longDomain);
-    expect(result2.is_valid).toBe(false);
+    expect(result2.isValid).toBe(false);
     expect(result2.error).toContain('exceeds 253 characters');
   });
 
@@ -105,7 +105,7 @@ describe('0002 Email Syntax Validation', () => {
 
     edgeCases.forEach(({ email, expected }) => {
       const result = validateEmailSyntax(email);
-      expect(result.is_valid).toBe(expected);
+      expect(result.isValid).toBe(expected);
     });
   });
 });
@@ -162,8 +162,8 @@ describe('0002 MX Records Query', () => {
     expect(mockResolveMx).toHaveBeenCalledWith('example.com');
     expect(result.success).toBe(true);
     expect(result.records).toHaveLength(2);
-    expect(result.lowest_priority?.exchange).toBe('mail.example.com');
-    expect(result.lowest_priority?.priority).toBe(10);
+    expect(result.lowestPriority?.exchange).toBe('mail.example.com');
+    expect(result.lowestPriority?.priority).toBe(10);
   });
 
   test('should handle domains with no MX records gracefully', async () => {
@@ -202,7 +202,7 @@ describe('0002 MX Records Query', () => {
     expect(result.records[0].priority).toBe(10);
     expect(result.records[1].priority).toBe(20);
     expect(result.records[2].priority).toBe(30);
-    expect(result.lowest_priority?.exchange).toBe('mail1.example.com');
+    expect(result.lowestPriority?.exchange).toBe('mail1.example.com');
   });
 });
 
@@ -241,8 +241,8 @@ describe('0002 Check If Email Exists Core', () => {
       emailAddress: 'invalid-email',
     });
 
-    expect(result.is_reachable).toBe('invalid');
-    expect(result.syntax.is_valid).toBe(false);
+    expect(result.isReachable).toBe('invalid');
+    expect(result.syntax.isValid).toBe(false);
     expect(result.mx).toBeNull();
     expect(result.smtp).toBeNull();
   });
@@ -256,8 +256,8 @@ describe('0002 Check If Email Exists Core', () => {
       verifySmtp: true,
     });
 
-    expect(result.is_reachable).toBe('invalid');
-    expect(result.syntax.is_valid).toBe(true);
+    expect(result.isReachable).toBe('invalid');
+    expect(result.syntax.isValid).toBe(true);
     expect(result.mx?.success).toBe(false);
     expect(result.smtp).toBeNull();
   });
@@ -269,10 +269,10 @@ describe('0002 Check If Email Exists Core', () => {
       verifySmtp: false,
     });
 
-    expect(result.syntax.is_valid).toBe(true);
+    expect(result.syntax.isValid).toBe(true);
     expect(result.mx).toBeNull();
     expect(result.smtp).toBeNull();
-    expect(result.is_reachable).toBe('unknown'); // No SMTP verification
+    expect(result.isReachable).toBe('unknown'); // No SMTP verification
   });
 
   test('should apply custom SMTP options when provided', async () => {
@@ -294,7 +294,7 @@ describe('0002 Check If Email Exists Core', () => {
     });
 
     // Verify that custom options are applied (SMTP would be attempted)
-    expect(result.syntax.is_valid).toBe(true);
+    expect(result.syntax.isValid).toBe(true);
     expect(result.mx?.success).toBe(true);
   });
 
@@ -325,9 +325,9 @@ describe('0002 Check If Email Exists Core', () => {
     });
 
     expect(result.misc).not.toBeNull();
-    expect(result.misc?.provider_type).toBe(EmailProvider.GMAIL);
+    expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
     // Gmail should be detected as free provider
-    expect(result.misc?.is_free).toBeDefined();
+    expect(result.misc?.isFree).toBeDefined();
   });
 
   test('should apply provider-specific optimizations when enabled', async () => {
@@ -340,7 +340,7 @@ describe('0002 Check If Email Exists Core', () => {
       enableProviderOptimizations: true,
     });
 
-    expect(result.misc?.provider_type).toBe(EmailProvider.GMAIL);
+    expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
   });
 });
 
@@ -381,7 +381,7 @@ describe('0002 Error Handling', () => {
       timeout: 50, // Very short timeout
     });
 
-    expect(result.is_reachable).toBe('invalid'); // MX timeout makes it unreachable/invalid
+    expect(result.isReachable).toBe('invalid'); // MX timeout makes it unreachable/invalid
     expect(result.mx?.error).toBeDefined();
     expect(result.mx?.error).toContain('operation timed out');
   });
@@ -391,8 +391,8 @@ describe('0002 Error Handling', () => {
 
     for (const testCase of testCases) {
       const result = await checkIfEmailExistsCore(testCase);
-      expect(result.is_reachable).toBe('invalid');
-      expect(result.syntax?.is_valid).toBe(false);
+      expect(result.isReachable).toBe('invalid');
+      expect(result.syntax?.isValid).toBe(false);
     }
   });
 });
@@ -422,7 +422,7 @@ describe('0002 Performance Considerations', () => {
     expect(duration).toBeLessThan(5000); // Should complete 10 emails in under 5 seconds without SMTP
 
     results.forEach((result) => {
-      expect(result.syntax.is_valid).toBe(true);
+      expect(result.syntax.isValid).toBe(true);
       expect(result.mx?.success).toBe(true);
     });
   });
@@ -442,7 +442,7 @@ describe('0002 Integration Tests', () => {
       verifySmtp: false, // Skip SMTP to avoid issues
     });
 
-    expect(result.syntax.is_valid).toBe(true);
-    expect(result.misc?.provider_type).toBe(EmailProvider.GMAIL);
+    expect(result.syntax.isValid).toBe(true);
+    expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
   }, 10000);
 });

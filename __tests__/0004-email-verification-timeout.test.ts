@@ -37,7 +37,7 @@ describe('0004 Network Timeout Handling', () => {
       timeout: 50, // Very short timeout to trigger timeout error
     });
 
-    expect(result.is_reachable).toBe('invalid'); // MX timeout makes the email unreachable/invalid
+    expect(result.isReachable).toBe('invalid'); // MX timeout makes the email unreachable/invalid
     expect(result.mx?.error).toBeDefined();
     expect(result.mx?.error).toContain('operation timed out');
   });
@@ -51,7 +51,7 @@ describe('0004 Network Timeout Handling', () => {
       verifySmtp: false,
     });
 
-    expect(result.is_reachable).toBe('unknown'); // No SMTP verification performed
+    expect(result.isReachable).toBe('unknown'); // No SMTP verification performed
     expect(result.mx?.success).toBe(true);
     expect(result.smtp).toBeNull();
   });
@@ -65,7 +65,7 @@ describe('0004 Network Timeout Handling', () => {
       verifySmtp: false,
     });
 
-    expect(result.is_reachable).toBe('invalid'); // MX lookup failed
+    expect(result.isReachable).toBe('invalid'); // MX lookup failed
     expect(result.mx?.success).toBe(false);
     expect(result.mx?.error).toBeDefined();
     expect(result.mx?.error).toContain('lookup failed');
