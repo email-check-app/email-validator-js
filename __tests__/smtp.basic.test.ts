@@ -213,17 +213,17 @@ describe('SMTP Basic Verification', () => {
 
         // First call
         const {
-          result: { result: result1 },
+          result: { smtpResult: result1 },
           duration: duration1,
         } = await measureTime(() => verifyMailboxSMTP(params));
-        expect(TestUtils.isValidResult(result1)).toBe(true);
+        expect(TestUtils.isValidResult(result1.isDeliverable)).toBe(true);
 
         // Second call should use cache
         const {
-          result: { result: result2 },
+          result: { smtpResult: result2 },
           duration: duration2,
         } = await measureTime(() => verifyMailboxSMTP(params));
-        expect(TestUtils.isValidResult(result2)).toBe(true);
+        expect(TestUtils.isValidResult(result2.isDeliverable)).toBe(true);
 
         console.log(`First call: ${duration1}ms, Second call: ${duration2}ms`);
         if (duration1 > 0) {
@@ -272,7 +272,7 @@ describe('SMTP Basic Verification', () => {
 
           const { smtpResult } = await verifyMailboxSMTP(params);
           expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-          console.log(`${domain}: ${result}`);
+          console.log(`${domain}: ${smtpResult.isDeliverable}`);
         }
       },
       TestUtils.getTestTimeout('slow')

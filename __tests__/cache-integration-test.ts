@@ -19,11 +19,11 @@ describe('Cache Integration', () => {
       let cacheHits = 0;
       let cacheSets = 0;
 
-      const trackingCache = new LRUAdapter<boolean>(1000, 86400000);
+      const trackingCache = new LRUAdapter<DisposableEmailResult>(1000, 86400000);
       const originalGet = trackingCache.get.bind(trackingCache);
       const originalSet = trackingCache.set.bind(trackingCache);
 
-      (trackingCache as any).get = (key: string): Promise<boolean | null> => {
+      (trackingCache as any).get = (key: string): Promise<DisposableEmailResult | null> => {
         cacheHits++;
         return Promise.resolve(originalGet(key) ?? null);
       };
@@ -69,11 +69,11 @@ describe('Cache Integration', () => {
       let cacheHits = 0;
       let cacheSets = 0;
 
-      const trackingCache = new LRUAdapter<boolean>(1000, 86400000);
+      const trackingCache = new LRUAdapter<DisposableEmailResult>(1000, 86400000);
       const originalGet = trackingCache.get.bind(trackingCache);
       const originalSet = trackingCache.set.bind(trackingCache);
 
-      (trackingCache as any).get = (key: string): Promise<boolean | null> => {
+      (trackingCache as any).get = (key: string): Promise<DisposableEmailResult | null> => {
         cacheHits++;
         return Promise.resolve(originalGet(key) ?? null);
       };
@@ -121,11 +121,11 @@ describe('Cache Integration', () => {
       let cacheHits = 0;
       let cacheSets = 0;
 
-      const trackingCache = new LRUAdapter<boolean>(1000, 86400000);
+      const trackingCache = new LRUAdapter<FreeEmailResult>(1000, 86400000);
       const originalGet = trackingCache.get.bind(trackingCache);
       const originalSet = trackingCache.set.bind(trackingCache);
 
-      (trackingCache as any).get = (key: string): Promise<boolean | null> => {
+      (trackingCache as any).get = (key: string): Promise<FreeEmailResult | null> => {
         cacheHits++;
         return Promise.resolve(originalGet(key) ?? null);
       };
@@ -137,15 +137,18 @@ describe('Cache Integration', () => {
       const customCache: ICache = {
         free: trackingCache,
         mx: new LRUAdapter<string[]>(DEFAULT_CACHE_OPTIONS.maxSize.mx, DEFAULT_CACHE_OPTIONS.ttl.mx),
-        disposable: new LRUAdapter<boolean>(
+        disposable: new LRUAdapter<DisposableEmailResult>(
           DEFAULT_CACHE_OPTIONS.maxSize.disposable,
           DEFAULT_CACHE_OPTIONS.ttl.disposable
         ),
-        domainValid: new LRUAdapter<boolean>(
+        domainValid: new LRUAdapter<DomainValidResult>(
           DEFAULT_CACHE_OPTIONS.maxSize.domainValid,
           DEFAULT_CACHE_OPTIONS.ttl.domainValid
         ),
-        smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        smtp: new LRUAdapter<SmtpVerificationResult>(
+          DEFAULT_CACHE_OPTIONS.maxSize.smtp,
+          DEFAULT_CACHE_OPTIONS.ttl.smtp
+        ),
         smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
           DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
@@ -188,7 +191,7 @@ describe('Cache Integration', () => {
 
       const customCache: ICache = {
         mx: trackingCache,
-        disposable: new LRUAdapter<boolean>(
+        disposable: new LRUAdapter<DisposableEmailResult>(
           DEFAULT_CACHE_OPTIONS.maxSize.disposable,
           DEFAULT_CACHE_OPTIONS.ttl.disposable
         ),
@@ -251,12 +254,12 @@ describe('Cache Integration', () => {
       };
 
       // Store different values in each cache
-      await cache1.disposable.set('test.com', true);
-      await cache2.disposable.set('test.com', false);
+      await cache1.disposable.set('test.com', { isDisposable: true, checkedAt: Date.now() });
+      await cache2.disposable.set('test.com', { isDisposable: false, checkedAt: Date.now() });
 
       // Verify caches are isolated
-      expect(await cache1.disposable.get('test.com')).toBe(true);
-      expect(await cache2.disposable.get('test.com')).toBe(false);
+      expect((await cache1.disposable.get('test.com'))?.isDisposable).toBe(true);
+      expect((await cache2.disposable.get('test.com'))?.isDisposable).toBe(false);
 
       // Test with actual functions
       const result1 = await isDisposableEmail({ emailOrDomain: 'test@tempmail.org', cache: cache1 });

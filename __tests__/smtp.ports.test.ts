@@ -23,7 +23,7 @@ describe('SMTP Port Configuration', () => {
           duration,
         } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Port 25 verification completed in ${duration}ms: ${result}`);
+        console.log(`Port 25 verification completed in ${duration}ms: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -40,7 +40,7 @@ describe('SMTP Port Configuration', () => {
           duration,
         } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Port 587 verification completed in ${duration}ms: ${result}`);
+        console.log(`Port 587 verification completed in ${duration}ms: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -57,7 +57,7 @@ describe('SMTP Port Configuration', () => {
           duration,
         } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Port 465 verification completed in ${duration}ms: ${result}`);
+        console.log(`Port 465 verification completed in ${duration}ms: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -100,7 +100,7 @@ describe('SMTP Port Configuration', () => {
           duration,
         } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`Secure ports verification completed in ${duration}ms: ${result}`);
+        console.log(`Secure ports verification completed in ${duration}ms: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -121,7 +121,7 @@ describe('SMTP Port Configuration', () => {
           duration,
         } = await measureTime(() => verifyMailboxSMTP(params));
         expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
-        console.log(`All ports verification completed in ${duration}ms: ${result}`);
+        console.log(`All ports verification completed in ${duration}ms: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );

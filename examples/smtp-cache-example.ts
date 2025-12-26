@@ -2,7 +2,14 @@
 
 import { getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp';
-import type { ICache } from '../src/types';
+import type {
+  DisposableEmailResult,
+  DomainValidResult,
+  FreeEmailResult,
+  ICache,
+  SmtpVerificationResult,
+} from '../src/types';
+import type { ParsedWhoisResult } from '../src/whois-parser';
 
 // Example custom cache implementation
 class CustomMemoryCache implements ICache {
@@ -29,7 +36,7 @@ class CustomMemoryCache implements ICache {
 
   disposable = {
     get: (key: string) => Promise.resolve(this.getStore('disposable').get(key)),
-    set: (key: string, value: boolean) => {
+    set: (key: string, value: DisposableEmailResult) => {
       this.getStore('disposable').set(key, value);
     },
     delete: (key: string) => this.getStore('disposable').delete(key),
@@ -40,7 +47,7 @@ class CustomMemoryCache implements ICache {
 
   free = {
     get: (key: string) => Promise.resolve(this.getStore('free').get(key)),
-    set: (key: string, value: boolean) => {
+    set: (key: string, value: FreeEmailResult) => {
       this.getStore('free').set(key, value);
     },
     delete: (key: string) => this.getStore('free').delete(key),
@@ -51,7 +58,7 @@ class CustomMemoryCache implements ICache {
 
   domainValid = {
     get: (key: string) => Promise.resolve(this.getStore('domainValid').get(key)),
-    set: (key: string, value: boolean) => {
+    set: (key: string, value: DomainValidResult) => {
       this.getStore('domainValid').set(key, value);
     },
     delete: (key: string) => this.getStore('domainValid').delete(key),
@@ -62,7 +69,7 @@ class CustomMemoryCache implements ICache {
 
   smtp = {
     get: (key: string) => Promise.resolve(this.getStore('smtp').get(key)),
-    set: (key: string, value: boolean | null) => {
+    set: (key: string, value: SmtpVerificationResult) => {
       this.getStore('smtp').set(key, value);
     },
     delete: (key: string) => this.getStore('smtp').delete(key),
@@ -89,7 +96,7 @@ class CustomMemoryCache implements ICache {
 
   domainSuggestion = {
     get: (key: string) => Promise.resolve(this.getStore('domainSuggestion').get(key)),
-    set: (key: string, value: any) => {
+    set: (key: string, value: { suggested: string; confidence: number } | null) => {
       this.getStore('domainSuggestion').set(key, value);
     },
     delete: (key: string) => this.getStore('domainSuggestion').delete(key),
@@ -100,7 +107,7 @@ class CustomMemoryCache implements ICache {
 
   whois = {
     get: (key: string) => Promise.resolve(this.getStore('whois').get(key)),
-    set: (key: string, value: any) => {
+    set: (key: string, value: ParsedWhoisResult) => {
       this.getStore('whois').set(key, value);
     },
     delete: (key: string) => this.getStore('whois').delete(key),

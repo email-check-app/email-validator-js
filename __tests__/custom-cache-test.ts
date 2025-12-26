@@ -83,21 +83,31 @@ describe('Custom Cache Implementation', () => {
       };
 
       // Test with custom cache
-      const disposableResult = await isDisposableEmail({
+      const isDisposable = await isDisposableEmail({
         emailOrDomain: '10minutemail.com',
         cache: customCache,
       });
-      expect(disposableResult).toBe(true);
+      expect(isDisposable).toBe(true);
 
-      const freeResult = await isFreeEmail({
+      const isFree = await isFreeEmail({
         emailOrDomain: 'gmail.com',
         cache: customCache,
       });
-      expect(freeResult).toBe(true);
+      expect(isFree).toBe(true);
 
-      // Verify data is in custom cache
-      expect(await customCache.disposable.get('10minutemail.com')).toBe(true);
-      expect(await customCache.free.get('gmail.com')).toBe(true);
+      // Verify data is in custom cache (functions populate cache with rich result types)
+      const cachedDisposable = await customCache.disposable.get('10minutemail.com');
+      expect(cachedDisposable).toBeTruthy();
+      expect(
+        cachedDisposable && typeof cachedDisposable === 'object' && 'isDisposable' in cachedDisposable
+          ? cachedDisposable.isDisposable
+          : false
+      ).toBe(true);
+      const cachedFree = await customCache.free.get('gmail.com');
+      expect(cachedFree).toBeTruthy();
+      expect(cachedFree && typeof cachedFree === 'object' && 'isFree' in cachedFree ? cachedFree.isFree : false).toBe(
+        true
+      );
     });
   });
 
@@ -125,13 +135,13 @@ describe('Custom Cache Implementation', () => {
         whois: new LRUAdapter<any>(10, 60000),
       };
 
-      // Store different values in each cache
-      await cache1.disposable.set('test.com', true);
-      await cache2.disposable.set('test.com', false);
+      // Store different values in each cache (must use rich result types)
+      await cache1.disposable.set('test.com', { isDisposable: true, checkedAt: Date.now() });
+      await cache2.disposable.set('test.com', { isDisposable: false, checkedAt: Date.now() });
 
       // Verify caches are isolated
-      expect(await cache1.disposable.get('test.com')).toBe(true);
-      expect(await cache2.disposable.get('test.com')).toBe(false);
+      expect(await cache1.disposable.get('test.com')).toEqual({ isDisposable: true, checkedAt: expect.any(Number) });
+      expect(await cache2.disposable.get('test.com')).toEqual({ isDisposable: false, checkedAt: expect.any(Number) });
     });
   });
 });

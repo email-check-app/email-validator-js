@@ -35,9 +35,9 @@ describe('SMTP TLS Configuration', () => {
           options: TEST_CONFIGS.TLS_DISABLED,
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
-        console.log(`TLS disabled result: ${result}`);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
+        console.log(`TLS disabled result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -140,9 +140,9 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
+        const { smtpResult } = await verifyMailboxSMTP(params);
         // May fail due to cert validation, but should handle gracefully
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -212,9 +212,9 @@ describe('SMTP TLS Configuration', () => {
           options: TEST_CONFIGS.TLS_STRICT,
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
-        console.log(`Strict TLS result: ${result}`);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
+        console.log(`Strict TLS result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -226,9 +226,9 @@ describe('SMTP TLS Configuration', () => {
           options: TEST_CONFIGS.TLS_LENIENT,
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
-        console.log(`Lenient TLS result: ${result}`);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
+        console.log(`Lenient TLS result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -267,15 +267,15 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
 
         // Check for TLS upgrade logs
         const logs = consoleSpy.mock.calls.flat().join(' ');
         consoleSpy.mockRestore();
 
         // TLS upgrade might be mentioned in logs
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -430,9 +430,9 @@ describe('SMTP TLS Configuration', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
+        const { smtpResult } = await verifyMailboxSMTP(params);
         // Should either succeed with TLS or fall back to plain text
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );

@@ -23,7 +23,7 @@ async function testPortConnectivity() {
     for (const port of [25, 587, 465]) {
       console.log(`  Port ${port}:`);
 
-      const { result } = await verifyMailboxSMTP({
+      const { smtpResult } = await verifyMailboxSMTP({
         local: 'test',
         domain,
         mxRecords,
@@ -39,7 +39,7 @@ async function testPortConnectivity() {
         },
       });
 
-      console.log(`    Result: ${result}`);
+      console.log(`    Result: ${smtpResult.isDeliverable}`);
     }
     console.log();
   }
@@ -55,7 +55,7 @@ async function testMultiPortWithCaching() {
   // First run - should test all ports
   console.log('First verification (cold cache):');
   const start1 = Date.now();
-  const result1 = await verifyMailboxSMTP({
+  const { smtpResult: smtpResult1, port: port1 } = await verifyMailboxSMTP({
     local: 'nonexistent',
     domain,
     mxRecords,
@@ -66,12 +66,12 @@ async function testMultiPortWithCaching() {
     },
   });
   const duration1 = Date.now() - start1;
-  console.log(`  Result: ${result1.result}, Port: ${result1.port}, Duration: ${duration1}ms`);
+  console.log(`  Result: ${smtpResult1.isDeliverable}, Port: ${port1}, Duration: ${duration1}ms`);
 
   // Second run - should use cached port
   console.log('Second verification (warm cache):');
   const start2 = Date.now();
-  const result2 = await verifyMailboxSMTP({
+  const { smtpResult: smtpResult2, port: port2 } = await verifyMailboxSMTP({
     local: 'nonexistent',
     domain,
     mxRecords,
@@ -82,7 +82,7 @@ async function testMultiPortWithCaching() {
     },
   });
   const duration2 = Date.now() - start2;
-  console.log(`  Result: ${result2.result}, Port: ${result2.port}, Duration: ${duration2}ms`);
+  console.log(`  Result: ${smtpResult2.isDeliverable}, Port: ${port2}, Duration: ${duration2}ms`);
 
   console.log(
     `  Speed improvement: ${duration1 - duration2}ms (${Math.round(((duration1 - duration2) / duration1) * 100)}%)`
@@ -100,7 +100,7 @@ async function testTimeoutHandling() {
   // Test with very short timeout
   console.log('Testing with 1ms timeout (should fail quickly):');
   const start = Date.now();
-  const result = await verifyMailboxSMTP({
+  const { smtpResult } = await verifyMailboxSMTP({
     local: 'test',
     domain,
     mxRecords,
@@ -111,7 +111,7 @@ async function testTimeoutHandling() {
     },
   });
   const duration = Date.now() - start;
-  console.log(`  Result: ${result.result}, Duration: ${duration}ms`);
+  console.log(`  Result: ${smtpResult.isDeliverable}, Duration: ${duration}ms`);
   console.log();
 }
 
@@ -124,7 +124,7 @@ async function testTLSConfiguration() {
 
   // Test with strict TLS
   console.log('Testing with strict TLS (may fail with self-signed certs):');
-  const result1 = await verifyMailboxSMTP({
+  const { smtpResult: smtpResult1 } = await verifyMailboxSMTP({
     local: 'test',
     domain,
     mxRecords,
@@ -138,11 +138,11 @@ async function testTLSConfiguration() {
       debug: false,
     },
   });
-  console.log(`  Strict TLS Result: ${result1.result}`);
+  console.log(`  Strict TLS Result: ${smtpResult1.isDeliverable}`);
 
   // Test with lenient TLS
   console.log('Testing with lenient TLS:');
-  const result2 = await verifyMailboxSMTP({
+  const { smtpResult: smtpResult2 } = await verifyMailboxSMTP({
     local: 'test',
     domain,
     mxRecords,
@@ -156,7 +156,7 @@ async function testTLSConfiguration() {
       debug: false,
     },
   });
-  console.log(`  Lenient TLS Result: ${result2.result}`);
+  console.log(`  Lenient TLS Result: ${smtpResult2.isDeliverable}`);
   console.log();
 }
 
@@ -169,7 +169,7 @@ async function testCustomSequences() {
 
   // Test with VRFY command
   console.log('Testing with VRFY command:');
-  const result1 = await verifyMailboxSMTP({
+  const { smtpResult: smtpResult1 } = await verifyMailboxSMTP({
     local: 'test',
     domain,
     mxRecords,
@@ -179,11 +179,11 @@ async function testCustomSequences() {
       debug: false,
     },
   });
-  console.log(`  With VRFY Result: ${result1.result}`);
+  console.log(`  With VRFY Result: ${smtpResult1.isDeliverable}`);
 
   // Test without VRFY command
   console.log('Testing without VRFY command:');
-  const result2 = await verifyMailboxSMTP({
+  const { smtpResult: smtpResult2 } = await verifyMailboxSMTP({
     local: 'test',
     domain,
     mxRecords,
@@ -193,7 +193,7 @@ async function testCustomSequences() {
       debug: false,
     },
   });
-  console.log(`  Without VRFY Result: ${result2.result}`);
+  console.log(`  Without VRFY Result: ${smtpResult2.isDeliverable}`);
   console.log();
 }
 

@@ -155,13 +155,15 @@ describe('Caching System', () => {
 
       // Add some data to caches
       defaultCache.mx.set('test.com', ['mx1.test.com']);
-      defaultCache.disposable.set('test.com', true);
-      defaultCache.free.set('test.com', false);
+      defaultCache.disposable.set('test.com', { isDisposable: true, checkedAt: Date.now() });
+      defaultCache.free.set('test.com', { isFree: false, checkedAt: Date.now() });
 
       // Verify data exists
       expect(defaultCache.mx.get('test.com')).toEqual(['mx1.test.com']);
-      expect(defaultCache.disposable.get('test.com')).toBe(true);
-      expect(defaultCache.free.get('test.com')).toBe(false);
+      const disposableResult = defaultCache.disposable.get('test.com');
+      expect(disposableResult && 'isDisposable' in disposableResult && disposableResult.isDisposable).toBe(true);
+      const freeResult = defaultCache.free.get('test.com');
+      expect(freeResult && 'isFree' in freeResult && freeResult.isFree).toBe(false);
 
       // Clear cache
       clearDefaultCache();
