@@ -2,6 +2,7 @@ import { LRUAdapter } from '../src/adapters/lru-adapter';
 import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
 import type { ICache } from '../src/cache-interface';
 import { isDisposableEmail, isFreeEmail } from '../src/index';
+import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from '../src/types';
 
 describe('Custom Cache Implementation', () => {
   // No global cache management needed with parameter-based injection
@@ -39,10 +40,19 @@ describe('Custom Cache Implementation', () => {
     it('should create cache with LRU adapters', () => {
       const cache: ICache = {
         mx: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.mx, DEFAULT_CACHE_OPTIONS.ttl.mx),
-        disposable: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.disposable, DEFAULT_CACHE_OPTIONS.ttl.disposable),
-        free: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
-        domainValid: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.domainValid, DEFAULT_CACHE_OPTIONS.ttl.domainValid),
-        smtp: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+        disposable: new LRUAdapter<DisposableEmailResult>(
+          DEFAULT_CACHE_OPTIONS.maxSize.disposable,
+          DEFAULT_CACHE_OPTIONS.ttl.disposable
+        ),
+        free: new LRUAdapter<FreeEmailResult>(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
+        domainValid: new LRUAdapter<DomainValidResult>(
+          DEFAULT_CACHE_OPTIONS.maxSize.domainValid,
+          DEFAULT_CACHE_OPTIONS.ttl.domainValid
+        ),
+        smtp: new LRUAdapter<SmtpVerificationResult>(
+          DEFAULT_CACHE_OPTIONS.maxSize.smtp,
+          DEFAULT_CACHE_OPTIONS.ttl.smtp
+        ),
         smtpPort: new LRUAdapter(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
         domainSuggestion: new LRUAdapter(
           DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
@@ -63,10 +73,10 @@ describe('Custom Cache Implementation', () => {
     it('should work with custom cache instances', async () => {
       const customCache: ICache = {
         mx: new LRUAdapter<string[]>(5, 60000), // 1 minute
-        disposable: new LRUAdapter<boolean>(5, 60000),
-        free: new LRUAdapter<boolean>(5, 60000),
-        domainValid: new LRUAdapter<boolean>(5, 60000),
-        smtp: new LRUAdapter<boolean | null>(5, 60000),
+        disposable: new LRUAdapter<DisposableEmailResult>(5, 60000),
+        free: new LRUAdapter<FreeEmailResult>(5, 60000),
+        domainValid: new LRUAdapter<DomainValidResult>(5, 60000),
+        smtp: new LRUAdapter<SmtpVerificationResult>(5, 60000),
         smtpPort: new LRUAdapter<number>(5, 60000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(5, 60000),
         whois: new LRUAdapter<any>(5, 60000),
@@ -95,10 +105,10 @@ describe('Custom Cache Implementation', () => {
     it('should isolate cache instances', async () => {
       const cache1: ICache = {
         mx: new LRUAdapter<string[]>(10, 60000),
-        disposable: new LRUAdapter<boolean>(10, 60000),
-        free: new LRUAdapter<boolean>(10, 60000),
-        domainValid: new LRUAdapter<boolean>(10, 60000),
-        smtp: new LRUAdapter<boolean | null>(10, 60000),
+        disposable: new LRUAdapter<DisposableEmailResult>(10, 60000),
+        free: new LRUAdapter<FreeEmailResult>(10, 60000),
+        domainValid: new LRUAdapter<DomainValidResult>(10, 60000),
+        smtp: new LRUAdapter<SmtpVerificationResult>(10, 60000),
         smtpPort: new LRUAdapter<number>(10, 60000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(10, 60000),
         whois: new LRUAdapter<any>(10, 60000),
@@ -106,10 +116,10 @@ describe('Custom Cache Implementation', () => {
 
       const cache2: ICache = {
         mx: new LRUAdapter<string[]>(10, 60000),
-        disposable: new LRUAdapter<boolean>(10, 60000),
-        free: new LRUAdapter<boolean>(10, 60000),
-        domainValid: new LRUAdapter<boolean>(10, 60000),
-        smtp: new LRUAdapter<boolean | null>(10, 60000),
+        disposable: new LRUAdapter<DisposableEmailResult>(10, 60000),
+        free: new LRUAdapter<FreeEmailResult>(10, 60000),
+        domainValid: new LRUAdapter<DomainValidResult>(10, 60000),
+        smtp: new LRUAdapter<SmtpVerificationResult>(10, 60000),
         smtpPort: new LRUAdapter<number>(10, 60000),
         domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(10, 60000),
         whois: new LRUAdapter<any>(10, 60000),

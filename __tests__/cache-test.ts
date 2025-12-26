@@ -6,6 +6,7 @@ import { LRUAdapter } from '../src/adapters/lru-adapter';
 import { clearDefaultCache, DEFAULT_CACHE_OPTIONS, getDefaultCache, resetDefaultCache } from '../src/cache';
 import type { ICache } from '../src/cache-interface';
 import { resolveMxRecords } from '../src/dns';
+import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from '../src/types';
 
 describe('Caching System', () => {
   let sandbox: SinonSandbox;
@@ -16,16 +17,16 @@ describe('Caching System', () => {
     // Create a fresh cache for each test
     testCache = {
       mx: new LRUAdapter<string[]>(DEFAULT_CACHE_OPTIONS.maxSize.mx, DEFAULT_CACHE_OPTIONS.ttl.mx),
-      disposable: new LRUAdapter<boolean>(
+      disposable: new LRUAdapter<DisposableEmailResult>(
         DEFAULT_CACHE_OPTIONS.maxSize.disposable,
         DEFAULT_CACHE_OPTIONS.ttl.disposable
       ),
-      free: new LRUAdapter<boolean>(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
-      domainValid: new LRUAdapter<boolean>(
+      free: new LRUAdapter<FreeEmailResult>(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
+      domainValid: new LRUAdapter<DomainValidResult>(
         DEFAULT_CACHE_OPTIONS.maxSize.domainValid,
         DEFAULT_CACHE_OPTIONS.ttl.domainValid
       ),
-      smtp: new LRUAdapter<boolean | null>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+      smtp: new LRUAdapter<SmtpVerificationResult>(DEFAULT_CACHE_OPTIONS.maxSize.smtp, DEFAULT_CACHE_OPTIONS.ttl.smtp),
       smtpPort: new LRUAdapter<number>(DEFAULT_CACHE_OPTIONS.maxSize.smtpPort, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
       domainSuggestion: new LRUAdapter<{ suggested: string; confidence: number } | null>(
         DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,

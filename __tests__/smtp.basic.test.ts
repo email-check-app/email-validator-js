@@ -16,13 +16,13 @@ describe('SMTP Basic Verification', () => {
       async () => {
         const params = createTestParams();
         const {
-          result: { result },
+          result: { smtpResult },
           duration,
         } = await measureTime(() => verifyMailboxSMTP(params));
 
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
         console.log(`Default verification completed in ${duration}ms`);
-        console.log(`Result: ${result}`);
+        console.log(`Result: ${smtpResult.isDeliverable}`);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -35,8 +35,8 @@ describe('SMTP Basic Verification', () => {
           mxRecords: TEST_DATA.MX_RECORDS.gmail,
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -46,8 +46,8 @@ describe('SMTP Basic Verification', () => {
         mxRecords: [],
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBe(false);
+      const { smtpResult } = await verifyMailboxSMTP(params);
+      expect(smtpResult.isDeliverable).toBe(false);
     });
 
     it('should return false for undefined MX records', async () => {
@@ -55,8 +55,8 @@ describe('SMTP Basic Verification', () => {
         mxRecords: undefined as any,
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(result).toBe(false);
+      const { smtpResult } = await verifyMailboxSMTP(params);
+      expect(smtpResult.isDeliverable).toBe(false);
     });
   });
 
@@ -68,8 +68,8 @@ describe('SMTP Basic Verification', () => {
         mxRecords: TEST_DATA.MX_RECORDS.gmail,
       });
 
-      const { result } = await verifyMailboxSMTP(params);
-      expect(TestUtils.isValidResult(result)).toBe(true);
+      const { smtpResult } = await verifyMailboxSMTP(params);
+      expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
     });
 
     it(
@@ -81,8 +81,8 @@ describe('SMTP Basic Verification', () => {
           mxRecords: TEST_DATA.MX_RECORDS.gmail,
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -95,8 +95,8 @@ describe('SMTP Basic Verification', () => {
           mxRecords: TEST_DATA.MX_RECORDS.gmail,
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -116,8 +116,8 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
         expect(consoleSpy).toHaveBeenCalled();
 
         consoleSpy.mockRestore();
@@ -138,8 +138,8 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
         // Console should not be called when debug is false
         expect(consoleSpy).not.toHaveBeenCalled();
 
@@ -160,8 +160,8 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -176,8 +176,8 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -191,8 +191,8 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -244,8 +244,8 @@ describe('SMTP Basic Verification', () => {
           },
         });
 
-        const { result } = await verifyMailboxSMTP(params);
-        expect(TestUtils.isValidResult(result)).toBe(true);
+        const { smtpResult } = await verifyMailboxSMTP(params);
+        expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
       },
       TestUtils.getTestTimeout('integration')
     );
@@ -270,8 +270,8 @@ describe('SMTP Basic Verification', () => {
             },
           });
 
-          const { result } = await verifyMailboxSMTP(params);
-          expect(TestUtils.isValidResult(result)).toBe(true);
+          const { smtpResult } = await verifyMailboxSMTP(params);
+          expect(TestUtils.isValidResult(smtpResult.isDeliverable)).toBe(true);
           console.log(`${domain}: ${result}`);
         }
       },
