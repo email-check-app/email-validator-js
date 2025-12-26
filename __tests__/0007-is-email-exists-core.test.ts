@@ -257,7 +257,7 @@ describe('0007: isEmailExistsCore', () => {
   });
 });
 
-describe('0007: Integration Tests', () => {
+describe.skip('0007: Integration Tests', () => {
   // These tests require actual network connections and should be run manually
   // or in a CI environment with proper mocking
 
@@ -275,16 +275,11 @@ describe('0007: Integration Tests', () => {
       fromEmail: 'test@example.com',
       helloName: 'example.com',
       timeout: 10000,
-      verifySmtp: false, // Keep false for integration tests
+      verifySmtp: false,
     };
 
-    try {
-      const result = await isEmailExistsCore(params);
-      expect(result).toHaveProperty('isReachable');
-      expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
-    } catch (error) {
-      // Network issues are acceptable in integration tests
-      console.warn('Integration test skipped due to network issues:', error);
-    }
+    const result = await isEmailExistsCore(params);
+    expect(result).toHaveProperty('isReachable');
+    expect(result.misc?.providerType).toBe(EmailProvider.GMAIL);
   });
 });

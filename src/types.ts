@@ -146,7 +146,6 @@ export interface SMTPVerifyOptions {
   timeout?: number;
   maxRetries?: number;
   tls?: boolean | SMTPTLSConfig;
-  hostname?: string;
   useVRFY?: boolean;
   cache?: ICache | null; // Cache instance or null/undefined for no caching
   debug?: boolean;

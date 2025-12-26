@@ -132,13 +132,17 @@ export class SMTPClient {
     this.port = port;
     this.timeout = options.timeout ?? 3000;
     this.tls = options.tls ?? true;
-    this.hostname = options.hostname ?? 'localhost';
+    this.hostname = options.hostname ?? '';
     this.useVRFY = options.useVRFY ?? true;
 
     // Accept sequence from outside - use as-is without modification
     this.sequence = options.sequence ?? {
       steps: [Step.GREETING, Step.EHLO, Step.MAIL_FROM, Step.RCPT_TO],
     };
+
+    if (!this.hostname) {
+      throw new Error('Hostname is required for EHLO/HELO commands');
+    }
 
     this.debug = options.debug ?? (() => {});
     this.onMessage = options.onMessage ?? this.debug;

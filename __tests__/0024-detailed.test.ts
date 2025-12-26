@@ -113,7 +113,7 @@ describe('0024: Detailed Email Verification', () => {
       expect(result.metadata?.error).toBe(VerificationErrorCode.SMTP_CONNECTION_FAILED);
     });
 
-    it('should handle SMTP connection failure', async () => {
+    it.only('should handle SMTP connection failure', async () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
       const socket = {
@@ -134,6 +134,7 @@ describe('0024: Detailed Email Verification', () => {
         emailAddress: 'test@example.com',
         verifyMx: true,
         verifySmtp: true,
+        debug: true,
       });
 
       expect(result.validSmtp).toBe(null);

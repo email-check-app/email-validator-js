@@ -1,532 +1,411 @@
 // 0032: Socket Mock Tests
 //
-// Tests for SMTP client with mocked socket connections
-// Focus: Ensuring code executes correctly based on socket responses
+// Tests for SMTP with mocked socket connections
 
-import { EventEmitter } from 'node:events';
-import * as net from 'node:net';
-import { verifyMailboxSMTP } from '../src/smtp';
-import { SMTPStep } from '../src/types';
+import { promises as dnsPromises, type MxRecord } from 'node:dns';
+import net, { Socket } from 'node:net';
+import expect from 'expect';
+import sinon, { type SinonSandbox, type SinonStub } from 'sinon';
+import { clearDefaultCache, verifyEmail } from '../src';
+import { resolveMxRecords } from '../src/dns';
 
-// Debug flag - set to true to see detailed logs
-const DEBUG = true;
+type SelfMockType = {
+  resolveMxStub?: SinonStub<[string], Promise<MxRecord[]>>;
+  connectStub?: SinonStub<[path: string, connectionListener?: () => void], Socket>;
+  socket?: Socket;
+  sandbox?: SinonSandbox;
+};
 
-function debugLog(...args: unknown[]) {
-  if (DEBUG) {
-    console.log('[SMTP-DEBUG]', ...args);
-  }
+function stubResolveMx(self: SelfMockType, domain = 'foo.com') {
+  self.resolveMxStub = self.sandbox.stub(dnsPromises, 'resolveMx').callsFake(async (_hostname: string) => [
+    { exchange: `mx1.${domain}`, priority: 30 },
+    { exchange: `mx2.${domain}`, priority: 10 },
+    { exchange: `mx3.${domain}`, priority: 20 },
+  ]);
 }
 
-// MockSmtpSocket class - defined outside jest.mock for type accessibility
-class MockSmtpSocket extends EventEmitter {
-  destroyed = false;
-  connecting = false;
-  remoteAddress = '127.0.0.1';
-  remotePort = 25;
-  writable = true;
-  readable = true;
-  localPort = 12345;
-  localAddress = '127.0.0.1';
+function stubSocket(self: SelfMockType) {
+  self.socket = new Socket({});
+  let greetingSent = false;
 
-  // Track all write calls
-  writes: string[] = [];
+  // Mock the connect function to emit the socket immediately with a greeting
+  self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+    // Emit the socket with a small delay
+    setTimeout(() => {
+      if (callback) callback();
+      // Emit greeting after connection
+      setTimeout(() => {
+        self.socket.emit('data', '220 test.example.com ESMTP\r\n');
+        greetingSent = true;
+      }, 10);
+    }, 5);
+    return self.socket;
+  });
 
-  // Event queue to simulate async responses
-  private responseQueue: string[] = [];
-
-  // Store timeout callback to actually trigger it
-  private timeoutCallback?: () => void;
-  private timeoutTimer?: NodeJS.Timeout;
-
-  constructor() {
-    super();
-    debugLog('MockSmtpSocket created');
-  }
-
-  write(data: string | Buffer, callback?: () => void): boolean {
-    const dataStr = Buffer.isBuffer(data) ? data.toString() : data;
-    this.writes.push(dataStr);
-    debugLog('Socket.write:', dataStr.trim());
-    if (callback) callback();
-    return true;
-  }
-
-  end(data?: string | Buffer, callback?: () => void): this {
-    debugLog('Socket.end called');
-    if (data) {
-      const dataStr = Buffer.isBuffer(data) ? data.toString() : data;
-      this.writes.push(dataStr);
-    }
-    if (callback) callback();
-    return this;
-  }
-
-  destroy(): void {
-    debugLog('Socket.destroy called');
-    this.destroyed = true;
-    if (this.timeoutTimer) {
-      clearTimeout(this.timeoutTimer);
-    }
-    this.removeAllListeners();
-  }
-
-  setTimeout(timeout: number, callback?: () => void): void {
-    debugLog('Socket.setTimeout:', timeout);
-    if (callback) {
-      this.timeoutCallback = callback;
-      // Actually trigger the timeout after the specified time
-      this.timeoutTimer = setTimeout(() => {
-        if (!this.destroyed) {
-          debugLog('Socket timeout callback firing');
-          callback();
+  self.sandbox.stub(self.socket, 'write').callsFake(function (data) {
+    const command = data.toString().trim();
+    if (!command.includes('QUIT') && greetingSent) {
+      // Respond to SMTP commands
+      setTimeout(() => {
+        if (command.includes('EHLO') || command.includes('HELO')) {
+          this.emit('data', '250-test.example.com Hello\r\n250 VRFY\r\n250 8BITMIME\r\n250 OK\r\n');
+        } else if (command.includes('MAIL FROM')) {
+          this.emit('data', '250 Mail OK\r\n');
+        } else if (command.includes('RCPT TO')) {
+          this.emit('data', '250 Recipient OK\r\n');
+        } else {
+          this.emit('data', '250 Foo');
         }
-      }, timeout);
+      }, 10);
     }
-  }
-
-  removeAllListeners(event?: string): this {
-    debugLog('Socket.removeAllListeners', event || 'all');
-    if (event) {
-      super.removeAllListeners(event);
-    } else {
-      super.removeAllListeners();
-    }
-    return this;
-  }
-
-  // Queue a response to be emitted later
-  queueResponse(response: string): void {
-    this.responseQueue.push(response);
-    debugLog('Queued response:', response.trim());
-  }
-
-  // Emit all queued responses with a delay
-  emitQueuedResponses(): void {
-    debugLog('Emitting', this.responseQueue.length, 'queued responses');
-    let delay = 0;
-    for (const response of this.responseQueue) {
-      setTimeout(() => {
-        debugLog('Emitting data:', response.trim());
-        this.emit('data', response);
-      }, delay);
-      delay += 10; // Small delay between responses
-    }
-    this.responseQueue = [];
-  }
-
-  // Get all writes as strings
-  getWrites(): string[] {
-    return this.writes;
-  }
-
-  // Get last write
-  getLastWrite(): string | undefined {
-    return this.writes[this.writes.length - 1];
-  }
+    return true;
+  });
 }
 
-// Manual mock of 'node:net' - Jest will hoist this
-jest.mock('node:net', () => {
-  return {
-    ...jest.requireActual('node:net'),
-    connect: jest.fn((options: net.TcpSocketConnectOpts, callback?: () => void) => {
-      const socket = new MockSmtpSocket();
-      setTimeout(() => {
-        debugLog('net.connect callback firing');
-        if (callback) callback();
-      }, 0);
-      return socket as unknown as net.Socket;
-    }),
-  };
-});
+const self: SelfMockType = {};
 
 describe('0032: Socket Mock Tests', () => {
-  let mockSocket: MockSmtpSocket | null = null;
-
-  // Helper to get the mock socket from the net.connect call
-  function getMockSocket(): MockSmtpSocket | undefined {
-    const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-    const lastResult = connectMock.mock.results[connectMock.mock.results.length - 1];
-    if (lastResult && lastResult.value) {
-      return lastResult.value as unknown as MockSmtpSocket;
-    }
-    return undefined;
-  }
-
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockSocket = null;
+    self.sandbox = sinon.createSandbox();
+    clearDefaultCache();
   });
 
   afterEach(() => {
-    if (mockSocket) {
-      mockSocket.destroy();
-    }
+    self.sandbox.restore();
+    clearDefaultCache();
   });
 
-  describe('SMTPClient.connect()', () => {
-    it('should send EHLO after receiving 220 greeting on port 587', async () => {
-      debugLog('\n=== Test: EHLO on port 587 ===');
-
-      const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-      connectMock.mockImplementation((options, callback) => {
-        debugLog('net.connect called');
-        const socket = new MockSmtpSocket() as unknown as net.Socket;
-        setTimeout(() => {
-          if (callback) callback();
-          const actualSocket = socket as unknown as MockSmtpSocket;
-          // Full SMTP conversation
-          actualSocket.queueResponse('220 mx.example.com ESMTP\r\n');
-          actualSocket.queueResponse('250 mx.example.com\r\n');
-          actualSocket.queueResponse('250 Mail OK\r\n');
-          actualSocket.queueResponse('250 Recipient OK\r\n');
-          actualSocket.emitQueuedResponses();
-        }, 0);
-        return socket;
-      });
-
-      const result = await verifyMailboxSMTP({
-        local: 'user',
-        domain: 'example.com',
-        mxRecords: ['mx.example.com'],
-        options: {
-          ports: [587],
-          timeout: 5000,
-          debug: true,
-        },
-      });
-
-      const socket = getMockSocket();
-      expect(socket?.getWrites()[0]).toContain('EHLO');
-      debugLog('EHLO found in writes:', socket?.getWrites()[0]);
+  describe('#verify', () => {
+    beforeEach(async () => {
+      stubResolveMx(self);
+      stubSocket(self);
     });
 
-    it('should send HELO instead of EHLO on port 25', async () => {
-      debugLog('\n=== Test: HELO on port 25 ===');
-
-      const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-      connectMock.mockImplementation((options, callback) => {
-        debugLog('net.connect called');
-        const socket = new MockSmtpSocket() as unknown as net.Socket;
-        setTimeout(() => {
-          if (callback) callback();
-          const actualSocket = socket as unknown as MockSmtpSocket;
-          actualSocket.queueResponse('220 mx.example.com ESMTP\r\n');
-          actualSocket.queueResponse('250 mx.example.com\r\n');
-          actualSocket.queueResponse('250 Mail OK\r\n');
-          actualSocket.queueResponse('250 Recipient OK\r\n');
-          actualSocket.emitQueuedResponses();
-        }, 0);
-        return socket;
+    it('should perform all tests', async () => {
+      const result = await verifyEmail({
+        emailAddress: 'foo@bar.com',
+        verifyMx: true,
+        verifySmtp: true,
       });
-
-      await verifyMailboxSMTP({
-        local: 'user',
-        domain: 'example.com',
-        mxRecords: ['mx.example.com'],
-        options: {
-          ports: [25],
-          timeout: 5000,
-          debug: true,
-        },
-      });
-
-      const socket = getMockSocket();
-      expect(socket?.getWrites()[0]).toContain('HELO');
-      expect(socket?.getWrites()[0]).not.toContain('EHLO');
+      sinon.assert.called(self.resolveMxStub);
+      sinon.assert.called(self.connectStub);
+      expect(result.validFormat).toBe(true);
+      expect(result.validMx).toBe(true);
+      expect(result.validSmtp).toBe(true);
     });
 
-    it('should handle multiline greeting correctly', async () => {
-      debugLog('\n=== Test: Multiline greeting ===');
-
-      const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-      connectMock.mockImplementation((options, callback) => {
-        const socket = new MockSmtpSocket() as unknown as net.Socket;
-        setTimeout(() => {
-          if (callback) callback();
-          const actualSocket = socket as unknown as MockSmtpSocket;
-          // Multiline greeting + full conversation
-          actualSocket.queueResponse('220-mx.example.com ESMTP\r\n');
-          actualSocket.queueResponse('220-PIPELINING\r\n');
-          actualSocket.queueResponse('220 8BITMIME\r\n');
-          actualSocket.queueResponse('250 mx.example.com\r\n');
-          actualSocket.queueResponse('250 Mail OK\r\n');
-          actualSocket.queueResponse('250 Recipient OK\r\n');
-          actualSocket.emitQueuedResponses();
-        }, 0);
-        return socket;
-      });
-
-      await verifyMailboxSMTP({
-        local: 'user',
-        domain: 'example.com',
-        mxRecords: ['mx.example.com'],
-        options: {
-          ports: [587],
-          timeout: 5000,
-          debug: true,
-        },
-      });
-
-      const socket = getMockSocket();
-      expect(socket?.getWrites()[0]).toContain('EHLO');
+    it('returns immediately if email is malformed invalid', async () => {
+      const result = await verifyEmail({ emailAddress: 'bar.com' });
+      sinon.assert.notCalled(self.resolveMxStub);
+      sinon.assert.notCalled(self.connectStub);
+      expect(result.validFormat).toBe(false);
+      expect(result.validMx).toBe(null);
+      expect(result.validSmtp).toBe(null);
     });
 
-    it('should reject connection on timeout', async () => {
-      debugLog('\n=== Test: Connection timeout ===');
-
-      const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-      connectMock.mockImplementation((options, callback) => {
-        const socket = new MockSmtpSocket() as unknown as net.Socket;
-        // Don't call callback - let the connection hang to trigger timeout
-        return socket;
+    describe('mailbox verification', () => {
+      it('returns true when mailbox exists', async () => {
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.validSmtp).toBe(true);
       });
 
-      const result = await verifyMailboxSMTP({
-        local: 'user',
-        domain: 'example.com',
-        mxRecords: ['mx.example.com'],
-        options: {
-          ports: [587],
-          timeout: 100, // Very short timeout
-          debug: true,
-        },
+      it('returns null if mailbox is yahoo', async () => {
+        self.resolveMxStub.restore();
+        stubResolveMx(self, 'yahoo.com');
+
+        const result = await verifyEmail({ emailAddress: 'bar@yahoo.com', verifySmtp: true, verifyMx: true });
+
+        expect(result.validSmtp).toBe(true);
       });
 
-      expect(result.canConnectSmtp).toBe(false);
-    });
+      it('returns false on over quota check', async () => {
+        self.connectStub.restore(); // Restore previous stub
+        const msg = '452-4.2.2 The email account that you tried to reach is over quota. Please direct';
+        const socket = new Socket({});
+        let greetingSent = false;
 
-    it('should reject connection on socket error', async () => {
-      debugLog('\n=== Test: Socket error ===');
+        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+          setTimeout(() => {
+            if (callback) callback();
+            setTimeout(() => {
+              socket.emit('data', '220 test.example.com ESMTP\r\n');
+              greetingSent = true;
+            }, 10);
+          }, 5);
+          return socket;
+        });
 
-      const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-      connectMock.mockImplementation((options, callback) => {
-        const socket = new MockSmtpSocket() as unknown as net.Socket;
-        // Emit error before callback fires (connection failure)
-        setTimeout(() => {
-          debugLog('Emitting error event');
-          (socket as any).emit('error', new Error('ECONNREFUSED'));
-        }, 0);
-        return socket;
+        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+          const command = data.toString().trim();
+          if (!command.includes('QUIT') && greetingSent) {
+            setTimeout(() => {
+              if (command.includes('EHLO') || command.includes('HELO')) {
+                this.emit('data', '250 Hello\r\n');
+              } else if (command.includes('MAIL FROM')) {
+                this.emit('data', '250 Mail OK\r\n');
+              } else if (command.includes('RCPT TO')) {
+                this.emit('data', msg + '\r\n');
+              }
+            }, 10);
+          }
+          return true;
+        });
+
+        const result = await verifyEmail({
+          emailAddress: 'bar@foo.com',
+          verifySmtp: true,
+          verifyMx: true,
+        });
+
+        expect(result.validSmtp).toBe(false);
+        expect(result.validFormat).toBe(true);
+        expect(result.validMx).toBe(true);
       });
 
-      const result = await verifyMailboxSMTP({
-        local: 'user',
-        domain: 'example.com',
-        mxRecords: ['mx.example.com'],
-        options: {
-          ports: [587],
-          timeout: 5000,
-          debug: true,
-        },
+      it('should return null on socket error', async () => {
+        self.connectStub.restore(); // Restore previous stub
+        const socket = new Socket({});
+
+        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+          setTimeout(() => {
+            if (callback) callback();
+            // Emit error immediately without greeting
+            socket.emit('error', new Error('Connection failed'));
+          }, 5);
+          return socket;
+        });
+
+        self.sandbox.stub(socket, 'write').callsFake(() => true);
+
+        const result = await verifyEmail({
+          emailAddress: 'bar@foo.com',
+          verifySmtp: true,
+          verifyMx: true,
+        });
+        expect(result.validSmtp).toBe(null);
+        expect(result.validMx).toBe(true);
+        expect(result.validFormat).toBe(true);
       });
 
-      expect(result.canConnectSmtp).toBe(false);
-    });
-  });
+      it('dodges multiline spam detecting greetings', async () => {
+        self.connectStub.restore(); // Restore previous stub
+        const socket = new Socket({});
+        let greeted = false;
 
-  describe('SMTP verification scenarios', () => {
-    it('should complete verification successfully with valid mailbox', async () => {
-      debugLog('\n=== Test: Valid mailbox ===');
+        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+          setTimeout(() => {
+            if (callback) callback();
+            // the "-" indicates a multi line greeting
+            socket.emit('data', '220-hohoho\r\n');
 
-      const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-      connectMock.mockImplementation((options, callback) => {
-        const socket = new MockSmtpSocket() as unknown as net.Socket;
-        setTimeout(() => {
-          if (callback) callback();
-          const actualSocket = socket as unknown as MockSmtpSocket;
-          // Full SMTP conversation
-          actualSocket.queueResponse('220 mx.example.com ESMTP\r\n');
-          actualSocket.queueResponse('250-mx.example.com\r\n250 STARTTLS\r\n250 VRFY\r\n');
-          actualSocket.queueResponse('250 Mail OK\r\n');
-          actualSocket.queueResponse('250 Recipient OK\r\n');
-          actualSocket.emitQueuedResponses();
-        }, 0);
-        return socket;
+            // wait a bit and send the rest
+            setTimeout(() => {
+              greeted = true;
+              socket.emit('data', '220 ho ho ho\r\n');
+            }, 50);
+          }, 10);
+          return socket;
+        });
+
+        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+          const command = data.toString().trim();
+          if (!command.includes('QUIT')) {
+            setTimeout(() => {
+              if (command.includes('EHLO') || command.includes('HELO')) {
+                this.emit('data', '250 Hello\r\n');
+              } else if (command.includes('MAIL FROM')) {
+                this.emit('data', '250 Mail OK\r\n');
+              } else if (command.includes('RCPT TO')) {
+                this.emit('data', '250 OK\r\n');
+              }
+            }, 10);
+          }
+          return true;
+        });
+
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.validSmtp).toBe(true);
       });
 
-      const result = await verifyMailboxSMTP({
-        local: 'user',
-        domain: 'example.com',
-        mxRecords: ['mx.example.com'],
-        options: {
-          ports: [587],
-          timeout: 5000,
-          debug: true,
-        },
-      });
+      it('regression: does not write infinitely if there is a socket error', async () => {
+        const writeSpy = self.sandbox.spy();
+        const endSpy = self.sandbox.spy();
 
-      expect(result.isDeliverable).toBe(true);
-    });
-
-    it('should detect over quota mailbox (452 response)', async () => {
-      debugLog('\n=== Test: Over quota ===');
-
-      const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-      connectMock.mockImplementation((options, callback) => {
-        const socket = new MockSmtpSocket() as unknown as net.Socket;
-        setTimeout(() => {
-          if (callback) callback();
-          const actualSocket = socket as unknown as MockSmtpSocket;
-          actualSocket.queueResponse('220 mx.example.com ESMTP\r\n');
-          actualSocket.queueResponse('250 mx.example.com\r\n');
-          actualSocket.queueResponse('250 Mail OK\r\n');
-          actualSocket.queueResponse('452-4.2.2 The email account is over quota\r\n452 Please try later\r\n');
-          actualSocket.emitQueuedResponses();
-        }, 0);
-        return socket;
-      });
-
-      const result = await verifyMailboxSMTP({
-        local: 'user',
-        domain: 'example.com',
-        mxRecords: ['mx.example.com'],
-        options: {
-          ports: [587],
-          timeout: 5000,
-          debug: true,
-        },
-      });
-
-      // Should be marked as deliverable but with over quota
-      expect(result.hasFullInbox).toBe(true);
-    });
-
-    it('should detect invalid mailbox (550 response)', async () => {
-      debugLog('\n=== Test: Invalid mailbox ===');
-
-      const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-      connectMock.mockImplementation((options, callback) => {
-        const socket = new MockSmtpSocket() as unknown as net.Socket;
-        setTimeout(() => {
-          if (callback) callback();
-          const actualSocket = socket as unknown as MockSmtpSocket;
-          actualSocket.queueResponse('220 mx.example.com ESMTP\r\n');
-          actualSocket.queueResponse('250 mx.example.com\r\n');
-          actualSocket.queueResponse('250 Mail OK\r\n');
-          actualSocket.queueResponse('550 User unknown\r\n');
-          actualSocket.emitQueuedResponses();
-        }, 0);
-        return socket;
-      });
-
-      const result = await verifyMailboxSMTP({
-        local: 'user',
-        domain: 'example.com',
-        mxRecords: ['mx.example.com'],
-        options: {
-          ports: [587],
-          timeout: 5000,
-          debug: true,
-        },
-      });
-
-      expect(result.isDeliverable).toBe(false);
-      expect(result.isDisabled).toBe(true);
-    });
-
-    it('should return temporary failure on 4xx responses', async () => {
-      debugLog('\n=== Test: Temporary failure ===');
-
-      const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-      connectMock.mockImplementation((options, callback) => {
-        const socket = new MockSmtpSocket() as unknown as net.Socket;
-        setTimeout(() => {
-          if (callback) callback();
-          const actualSocket = socket as unknown as MockSmtpSocket;
-          actualSocket.queueResponse('220 mx.example.com ESMTP\r\n');
-          actualSocket.queueResponse('250 mx.example.com\r\n');
-          actualSocket.queueResponse('250 Mail OK\r\n');
-          actualSocket.queueResponse('450 Try again later\r\n');
-          actualSocket.emitQueuedResponses();
-        }, 0);
-        return socket;
-      });
-
-      const result = await verifyMailboxSMTP({
-        local: 'user',
-        domain: 'example.com',
-        mxRecords: ['mx.example.com'],
-        options: {
-          ports: [587],
-          timeout: 5000,
-          debug: true,
-        },
-      });
-
-      // 450 is a temporary error - should be deliverable (could succeed later)
-      expect(result.canConnectSmtp).toBe(true);
-    });
-
-    it('should fail on no greeting response', async () => {
-      debugLog('\n=== Test: No greeting ===');
-
-      const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-      connectMock.mockImplementation((options, callback) => {
-        const socket = new MockSmtpSocket() as unknown as net.Socket;
-        setTimeout(() => {
-          if (callback) callback();
-          const actualSocket = socket as unknown as MockSmtpSocket;
-          // Send invalid response instead of greeting
-          actualSocket.queueResponse('500 Command unrecognized\r\n');
-          actualSocket.emitQueuedResponses();
-        }, 0);
-        return socket;
-      });
-
-      const result = await verifyMailboxSMTP({
-        local: 'user',
-        domain: 'example.com',
-        mxRecords: ['mx.example.com'],
-        options: {
-          ports: [587],
-          timeout: 5000,
-          debug: true,
-        },
-      });
-
-      // Should get a connection error result
-      expect(result.canConnectSmtp).toBe(false);
-    });
-  });
-
-  describe('Edge cases', () => {
-    it('should handle custom MAIL FROM address when provided', async () => {
-      debugLog('\n=== Test: Custom MAIL FROM ===');
-
-      const connectMock = net.connect as jest.MockedFunction<typeof net.connect>;
-      connectMock.mockImplementation((options, callback) => {
-        const socket = new MockSmtpSocket() as unknown as net.Socket;
-        setTimeout(() => {
-          if (callback) callback();
-          const actualSocket = socket as unknown as MockSmtpSocket;
-          actualSocket.queueResponse('220 mx.example.com ESMTP\r\n');
-          actualSocket.queueResponse('250 mx.example.com\r\n');
-          actualSocket.queueResponse('250 Mail OK\r\n');
-          actualSocket.queueResponse('250 Recipient OK\r\n');
-          actualSocket.emitQueuedResponses();
-        }, 0);
-        return socket;
-      });
-
-      await verifyMailboxSMTP({
-        local: 'user',
-        domain: 'example.com',
-        mxRecords: ['mx.example.com'],
-        options: {
-          ports: [587],
-          timeout: 5000,
-          debug: true,
-          sequence: {
-            steps: [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM, SMTPStep.RCPT_TO],
-            from: '<test@example.org>',
+        const socket = {
+          on: (event: string, callback: (arg0: Error) => void) => {
+            if (event === 'error') {
+              return setTimeout(() => {
+                socket.destroyed = true;
+                callback(new Error());
+              }, 100);
+            }
           },
-        },
+          write: writeSpy,
+          end: endSpy,
+          destroyed: false,
+          removeAllListeners: () => {},
+          destroy: () => {
+            socket.destroyed = true;
+          },
+        };
+
+        self.connectStub = self.connectStub.returns(socket as unknown as Socket);
+
+        await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        sinon.assert.notCalled(writeSpy);
+        sinon.assert.notCalled(endSpy);
       });
 
-      const socket = getMockSocket();
-      const mailFromCall = socket?.getWrites().find((w) => w.includes('MAIL FROM'));
-      expect(mailFromCall).toContain('<test@example.org>');
+      it('should return null on unknown SMTP errors', async () => {
+        self.connectStub.restore(); // Restore previous stub
+        const socket = new Socket({});
+        let greetingSent = false;
+
+        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+          setTimeout(() => {
+            if (callback) callback();
+            setTimeout(() => {
+              socket.emit('data', '220 test.example.com ESMTP\r\n');
+              greetingSent = true;
+            }, 10);
+          }, 5);
+          return socket;
+        });
+
+        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+          const command = data.toString().trim();
+          if (!command.includes('QUIT') && greetingSent) {
+            setTimeout(() => {
+              if (command.includes('EHLO') || command.includes('HELO')) {
+                this.emit('data', '250 Hello\r\n');
+              } else if (command.includes('MAIL FROM')) {
+                this.emit('data', '250 Mail OK\r\n');
+              } else if (command.includes('RCPT TO')) {
+                this.emit('data', '500 Unknown Error\r\n');
+              }
+            }, 10);
+          }
+          return true;
+        });
+
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.validSmtp).toBe(null);
+      });
+
+      it('returns false on bad mailbox errors', async () => {
+        self.connectStub.restore(); // Restore previous stub
+        const socket = new Socket({});
+        let greetingSent = false;
+
+        self.connectStub = self.sandbox.stub(net, 'connect').callsFake((options, callback) => {
+          setTimeout(() => {
+            if (callback) callback();
+            setTimeout(() => {
+              socket.emit('data', '220 test.example.com ESMTP\r\n');
+              greetingSent = true;
+            }, 10);
+          }, 5);
+          return socket;
+        });
+
+        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+          const command = data.toString().trim();
+          if (!command.includes('QUIT') && greetingSent) {
+            setTimeout(() => {
+              if (command.includes('EHLO') || command.includes('HELO')) {
+                this.emit('data', '250 Hello\r\n');
+              } else if (command.includes('MAIL FROM')) {
+                this.emit('data', '250 Mail OK\r\n');
+              } else if (command.includes('RCPT TO')) {
+                this.emit('data', '550 User unknown\r\n');
+              }
+            }, 10);
+          }
+          return true;
+        });
+
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.validSmtp).toBe(false);
+      });
+
+      it('returns null on spam errors', async () => {
+        const msg = '550-"JunkMail rejected - ec2-54-74-157-229.eu-west-1.compute.amazonaws.com';
+        const socket = new Socket({});
+
+        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+          if (!data.toString().includes('QUIT')) this.emit('data', msg);
+          return true;
+        });
+
+        self.connectStub.returns(socket);
+
+        setTimeout(() => socket.emit('data', '220 Welcome'), 10);
+
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.validSmtp).toBe(null);
+      });
+
+      it('returns null on spam errors-#2', async () => {
+        const msg =
+          '553 5.3.0 flpd575 DNSBL:RBL 521< 54.74.114.115 >_is_blocked.For assistance forward this email to abuse_rbl@abuse-att.net';
+        const socket = new Socket({});
+
+        self.sandbox.stub(socket, 'write').callsFake(function (data) {
+          if (!data.toString().includes('QUIT')) this.emit('data', msg);
+          return true;
+        });
+
+        self.connectStub.returns(socket);
+
+        setTimeout(() => socket.emit('data', '220 Welcome'), 10);
+
+        const result = await verifyEmail({ emailAddress: 'bar@foo.com', verifySmtp: true, verifyMx: true });
+        expect(result.validSmtp).toBe(null);
+      });
+    });
+
+    describe('given no mx records', () => {
+      beforeEach(() => {
+        self.resolveMxStub.resolves([]);
+      });
+
+      it('should return false on the domain verification', async () => {
+        const result = await verifyEmail({ emailAddress: 'foo@bar.com', verifyMx: true });
+        expect(result.validMx).toBe(false);
+        expect(result.validSmtp).toBe(null);
+      });
+    });
+
+    describe('given a verifyMailbox option false', () => {
+      it('should not check via socket', async () => {
+        const result = await verifyEmail({
+          emailAddress: 'foo@bar.com',
+          verifySmtp: false,
+          verifyMx: true,
+        });
+        sinon.assert.called(self.resolveMxStub);
+        sinon.assert.notCalled(self.connectStub);
+        expect(result.validSmtp).toBe(null);
+        expect(result.validMx).toBe(true);
+      });
+    });
+
+    describe('given a verifyDomain option false', () => {
+      it('should not check via socket', async () => {
+        const result = await verifyEmail({
+          emailAddress: 'foo@bar.com',
+          verifyMx: false,
+          verifySmtp: false,
+        });
+        sinon.assert.notCalled(self.resolveMxStub);
+        sinon.assert.notCalled(self.connectStub);
+        expect(result.validMx).toBe(null);
+        expect(result.validSmtp).toBe(null);
+      });
+    });
+    it('should return a list of mx records, ordered by priority', async () => {
+      const records = await resolveMxRecords({ domain: 'bar@foo.com' });
+      expect(records).toEqual(['mx2.foo.com', 'mx3.foo.com', 'mx1.foo.com']);
     });
   });
 });

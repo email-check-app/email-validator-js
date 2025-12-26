@@ -168,7 +168,6 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
     timeout = DEFAULT_TIMEOUT,
     maxRetries = DEFAULT_MAX_RETRIES,
     tls: tlsConfig = true,
-    hostname = 'localhost',
     useVRFY = true,
     cache,
     debug = false,
@@ -252,7 +251,6 @@ export async function verifyMailboxSMTP(params: VerifyMailboxSMTPParams): Promis
         domain,
         timeout,
         tlsConfig,
-        hostname,
         useVRFY,
         sequence,
         log,
@@ -303,14 +301,13 @@ interface ConnectionTestParams {
   domain: string;
   timeout: number;
   tlsConfig: boolean | SMTPTLSConfig;
-  hostname: string;
   useVRFY: boolean;
   sequence?: SMTPSequence;
   log: (...args: any[]) => void;
 }
 
 async function testSMTPConnection(params: ConnectionTestParams): Promise<SmtpVerificationResult> {
-  const { mxHost, port, local, domain, timeout, tlsConfig, hostname, useVRFY, sequence, log } = params;
+  const { mxHost, port, local, domain, timeout, tlsConfig, useVRFY, sequence, log } = params;
 
   const portConfig = PORT_CONFIGS[port as keyof typeof PORT_CONFIGS] || { tls: false, starttls: false };
   const useTLS = tlsConfig !== false && (portConfig.tls || portConfig.starttls);
@@ -343,7 +340,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<SmtpVer
     const client = new SMTPClient(mxHost, port, {
       timeout,
       tls: tlsConfig,
-      hostname,
+      hostname: domain,
       useVRFY,
       sequence: activeSequence,
       debug: log,
