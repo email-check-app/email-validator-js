@@ -18,6 +18,27 @@ describe('0108 Socket Real', () => {
     expect(result.validFormat).toBe(true);
     expect(result.validMx).toBe(true);
     expect(result.validSmtp).toBe(true);
+    expect(result.canConnectSmtp).toBe(true);
+    expect(result.hasFullInbox).toBe(false);
+    expect(result.isCatchAll).toBe(false);
+    expect(result.isDeliverable).toBe(true);
+    expect(result.isDisabled).toBe(false);
+  });
+  it('should verify a valid Google email address 2', async () => {
+    const result = await verifyEmail({
+      emailAddress: 'hello@cyberlabgo.com',
+      verifyMx: true,
+      verifySmtp: true,
+      debug: true,
+    });
+    expect(result.validFormat).toBe(true);
+    expect(result.validMx).toBe(true);
+    expect(result.validSmtp).toBe(true);
+    expect(result.canConnectSmtp).toBe(true);
+    expect(result.hasFullInbox).toBe(false);
+    expect(result.isCatchAll).toBe(false);
+    expect(result.isDeliverable).toBe(true);
+    expect(result.isDisabled).toBe(false);
   });
 
   it('should return false for non-existent hello.com email', async () => {

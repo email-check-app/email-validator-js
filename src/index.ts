@@ -321,6 +321,13 @@ export async function verifyEmail(params: VerifyEmailParams): Promise<Verificati
         const cachedSmtp = await smtpCacheInstance.get(cacheKey);
 
         if (cachedSmtp !== null && cachedSmtp !== undefined) {
+          // Flatten all SMTP fields to the root level of the result
+          result.canConnectSmtp = cachedSmtp.canConnectSmtp;
+          result.hasFullInbox = cachedSmtp.hasFullInbox;
+          result.isCatchAll = cachedSmtp.isCatchAll;
+          result.isDeliverable = cachedSmtp.isDeliverable;
+          result.isDisabled = cachedSmtp.isDisabled;
+
           // Extract isDeliverable from rich cache result for backwards compatibility
           result.validSmtp = cachedSmtp.isDeliverable ?? null;
           log(`[verifyEmail] SMTP result from cache: ${result.validSmtp} for ${emailAddress}`);
@@ -359,6 +366,13 @@ export async function verifyEmail(params: VerifyEmailParams): Promise<Verificati
 
           // Cache the rich SmtpVerificationResult
           await smtpCacheInstance.set(cacheKey, smtpResult);
+
+          // Flatten all SMTP fields to the root level of the result
+          result.canConnectSmtp = smtpResult?.canConnectSmtp;
+          result.hasFullInbox = smtpResult?.hasFullInbox;
+          result.isCatchAll = smtpResult?.isCatchAll;
+          result.isDeliverable = smtpResult?.isDeliverable;
+          result.isDisabled = smtpResult?.isDisabled;
 
           // If we couldn't connect to SMTP, return null (unable to verify)
           // If we connected but verification failed, return false (verified as invalid)

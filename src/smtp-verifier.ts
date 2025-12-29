@@ -28,6 +28,11 @@ function isIPAddress(host: string): boolean {
  * @return {Boolean} True if over quota.
  */
 function isOverQuota(smtpReply: string): boolean {
+  // treat specific case for excessive invalid recipients as over quota
+  // 550 5.7.1 [IR] Our system has detected an excessively high number of invalid recipients originating from your account.
+  if (smtpReply?.toLowerCase()?.includes('excessively high number of invalid recipients')) {
+    return true;
+  }
   return Boolean(smtpReply && /(over quota)/gi.test(smtpReply));
 }
 

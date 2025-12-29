@@ -30,6 +30,19 @@ export interface VerificationResult {
   domainAge?: DomainAgeInfo | null;
   domainRegistration?: DomainRegistrationInfo | null;
   domainSuggestion?: DomainSuggestion | null;
+
+  // SMTP verification fields (flattened from SmtpVerificationResult)
+  /** Whether SMTP connection was successful */
+  canConnectSmtp?: boolean;
+  /** Whether the mailbox is full */
+  hasFullInbox?: boolean;
+  /** Whether the domain has catch-all enabled */
+  isCatchAll?: boolean;
+  /** Whether the email is deliverable */
+  isDeliverable?: boolean;
+  /** Whether the email/account is disabled */
+  isDisabled?: boolean;
+
   metadata?: {
     verificationTime: number;
     cached: boolean;
