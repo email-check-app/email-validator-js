@@ -24,16 +24,23 @@ function isIPAddress(host: string): boolean {
 }
 
 /**
+ * Checks if the SMTP reply indicates a high volume of invalid recipients.
+ * @param  {String} smtpReply A message from the SMTP server.
+ * @return {Boolean} True if high volume of invalid recipients.
+ */
+function isHighVolume(smtpReply: string): boolean {
+  // 550 5.7.1 [IR] Our system has detected an excessively high number of invalid recipients originating from your account.
+  // check against part of the string - high number of
+  return Boolean(smtpReply && /high number of/gi.test(smtpReply));
+}
+
+/**
  * @param  {String} smtpReply A message from the SMTP server.
  * @return {Boolean} True if over quota.
  */
 function isOverQuota(smtpReply: string): boolean {
   // treat specific case for excessive invalid recipients as over quota
-  // 550 5.7.1 [IR] Our system has detected an excessively high number of invalid recipients originating from your account.
-  // check against part of the string - high number of
-  return (
-    Boolean(smtpReply && /(over quota)/gi.test(smtpReply)) || Boolean(smtpReply && /high number of/gi.test(smtpReply))
-  );
+  return Boolean(smtpReply && /(over quota)/gi.test(smtpReply));
 }
 
 /**
@@ -389,6 +396,10 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
       }
 
       // Apply original logic for over quota and invalid mailbox errors (check before multiline handling)
+      if (isHighVolume(response)) {
+        finish(true, 'high_volume');
+        return;
+      }
       if (isOverQuota(response)) {
         finish(false, 'over_quota');
         return;
