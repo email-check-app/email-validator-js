@@ -28,7 +28,6 @@ export const commonEmailDomains = [
   'amazonaws.com',
 
   // Secure/Privacy-focused providers
-  'forwardemail.net',
   'tutanota.com',
   'tuta.com',
   'fastmail.com',
