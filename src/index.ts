@@ -32,6 +32,8 @@ export {
   suggestEmailDomain,
 } from './domain-suggester';
 export { isValidEmail, isValidEmailDomain } from './email-validator';
+export { isSpamEmail, isSpamEmailLocalPart } from './is-spam-email';
+export { isSpamName } from './is-spam-name';
 export {
   cleanNameForAlgorithm,
   defaultNameDetectionMethod,
