@@ -1,5 +1,71 @@
 # Change Log
 
+## v3.2.0 - 2025-12-29
+
+### 🔧 Maintenance
+
+### Changed
+- **Domain List**: Removed `forwardemail.net` from common email domains list
+- Updated package version to 3.2.0
+
+## v3.1.0 - 2025-12-29
+
+### 🎉 Algorithm-Specific Name Functions Release
+
+This release adds specialized name detection functions for Algorithm that aggressively clean special characters from detected names.
+
+### Added
+- **`cleanNameForAlgorithm()`** - Remove dots, underscores, and asterisks from names
+- **`detectNameForAlgorithm()`** - Enhanced name detection with automatic special character cleaning
+- Name cleaning removes: dots (`.`), underscores (`_`), and asterisks (`*`)
+- Normalizes multiple spaces to single spaces
+- Slightly reduces confidence (95% of original) due to cleaning process
+
+### Features
+- Ideal for systems requiring clean, sanitized names without special characters
+- Handles complex patterns like `john.doe_smith*` → `John Doesmith`
+- Comprehensive test coverage for all cleaning scenarios
+- Example integration in `examples/algolia-integration.ts`
+
+## v3.0.0 - 2025-12-28
+
+### 💥 Breaking Change - Enum and Constant Naming Convention
+
+This release introduces a **breaking change** to improve code consistency with TypeScript/JavaScript conventions. All enum values and constants now use `camelCase` instead of `SCREAMING_SNAKE_CASE`.
+
+### ⚠️ Breaking Changes
+
+#### Enum Values
+| Before (v2.x) | After (v3.x) |
+|---------------|--------------|
+| `EmailProvider.GMAIL` | `EmailProvider.gmail` |
+| `EmailProvider.YAHOO` | `EmailProvider.yahoo` |
+| `EmailProvider.HOTMAIL_B2C` | `EmailProvider.hotmailB2c` |
+| `VerificationErrorCode.INVALID_FORMAT` | `VerificationErrorCode.invalidFormat` |
+| `VerificationErrorCode.NO_MX_RECORDS` | `VerificationErrorCode.noMxRecords` |
+| `SMTPStep.GREETING` | `SMTPStep.greeting` |
+| `SMTPStep.EHLO` | `SMTPStep.ehlo` |
+| `SMTPStep.MAIL_FROM` | `SMTPStep.mailFrom` |
+
+#### Constants
+| Before (v2.x) | After (v3.x) |
+|---------------|--------------|
+| `CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT` | `checkIfEmailExistsConstants.defaultTimeout` |
+| `CHECK_IF_EMAIL_EXISTS_CONSTANTS.GMAIL_DOMAINS` | `checkIfEmailExistsConstants.gmailDomains` |
+
+### Migration Guide
+See the [Migration Guide in README](./README.md#migration-guide-to-v3x) for detailed instructions.
+
+### Important Notes
+1. **String values remain unchanged**: The underlying string values are preserved. Only property names changed.
+2. **Runtime compatibility**: Comparing enum values to strings still works as before.
+3. **All existing functionality is preserved**: This is purely a naming convention change.
+
+### Documentation
+- Updated README with comprehensive migration guide
+- All examples updated to use new camelCase naming
+- TypeScript strict mode compatibility ensured
+
 ## v2.13.0 - 2025-12-12
 
 ### 🚀 Enhanced SMTP Verification Release

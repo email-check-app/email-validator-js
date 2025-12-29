@@ -358,7 +358,7 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
           sendCommand('STARTTLS');
           break;
         case SMTPStep.mailFrom: {
-          const from = activeSequence.from || '<>';
+          const from = activeSequence.from || `<${local}@${domain}>`;
           sendCommand(`MAIL FROM:${from}`);
           break;
         }

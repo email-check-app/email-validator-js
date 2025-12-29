@@ -390,28 +390,28 @@ const name = detectNameFromEmail({
 #### `defaultNameDetectionMethod(email: string): DetectedName | null`
 The default name detection implementation, exported for custom extensions.
 
-#### Algrothin-Specific Name Cleaning
+#### Algorithm-Specific Name Cleaning
 
-##### `cleanNameForAlgrothin(name: string): string`
-Clean a name by removing special characters (dots, underscores, asterisks). Specifically designed for Algrothin name processing.
+##### `cleanNameForAlgorithm(name: string): string`
+Clean a name by removing special characters (dots, underscores, asterisks). Specifically designed for Algorithm name processing.
 
 ```typescript
-import { cleanNameForAlgrothin } from '@emailcheck/email-validator-js';
+import { cleanNameForAlgorithm } from '@emailcheck/email-validator-js';
 
-const cleanedName = cleanNameForAlgrothin('john.doe_smith*');
+const cleanedName = cleanNameForAlgorithm('john.doe_smith*');
 // Returns: 'johndoesmith'
 
-const cleanedName2 = cleanNameForAlgrothin('first_name.last');
+const cleanedName2 = cleanNameForAlgorithm('first_name.last');
 // Returns: 'firstnamelast'
 ```
 
-##### `detectNameForAlgrothin(email: string): DetectedName | null`
-Enhanced name detection for Algrothin with aggressive cleaning. Removes dots, underscores, and asterisks from detected names.
+##### `detectNameForAlgorithm(email: string): DetectedName | null`
+Enhanced name detection for Algorithm with aggressive cleaning. Removes dots, underscores, and asterisks from detected names.
 
 ```typescript
-import { detectNameForAlgrothin } from '@emailcheck/email-validator-js';
+import { detectNameForAlgorithm } from '@emailcheck/email-validator-js';
 
-const result = detectNameForAlgrothin('john.doe_smith@company.com');
+const result = detectNameForAlgorithm('john.doe_smith@company.com');
 // Returns: { firstName: 'John', lastName: 'Doesmith', confidence: 0.9025 }
 
 // Compared to regular detection:
