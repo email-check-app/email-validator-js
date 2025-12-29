@@ -30,6 +30,8 @@ export interface VerificationResult {
   domainAge?: DomainAgeInfo | null;
   domainRegistration?: DomainRegistrationInfo | null;
   domainSuggestion?: DomainSuggestion | null;
+  /** MX records found for the domain (if MX verification was performed) */
+  mxRecords?: string[] | null;
 
   // SMTP verification fields (flattened from SmtpVerificationResult)
   /** Whether SMTP connection was successful */

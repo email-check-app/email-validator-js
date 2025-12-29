@@ -310,6 +310,7 @@ export async function verifyEmail(params: VerifyEmailParams): Promise<Verificati
     try {
       const mxRecords = await resolveMxRecords({ domain, cache: params.cache, logger: log });
       result.validMx = mxRecords.length > 0;
+      result.mxRecords = mxRecords;
       log(`[verifyEmail] MX records found: ${mxRecords.length}, valid: ${result.validMx}`);
 
       if (!result.validMx && result.metadata) {
@@ -400,6 +401,7 @@ export async function verifyEmail(params: VerifyEmailParams): Promise<Verificati
     } catch (error) {
       log('[verifyEmail] Failed to resolve MX records', error);
       result.validMx = false;
+      result.mxRecords = null;
       if (result.metadata) {
         result.metadata.error = VerificationErrorCode.noMxRecords;
       }
