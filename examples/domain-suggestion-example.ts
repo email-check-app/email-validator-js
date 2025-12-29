@@ -1,5 +1,5 @@
 import {
-  COMMON_EMAIL_DOMAINS,
+  commonEmailDomains,
   type DomainSuggestionMethod,
   getDomainSimilarity,
   isCommonDomain,
@@ -165,6 +165,6 @@ console.log('==================================');
 
   // Show available common domains count
   console.log('\n========================================');
-  console.log(`Total common domains available: ${COMMON_EMAIL_DOMAINS.length}`);
-  console.log('Sample domains:', COMMON_EMAIL_DOMAINS.slice(0, 10).join(', '));
+  console.log(`Total common domains available: ${commonEmailDomains.length}`);
+  console.log('Sample domains:', commonEmailDomains.slice(0, 10).join(', '));
 })();

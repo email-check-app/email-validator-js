@@ -6,7 +6,7 @@
 import { verifyEmail } from '../src';
 import { RedisAdapter } from '../src/adapters/redis-adapter';
 import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
-import type { ICache } from '../src/cache-interface';
+import type { Cache } from '../src/cache-interface';
 
 // Example Redis client (you would use your actual Redis client here)
 // This example assumes you have a Redis client that implements the IRedisClient interface
@@ -49,13 +49,18 @@ const mockRedisClient: SimpleRedisClient = {
   },
 };
 
-function createRedisCache(): ICache {
+function createRedisCache(): Cache {
   // Create Redis cache with custom configuration
-  const redisCache: ICache = {
+  const redisCache: Cache = {
     // SMTP cache: shorter TTL for SMTP verification results
     smtp: new RedisAdapter(mockRedisClient, {
       keyPrefix: 'email:smtp:',
       defaultTtlMs: DEFAULT_CACHE_OPTIONS.ttl.smtp,
+    }),
+    // SMTP port cache: longer TTL for port performance
+    smtpPort: new RedisAdapter(mockRedisClient, {
+      keyPrefix: 'email:smtp_port:',
+      defaultTtlMs: DEFAULT_CACHE_OPTIONS.ttl.smtpPort,
     }),
     // MX cache: medium TTL for MX records
     mx: new RedisAdapter(mockRedisClient, {

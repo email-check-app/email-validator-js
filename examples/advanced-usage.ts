@@ -156,13 +156,13 @@ async function handleErrors() {
     console.log(`\n${email}:`);
     console.log(`  Valid: ${result.validFormat && result.validMx}`);
 
-    if (result.metadata?.error === VerificationErrorCode.INVALID_FORMAT) {
+    if (result.metadata?.error === VerificationErrorCode.invalidFormat) {
       console.log('  Error: Invalid email format');
     }
-    if (result.metadata?.error === VerificationErrorCode.NO_MX_RECORDS) {
+    if (result.metadata?.error === VerificationErrorCode.noMxRecords) {
       console.log('  Error: No MX records found');
     }
-    if (result.metadata?.error === VerificationErrorCode.DISPOSABLE_EMAIL) {
+    if (result.metadata?.error === VerificationErrorCode.disposableEmail) {
       console.log('  Error: Disposable email detected');
     }
   }

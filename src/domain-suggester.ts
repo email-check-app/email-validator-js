@@ -1,13 +1,13 @@
 import { stringSimilarity } from 'string-similarity-js';
 import { getCacheStore } from './cache';
-import type { ICache } from './cache-interface';
-import type { DomainSuggestion, ISuggestDomainParams } from './types';
+import type { Cache } from './cache-interface';
+import type { DomainSuggestion, DomainSuggestionParams } from './types';
 
 /**
  * List of common email domains for typo detection
  * Includes popular free providers, business providers, and hosting services
  */
-export const COMMON_EMAIL_DOMAINS = [
+export const commonEmailDomains = [
   // Popular free email providers
   'gmail.com',
   'yahoo.com',
@@ -147,7 +147,7 @@ function _isLikelyTypo(domain: string) {
 export function defaultDomainSuggestionMethod(domain: string, commonDomains?: string[]): DomainSuggestion | null {
   // For sync version, we need to create a synchronous implementation
   // without cache to avoid async issues
-  const domainsToCheck = commonDomains || COMMON_EMAIL_DOMAINS;
+  const domainsToCheck = commonDomains || commonEmailDomains;
   const lowerDomain = domain.toLowerCase();
 
   // If domain is already in the common list, no suggestion needed
@@ -218,7 +218,7 @@ export function defaultDomainSuggestionMethod(domain: string, commonDomains?: st
 export async function defaultDomainSuggestionMethodAsync(
   domain: string,
   commonDomains?: string[],
-  cache?: ICache
+  cache?: Cache
 ): Promise<DomainSuggestion | null> {
   return defaultDomainSuggestionMethodImpl(domain, commonDomains, cache);
 }
@@ -229,13 +229,13 @@ export async function defaultDomainSuggestionMethodAsync(
 async function defaultDomainSuggestionMethodImpl(
   domain: string,
   commonDomains?: string[],
-  cache?: ICache
+  cache?: Cache
 ): Promise<DomainSuggestion | null> {
   if (!domain || domain.length < 3) {
     return null;
   }
 
-  const domainsToCheck = commonDomains || COMMON_EMAIL_DOMAINS;
+  const domainsToCheck = commonDomains || commonEmailDomains;
   const lowerDomain = domain.toLowerCase();
 
   // Check cache first
@@ -328,7 +328,7 @@ async function defaultDomainSuggestionMethodImpl(
  * @param params - Parameters including domain and optional custom method
  * @returns Domain suggestion with confidence score, or null if no suggestion
  */
-export function suggestDomain(params: ISuggestDomainParams): DomainSuggestion | null {
+export function suggestDomain(params: DomainSuggestionParams): DomainSuggestion | null {
   const { domain, customMethod, commonDomains } = params;
 
   if (!domain || domain.length < 3) {
@@ -359,7 +359,7 @@ export function suggestDomain(params: ISuggestDomainParams): DomainSuggestion | 
 export async function suggestEmailDomain(
   email: string,
   commonDomains?: string[],
-  cache?: ICache
+  cache?: Cache
 ): Promise<DomainSuggestion | null> {
   if (!email || !email.includes('@')) {
     return null;
@@ -391,7 +391,7 @@ export async function suggestEmailDomain(
  * @returns True if domain is common, false otherwise
  */
 export function isCommonDomain(domain: string, commonDomains?: string[]) {
-  const domainsToCheck = commonDomains || COMMON_EMAIL_DOMAINS;
+  const domainsToCheck = commonDomains || commonEmailDomains;
   return domainsToCheck.includes(domain.toLowerCase());
 }
 

@@ -65,33 +65,33 @@ const productionPlugins = [
 module.exports = [
   // Core serverless bundle (ESM)
   {
-    input: 'src/serverless/core.ts',
+    input: 'src/serverless/verifier.ts',
     output: {
-      file: 'dist/serverless/core.esm.js',
+      file: 'dist/serverless/verifier.esm.js',
       format: 'esm',
       sourcemap: true,
     },
     external: [], // Bundle all dependencies including string-similarity-js
     plugins: [...plugins, declarationPlugin],
   },
-  
+
   // Core serverless bundle (CommonJS)
   {
-    input: 'src/serverless/core.ts',
+    input: 'src/serverless/verifier.ts',
     output: {
-      file: 'dist/serverless/core.cjs.js',
+      file: 'dist/serverless/verifier.cjs.js',
       format: 'cjs',
       sourcemap: true,
     },
     external: [], // Bundle all dependencies including string-similarity-js
     plugins,
   },
-  
+
   // Core serverless bundle (Minified UMD for browsers)
   {
-    input: 'src/serverless/core.ts',
+    input: 'src/serverless/verifier.ts',
     output: {
-      file: 'dist/serverless/core.min.js',
+      file: 'dist/serverless/verifier.min.js',
       format: 'umd',
       name: 'EmailValidator',
       sourcemap: false,

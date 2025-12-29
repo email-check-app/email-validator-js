@@ -1,9 +1,9 @@
-import type { ICacheStore } from '../cache-interface';
+import type { CacheStore } from '../cache-interface';
 
 /**
  * Redis client interface to avoid direct dependency on redis package
  */
-export interface IRedisClient {
+export interface RedisClient {
   get(key: string): Promise<string | null>;
 
   set(key: string, value: string, mode?: string, duration?: number): Promise<string | null>;
@@ -19,8 +19,8 @@ export interface IRedisClient {
  * Redis adapter for the cache interface
  * Supports JSON serialization for complex objects
  */
-export class RedisAdapter<T> implements ICacheStore<T> {
-  private redis: IRedisClient;
+export class RedisAdapter<T> implements CacheStore<T> {
+  private redis: RedisClient;
   private keyPrefix: string;
   private defaultTtlMs: number;
   private jsonSerializer: {
@@ -29,7 +29,7 @@ export class RedisAdapter<T> implements ICacheStore<T> {
   };
 
   constructor(
-    redis: IRedisClient,
+    redis: RedisClient,
     options: {
       keyPrefix?: string;
       defaultTtlMs?: number;

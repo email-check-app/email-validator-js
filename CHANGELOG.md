@@ -1,5 +1,103 @@
 # Change Log
 
+## v2.13.0 - 2025-12-12
+
+### 🚀 Enhanced SMTP Verification Release
+
+This major release introduces comprehensive SMTP verification enhancements with TLS/SSL support, multi-port testing, custom SMTP sequences, and smart caching, providing enterprise-grade email validation capabilities.
+
+### ✨ Enhanced SMTP Features
+
+- **Multi-Port SMTP Testing** - Automatic testing of ports 25 (SMTP), 587 (STARTTLS), and 465 (SMTPS) with intelligent port optimization
+- **TLS/SSL Support** - Full support for STARTTLS (port 587) and implicit TLS (port 465) with configurable security options
+- **Custom SMTP Sequences** - Complete control over SMTP command sequences with enum-based step control (GREETING, EHLO, HELO, STARTTLS, MAIL_FROM, RCPT_TO, VRFY, QUIT)
+- **Smart Port Caching** - Remembers successful ports per domain to significantly improve performance on subsequent verifications
+- **Enhanced Error Handling** - Improved detection of over quota responses, multiline SMTP greetings, and specific error conditions
+- **IP Address Detection** - Robust detection of IP addresses vs domain names for proper TLS servername configuration
+- **Debug Logging** - Comprehensive debug mode for detailed SMTP transaction logging
+
+### 🔧 New API
+
+- **`verifyMailboxSMTP()`** - New direct SMTP verification function with enhanced capabilities
+- **`SMTPStep` enum** - Control over SMTP command sequences and protocol flow
+- **`SMTPVerifyOptions` interface** - Comprehensive configuration options for TLS, ports, retries, and caching
+- **`VerifyMailboxSMTPParams` interface** - Clean separation of required parameters and optional configuration
+
+### 📊 Performance Optimizations
+
+- **Port Performance Caching** - Caches successful ports per host/domain to avoid repeated port testing
+- **Connection Reuse** - Optimized connection handling with proper cleanup and error management
+- **Configurable Timeouts** - Per-port timeout configuration with retry logic
+- **Cache Performance** - Added `smtpPort` cache store with 30-minute TTL for port performance data
+
+### 🛠️ API Changes
+
+```typescript
+// Enhanced SMTP verification
+const { result, port, cached, portCached } = await verifyMailboxSMTP({
+  local: 'user',
+  domain: 'example.com',
+  mxRecords: ['mx.example.com'],
+  options: {
+    ports: [25, 587, 465], // Multi-port testing
+    timeout: 5000,
+    maxRetries: 2,
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2',
+    },
+    cache: getDefaultCache(),
+    debug: false,
+    hostname: 'your-domain.com',
+    useVRFY: true,
+  },
+});
+```
+
+### 🔐 Security Enhancements
+
+- **TLS Configuration** - Configurable TLS minimum versions and certificate validation
+- **Hostname Support** - Custom EHLO/HELO hostname configuration for better SMTP server identification
+- **Secure by Default** - Appropriate TLS settings for different security requirements
+
+### 📝 Examples & Documentation
+
+- **Comprehensive Examples** - 13 new TypeScript examples demonstrating all enhanced features
+- **Direct Execution Support** - Examples can be run directly with `node --experimental-strip-types`
+- **Performance Testing** - Built-in performance benchmarks and cache testing utilities
+- **Custom Cache Examples** - Memory and Redis cache implementation examples
+- **Test Coverage** - Complete test suite with 16/16 socket-mock-tests passing
+
+### 🏗️ Cache Enhancements
+
+- **`smtpPort` Cache Store** - New cache for storing successful ports per host/domain
+- **Enhanced Cache Interface** - Updated `ICache` interface with smtpPort support
+- **Cache Performance** - Improved cache TTL and sizing for optimal performance
+
+### 🧪 Testing Improvements
+
+- **Socket Mock Tests** - Comprehensive SMTP protocol testing with proper multiline response handling
+- **Over Quota Detection** - Enhanced testing for 452 over quota responses
+- **Multiline Greeting Support** - Proper handling of multi-line SMTP greetings (220- responses)
+- **Error Scenario Testing** - Comprehensive error condition testing and validation
+
+### 📦 Dependencies
+
+- **No New Dependencies** - All enhancements built with existing dependencies
+- **Improved Type Safety** - Full TypeScript support with strict type checking
+- **Backward Compatibility** - All existing APIs remain unchanged
+
+### 🔄 Migration Notes
+
+This release is **fully backward compatible**. All existing code continues to work unchanged. The new enhanced SMTP features are available through the new `verifyMailboxSMTP()` function and do not affect existing `verifyEmail()` functionality.
+
+### 📚 Documentation Updates
+
+- **Updated README** - Comprehensive enhanced SMTP documentation with examples
+- **Examples README** - Complete examples guide with direct execution commands
+- **Type Documentation** - Enhanced JSDoc comments throughout the codebase
+- **Performance Guide** - Updated caching and performance optimization documentation
+
 ## v2.12.0 - 2025-12-03
 - Update dependencies to latest versions
 - Update name detection algorithms for better accuracy

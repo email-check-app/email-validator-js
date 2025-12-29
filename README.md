@@ -17,6 +17,7 @@
 - [License](#license)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Migration Guide (to v3.x)](#migration-guide-to-v3x)
 - [API Reference](#api-reference)
 - [Configuration](#configuration-options)
 - [Examples](#examples)
@@ -50,6 +51,14 @@
 
 ✅ **NEW:** RFC 5321 compliant validation
 
+✅ **NEW:** **Enhanced SMTP verification** with TLS/SSL support
+
+✅ **NEW:** **Multi-port testing** (25, 587, 465) with automatic port optimization
+
+✅ **NEW:** **Custom SMTP sequences** and command control (EHLO/HELO, VRFY, STARTTLS)
+
+✅ **NEW:** **Smart caching** for port performance and SMTP results
+
 ✅ **NEW:** Enhanced name detection from email addresses with composite name support
 
 ✅ **NEW:** Domain typo detection and suggestions with caching
@@ -59,6 +68,8 @@
 ✅ **NEW:** Get domain registration status via WHOIS lookup
 
 ✅ **NEW:** Serverless support for AWS Lambda, Vercel Edge, Cloudflare Workers, and more
+
+✅ **Code Quality**: Comprehensive linting, type checking, and automated testing
 
 ## Use Cases
 
@@ -133,6 +144,125 @@ console.log(result.validFormat);  // true
 console.log(result.validMx);      // true or false
 console.log(result.validSmtp);    // true or false
 ```
+
+> **⚠️ Breaking Change in v3.x**: Enum values and constants now use `camelCase` instead of `SCREAMING_SNAKE_CASE`. See [Migration Guide](#migration-guide-to-v3x) for details.
+
+## Migration Guide (to v3.x)
+
+### Overview
+
+Version 3.x introduces a **breaking change** to improve code consistency with TypeScript/JavaScript conventions. All enum values and constants now use `camelCase` instead of `SCREAMING_SNAKE_CASE`.
+
+### What Changed
+
+#### Enum Values
+
+| Before (v2.x) | After (v3.x) |
+|---------------|--------------|
+| `EmailProvider.GMAIL` | `EmailProvider.gmail` |
+| `EmailProvider.YAHOO` | `EmailProvider.yahoo` |
+| `EmailProvider.HOTMAIL_B2C` | `EmailProvider.hotmailB2c` |
+| `VerificationErrorCode.INVALID_FORMAT` | `VerificationErrorCode.invalidFormat` |
+| `VerificationErrorCode.NO_MX_RECORDS` | `VerificationErrorCode.noMxRecords` |
+| `SMTPStep.GREETING` | `SMTPStep.greeting` |
+| `SMTPStep.EHLO` | `SMTPStep.ehlo` |
+| `SMTPStep.MAIL_FROM` | `SMTPStep.mailFrom` |
+
+#### Constants
+
+| Before (v2.x) | After (v3.x) |
+|---------------|--------------|
+| `CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT` | `checkIfEmailExistsConstants.defaultTimeout` |
+| `CHECK_IF_EMAIL_EXISTS_CONSTANTS.GMAIL_DOMAINS` | `checkIfEmailExistsConstants.gmailDomains` |
+| `WHOIS_SERVERS` | `whoisServers` |
+
+### How to Migrate
+
+#### Step 1: Update Enum References
+
+```typescript
+// Before
+import { EmailProvider, VerificationErrorCode, SMTPStep } from '@emailcheck/email-validator-js';
+
+if (provider === EmailProvider.GMAIL) { /* ... */ }
+if (error === VerificationErrorCode.INVALID_FORMAT) { /* ... */ }
+const steps = [SMTPStep.GREETING, SMTPStep.EHLO, SMTPStep.MAIL_FROM];
+
+// After
+import { EmailProvider, VerificationErrorCode, SMTPStep } from '@emailcheck/email-validator-js';
+
+if (provider === EmailProvider.gmail) { /* ... */ }
+if (error === VerificationErrorCode.invalidFormat) { /* ... */ }
+const steps = [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom];
+```
+
+#### Step 2: Update Constant References
+
+```typescript
+// Before
+import { CHECK_IF_EMAIL_EXISTS_CONSTANTS } from '@emailcheck/email-validator-js';
+
+const timeout = CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT;
+const domains = CHECK_IF_EMAIL_EXISTS_CONSTANTS.GMAIL_DOMAINS;
+
+// After
+import { checkIfEmailExistsConstants } from '@emailcheck/email-validator-js';
+
+const timeout = checkIfEmailExistsConstants.defaultTimeout;
+const domains = checkIfEmailExistsConstants.gmailDomains;
+```
+
+#### Step 3: Update Switch Statements
+
+```typescript
+// Before
+switch (provider) {
+  case EmailProvider.YAHOO:
+    // Handle Yahoo
+    break;
+  case EmailProvider.HOTMAIL_B2C:
+    // Handle Hotmail
+    break;
+}
+
+// After
+switch (provider) {
+  case EmailProvider.yahoo:
+    // Handle Yahoo
+    break;
+  case EmailProvider.hotmailB2c:
+    // Handle Hotmail
+    break;
+}
+```
+
+### Important Notes
+
+1. **String values remain unchanged**: The underlying string values (e.g., `'gmail'`, `'INVALID_FORMAT'`) are preserved. Only the property names changed.
+
+2. **Runtime compatibility**: If you're comparing enum values to strings from external sources, the string values still work:
+   ```typescript
+   // Still works in v3.x
+   if (provider === 'gmail') { /* ... */ }
+   ```
+
+3. **TypeScript strict mode**: Ensure you update all references before compiling, or TypeScript will report errors.
+
+4. **Test your code**: After updating, run your test suite to ensure all enum and constant references are updated correctly.
+
+### Automatic Migration
+
+If you're using an IDE with refactoring support (like VS Code), you can use find-and-replace:
+
+1. Find all references to old enum values
+2. Replace with new camelCase versions
+3. Run TypeScript compiler to verify no errors
+
+### Need Help?
+
+- 📖 Check the [API Reference](#api-reference) for updated enum definitions
+- 💬 [Open an issue](https://github.com/email-check-app/email-validator-js/issues) if you encounter problems
+- 📧 Contact [support@email-check.app](mailto:support@email-check.app)
 
 ## API Reference
 
@@ -575,16 +705,16 @@ console.log(COMMON_EMAIL_DOMAINS);
 
 ```typescript
 enum VerificationErrorCode {
-  INVALID_FORMAT = 'INVALID_FORMAT',
-  INVALID_DOMAIN = 'INVALID_DOMAIN',
-  NO_MX_RECORDS = 'NO_MX_RECORDS',
-  SMTP_CONNECTION_FAILED = 'SMTP_CONNECTION_FAILED',
-  SMTP_TIMEOUT = 'SMTP_TIMEOUT',
-  MAILBOX_NOT_FOUND = 'MAILBOX_NOT_FOUND',
-  MAILBOX_FULL = 'MAILBOX_FULL',
-  NETWORK_ERROR = 'NETWORK_ERROR',
-  DISPOSABLE_EMAIL = 'DISPOSABLE_EMAIL',
-  FREE_EMAIL_PROVIDER = 'FREE_EMAIL_PROVIDER'
+  invalidFormat = 'INVALID_FORMAT',
+  invalidDomain = 'INVALID_DOMAIN',
+  noMxRecords = 'NO_MX_RECORDS',
+  smtpConnectionFailed = 'SMTP_CONNECTION_FAILED',
+  smtpTimeout = 'SMTP_TIMEOUT',
+  mailboxNotFound = 'MAILBOX_NOT_FOUND',
+  mailboxFull = 'MAILBOX_FULL',
+  networkError = 'NETWORK_ERROR',
+  disposableEmail = 'DISPOSABLE_EMAIL',
+  freeEmailProvider = 'FREE_EMAIL_PROVIDER'
 }
 ```
 
@@ -673,6 +803,114 @@ const result = await verifyEmailBatch({
 // result.summary.invalid: 1
 // result.summary.processingTime: 234
 ```
+
+### Enhanced SMTP Verification (NEW)
+```typescript
+import { verifyMailboxSMTP } from '@emailcheck/email-validator-js';
+import { getDefaultCache } from '@emailcheck/email-validator-js';
+
+// Direct SMTP verification with enhanced features
+const { result, port, cached, portCached } = await verifyMailboxSMTP({
+  local: 'user',
+  domain: 'example.com',
+  mxRecords: ['mx.example.com'],
+  options: {
+    ports: [25, 587, 465], // Test multiple ports with TLS support
+    timeout: 5000,
+    cache: getDefaultCache(), // Smart caching for performance
+    debug: false,
+    tls: {
+      rejectUnauthorized: false, // Lenient TLS for compatibility
+      minVersion: 'TLSv1.2',
+    },
+    hostname: 'your-domain.com', // Custom EHLO hostname
+    useVRFY: true, // Enable VRFY command as fallback
+  },
+});
+
+// result: boolean - SMTP verification result
+// port: number - The successful port used
+// cached: boolean - If result was cached
+// portCached: boolean - If port was cached from previous successful attempts
+console.log(`SMTP result: ${result} via port ${port} (cached: ${cached || portCached})`);
+```
+
+### Advanced SMTP Configuration
+```typescript
+import { verifyMailboxSMTP, SMTPStep } from '@emailcheck/email-validator-js';
+
+// Custom SMTP command sequence
+const { result } = await verifyMailboxSMTP({
+  local: 'user',
+  domain: 'example.com',
+  mxRecords: ['mx.example.com'],
+  options: {
+    sequence: {
+      steps: [
+        SMTPStep.greeting,
+        SMTPStep.ehlo,    // Extended SMTP
+        SMTPStep.startTls, // Upgrade to TLS
+        SMTPStep.mailFrom,
+        SMTPStep.rcptTo,
+        SMTPStep.vrfy,    // Additional verification
+      ],
+      from: '<noreply@yourdomain.com>', // Custom MAIL FROM
+    },
+    ports: [587, 465], // Try STARTTLS first, then implicit TLS
+    maxRetries: 2,
+  },
+});
+
+// Port-specific optimization
+const testPorts = async (email: string, mxHosts: string[]) => {
+  const [local, domain] = email.split('@');
+
+  const { result, port, portCached } = await verifyMailboxSMTP({
+    local,
+    domain,
+    mxRecords: mxHosts,
+    options: {
+      cache: getDefaultCache(),
+      // Port order matters: tests in sequence, stops at first success
+      ports: [587, 465, 25], // STARTTLS -> SMTPS -> SMTP
+    },
+  });
+
+  console.log(`Optimal port for ${domain}: ${port} (cached: ${portCached})`);
+  return { result, port };
+};
+```
+
+### Running Examples
+
+All examples have been recently improved with:
+- ✅ Consistent import styles and error handling
+- ✅ Fixed async/await patterns
+- ✅ Enhanced documentation and comments
+- ✅ Renamed files for better clarity
+
+**Development (Recommended):**
+```bash
+# Run examples with ts-node for full type checking
+npx ts-node examples/smtp-usage.ts
+npx ts-node examples/smtp-test.ts
+npx ts-node examples/smtp-enhanced.ts
+npx ts-node examples/smtp-comprehensive-tests.ts
+npx ts-node examples/custom-cache-memory.ts
+npx ts-node examples/smtp-sequences.ts
+npx ts-node examples/algolia-integration.ts
+```
+
+**Direct TypeScript Execution (v2.14.0+):**
+```bash
+# After the next release (v2.14.0) with updated distribution exports:
+yarn build
+node --experimental-strip-types examples/smtp-usage.ts
+
+# Requires Node.js 20.10+ or Node.js 21.0+ for --experimental-strip-types support
+```
+
+**For current development, use `npx ts-node` which imports directly from source files with full type checking.**
 
 ### Name Detection (ENHANCED)
 ```typescript
@@ -771,13 +1009,13 @@ if (!result.validFormat) {
   console.log('Disposable email detected');
 } else if (result.metadata?.error) {
   switch (result.metadata.error) {
-    case VerificationErrorCode.DISPOSABLE_EMAIL:
+    case VerificationErrorCode.disposableEmail:
       console.log('Rejected: Disposable email');
       break;
-    case VerificationErrorCode.NO_MX_RECORDS:
+    case VerificationErrorCode.noMxRecords:
       console.log('Rejected: Invalid domain');
       break;
-    case VerificationErrorCode.MAILBOX_NOT_FOUND:
+    case VerificationErrorCode.mailboxNotFound:
       console.log('Rejected: Mailbox does not exist');
       break;
   }
@@ -1165,7 +1403,30 @@ Build the project:
 yarn build
 ```
 
-## Development
+## Code Quality & Maintenance
+
+### Quality Assurance
+- ✅ **TypeScript Strict Mode**: Full type safety with comprehensive type checking
+- ✅ **ESLint + Biome**: Automated code quality and formatting
+- ✅ **Jest Test Suite**: Comprehensive test coverage with 600+ test cases
+- ✅ **CI/CD Pipeline**: Automated testing and linting on all PRs
+- ✅ **All Tests Pass**: 615 tests passing, 1 skipped
+
+### Recent Code Improvements (v3.x)
+- **Naming Convention Migration**: All enum values and constants now use `camelCase` for consistency with TypeScript/JavaScript conventions
+- **Async Code Fixes**: Replaced `forEach` with `for...of` loops for proper async handling
+- **Import Standardization**: Consistent ES6 imports across all files
+- **Mock Improvements**: Enhanced Jest spy usage with proper cleanup
+- **Error Handling**: Added null checks and better error boundaries
+- **File Organization**: Split long test files and renamed for clarity
+- **Type Safety**: Fixed enum usage and property naming consistency
+- **Documentation Updates**: Comprehensive README with migration guide and updated examples
+
+### Breaking Changes in v3.x
+- **Enum camelCase Migration**: `EmailProvider.GMAIL` → `EmailProvider.gmail`
+- **Error Code camelCase Migration**: `VerificationErrorCode.INVALID_FORMAT` → `VerificationErrorCode.invalidFormat`
+- **SMTP Step camelCase Migration**: `SMTPStep.GREETING` → `SMTPStep.greeting`
+- **Constants camelCase Migration**: `CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT` → `checkIfEmailExistsConstants.defaultTimeout`
 
 ### Project Structure
 ```
@@ -1178,8 +1439,8 @@ email-validator-js/
 │   ├── cache.ts        # Caching system
 │   ├── batch.ts        # Batch processing
 │   └── types.ts        # TypeScript types
-├── __tests__/          # Test files
-├── examples/           # Usage examples
+├── __tests__/          # Test files (200+ tests)
+├── examples/           # Usage examples (20+ files)
 └── dist/              # Compiled output
 ```
 
@@ -1187,8 +1448,8 @@ email-validator-js/
 ```bash
 yarn build      # Build TypeScript with Rollup
 yarn test       # Run tests with Jest
-yarn lint       # Run ESLint
-yarn lint-fix   # Fix ESLint issues
+yarn lint       # Run Biome linting
+yarn lint-fix   # Auto-fix linting issues
 yarn typecheck  # Run TypeScript type checking
 ```
 

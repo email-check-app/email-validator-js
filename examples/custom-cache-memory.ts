@@ -5,12 +5,13 @@
 
 import { getDefaultCache, verifyEmail } from '../src';
 import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
-import type { ICache, ICacheStore } from '../src/cache-interface';
+import type { Cache, CacheStore } from '../src/cache-interface';
+import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from '../src/types';
 
 /**
  * Custom in-memory cache with time-based expiration and statistics
  */
-class CustomMemoryCache<T> implements ICacheStore<T> {
+class CustomMemoryCache<T> implements CacheStore<T> {
   private cache = new Map<string, { value: T; expiresAt: number }>();
   private maxSize: number;
   private defaultTtl: number;
@@ -117,29 +118,31 @@ class CustomMemoryCache<T> implements ICacheStore<T> {
   }
 }
 
-function createCustomCache(): ICache {
+function createCustomCache(): Cache {
   // Create custom cache instances with different configurations
-  const customCache: ICache = {
+  const customCache: Cache = {
     // SMTP cache: smaller size, shorter TTL
-    smtp: new CustomMemoryCache(200, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+    smtp: new CustomMemoryCache<SmtpVerificationResult>(200, DEFAULT_CACHE_OPTIONS.ttl.smtp),
+    // SMTP port cache: small size, longer TTL for port performance
+    smtpPort: new CustomMemoryCache<number>(100, DEFAULT_CACHE_OPTIONS.ttl.smtpPort),
     // MX cache: medium size, medium TTL
-    mx: new CustomMemoryCache(300, DEFAULT_CACHE_OPTIONS.ttl.mx),
+    mx: new CustomMemoryCache<string[]>(300, DEFAULT_CACHE_OPTIONS.ttl.mx),
     // Disposable cache: larger size, longer TTL
-    disposable: new CustomMemoryCache(1500, DEFAULT_CACHE_OPTIONS.ttl.disposable),
+    disposable: new CustomMemoryCache<DisposableEmailResult>(1500, DEFAULT_CACHE_OPTIONS.ttl.disposable),
     // Free cache: default size and TTL
-    free: new CustomMemoryCache(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
+    free: new CustomMemoryCache<FreeEmailResult>(DEFAULT_CACHE_OPTIONS.maxSize.free, DEFAULT_CACHE_OPTIONS.ttl.free),
     // Domain validation cache
-    domainValid: new CustomMemoryCache(
+    domainValid: new CustomMemoryCache<DomainValidResult>(
       DEFAULT_CACHE_OPTIONS.maxSize.domainValid,
       DEFAULT_CACHE_OPTIONS.ttl.domainValid
     ),
     // Domain suggestion cache
-    domainSuggestion: new CustomMemoryCache(
+    domainSuggestion: new CustomMemoryCache<{ suggested: string; confidence: number } | null>(
       DEFAULT_CACHE_OPTIONS.maxSize.domainSuggestion,
       DEFAULT_CACHE_OPTIONS.ttl.domainSuggestion
     ),
     // WHOIS cache
-    whois: new CustomMemoryCache(DEFAULT_CACHE_OPTIONS.maxSize.whois, DEFAULT_CACHE_OPTIONS.ttl.whois),
+    whois: new CustomMemoryCache<any>(DEFAULT_CACHE_OPTIONS.maxSize.whois, DEFAULT_CACHE_OPTIONS.ttl.whois),
   };
 
   return customCache;
@@ -212,11 +215,11 @@ async function demonstrateCustomCache() {
   // Show cache statistics for each cache type
   console.log('\n📊 Cache Statistics:');
   const cacheStats = {
-    smtp: (customCache.smtp as CustomMemoryCache<any>).getStats(),
-    mx: (customCache.mx as CustomMemoryCache<any>).getStats(),
-    disposable: (customCache.disposable as CustomMemoryCache<boolean>).getStats(),
-    free: (customCache.free as CustomMemoryCache<boolean>).getStats(),
-    domainValid: (customCache.domainValid as CustomMemoryCache<boolean>).getStats(),
+    smtp: (customCache.smtp as CustomMemoryCache<SmtpVerificationResult>).getStats(),
+    mx: (customCache.mx as CustomMemoryCache<string[]>).getStats(),
+    disposable: (customCache.disposable as CustomMemoryCache<DisposableEmailResult>).getStats(),
+    free: (customCache.free as CustomMemoryCache<FreeEmailResult>).getStats(),
+    domainValid: (customCache.domainValid as CustomMemoryCache<DomainValidResult>).getStats(),
   };
 
   for (const [type, stats] of Object.entries(cacheStats)) {
@@ -230,7 +233,10 @@ async function demonstrateCustomCache() {
   // Test cache clearing
   console.log('\n🔄 Testing cache clear...');
   await customCache.disposable.clear();
-  console.log('Disposable cache cleared. New size:', (customCache.disposable as CustomMemoryCache<boolean>).size());
+  console.log(
+    'Disposable cache cleared. New size:',
+    (customCache.disposable as CustomMemoryCache<DisposableEmailResult>).size()
+  );
 }
 
 // Run the demonstrations

@@ -1,6 +1,6 @@
 {
   "name": "@emailcheck/email-validator-js",
-  "version": "2.14.2",
+  "version": "3.0.1-beta.2",
   "private": false,
   "description": "Advanced email validation with MX records, SMTP verification, disposable email detection, batch processing, and caching. Production-ready with TypeScript support.",
   "keywords": [
@@ -30,32 +30,32 @@
   "exports": {
     ".": {
       "require": "./dist/index.js",
-      "import": "./dist/index.js",
+      "import": "./dist/index.esm.js",
       "types": "./dist/index.d.ts"
     },
     "./serverless": {
-      "require": "./dist/serverless/index.js",
-      "import": "./dist/serverless/index.js",
+      "require": "./dist/serverless/index.cjs.js",
+      "import": "./dist/serverless/index.esm.js",
       "types": "./dist/serverless/index.d.ts"
     },
-    "./serverless/core": {
-      "require": "./dist/serverless/core.js",
-      "import": "./dist/serverless/core.js",
-      "types": "./dist/serverless/core.d.ts"
+    "./serverless/verifier": {
+      "require": "./dist/serverless/verifier.cjs.js",
+      "import": "./dist/serverless/verifier.esm.js",
+      "types": "./dist/serverless/verifier.d.ts"
     },
     "./serverless/aws": {
-      "require": "./dist/serverless/adapters/aws-lambda.js",
-      "import": "./dist/serverless/adapters/aws-lambda.js",
+      "require": "./dist/serverless/adapters/aws-lambda.cjs.js",
+      "import": "./dist/serverless/adapters/aws-lambda.esm.js",
       "types": "./dist/serverless/adapters/aws-lambda.d.ts"
     },
     "./serverless/vercel": {
-      "require": "./dist/serverless/adapters/vercel.js",
-      "import": "./dist/serverless/adapters/vercel.js",
+      "require": "./dist/serverless/adapters/vercel.cjs.js",
+      "import": "./dist/serverless/adapters/vercel.esm.js",
       "types": "./dist/serverless/adapters/vercel.d.ts"
     },
     "./serverless/cloudflare": {
-      "require": "./dist/serverless/adapters/cloudflare.js",
-      "import": "./dist/serverless/adapters/cloudflare.js",
+      "require": "./dist/serverless/adapters/cloudflare.cjs.js",
+      "import": "./dist/serverless/adapters/cloudflare.esm.js",
       "types": "./dist/serverless/adapters/cloudflare.d.ts"
     }
   },
@@ -110,7 +110,7 @@
     "husky": "9.1.7",
     "jest": "^30.2.0",
     "lint-staged": "16.2.7",
-    "rollup": "^4.53.5",
+    "rollup": "^4.54.0",
     "rollup-plugin-esbuild": "^6.2.1",
     "sinon": "21.0.1",
     "ts-jest": "^29.4.6",

@@ -1,10 +1,10 @@
 import { type LRU, lru } from 'tiny-lru';
-import type { ICacheStore } from '../cache-interface';
+import type { CacheStore } from '../cache-interface';
 
 /**
  * Adapter to make tiny-lru compatible with our cache interface
  */
-export class LRUAdapter<T> implements ICacheStore<T> {
+export class LRUAdapter<T> implements CacheStore<T> {
   private lru: LRU<T>;
 
   constructor(maxSize: number = 1000, ttlMs: number = 3600000) {
