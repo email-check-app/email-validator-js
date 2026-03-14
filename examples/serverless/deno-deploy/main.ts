@@ -147,4 +147,4 @@ Deno.serve({ port: 8000 }, async (req: Request) => {
 console.log('Email Validator server running on http://localhost:8000');
 
 // Export for testing
-export { validateEmailCore, validateEmailBatch };
+export { validateEmailBatch, validateEmailCore };

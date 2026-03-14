@@ -138,7 +138,7 @@ async function test() {
   console.log(await debugVerify(email, mxRecords));
 }
 
-export { simpleVerify, customPorts, secureVerify, fastBulk, debugVerify, tryPortOnly };
+export { customPorts, debugVerify, fastBulk, secureVerify, simpleVerify, tryPortOnly };
 
 if (require.main === module) {
   test().catch(console.error);

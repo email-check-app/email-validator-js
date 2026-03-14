@@ -266,15 +266,15 @@ async function compareStrategies() {
 
 // Export for individual testing
 export {
-  SMTPStep,
   basicSequence,
-  noTLSSequence,
+  compareStrategies,
+  customPortsWithSequences,
   fullSequence,
   minimalSequence,
-  vrfyOnlyTest,
-  customPortsWithSequences,
+  noTLSSequence,
+  SMTPStep,
   stepByStepTest,
-  compareStrategies,
+  vrfyOnlyTest,
 };
 
 // Run all examples if executed directly

@@ -306,10 +306,10 @@ if (require.main === module) {
 // Export for use in other modules
 export {
   basicVerification,
-  syntaxValidation,
-  providerDetection,
+  errorHandling,
   fullVerification,
   performanceComparison,
-  errorHandling,
+  providerDetection,
   runAllExamples,
+  syntaxValidation,
 };

@@ -407,16 +407,16 @@ async function runAllTests() {
 
 // Export for individual testing
 export {
-  testDefaultConfig,
-  testSinglePorts,
-  testCustomPortOrder,
-  testTLSConfigs,
-  testCustomSequences,
-  testRetryAndTimeout,
-  testCustomFromAndVRFY,
-  testCachePerformance,
-  testErrorScenarios,
   runAllTests,
+  testCachePerformance,
+  testCustomFromAndVRFY,
+  testCustomPortOrder,
+  testCustomSequences,
+  testDefaultConfig,
+  testErrorScenarios,
+  testRetryAndTimeout,
+  testSinglePorts,
+  testTLSConfigs,
 };
 
 // Run all tests if executed directly

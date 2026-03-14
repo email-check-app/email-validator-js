@@ -260,10 +260,10 @@ if (require.main === module) {
 }
 
 export {
-  basicEmailVerification,
   advancedEmailVerification,
-  providerDetectionExample,
-  catchAllDetectionExample,
+  basicEmailVerification,
   bulkEmailVerification,
+  catchAllDetectionExample,
+  providerDetectionExample,
   runAllExamples,
 };

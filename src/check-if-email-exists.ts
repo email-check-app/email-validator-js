@@ -26,14 +26,14 @@ export const checkIfEmailExistsConstants = {
 
 // Re-export types for backward compatibility
 export {
-  EmailProvider,
-  SmtpVerificationResult,
-  MxLookupResult,
+  CheckIfEmailExistsCoreParams,
   CheckIfEmailExistsCoreResult,
   CheckIfEmailExistsSmtpOptions,
-  YahooApiOptions,
+  EmailProvider,
   HeadlessOptions,
-  CheckIfEmailExistsCoreParams,
+  MxLookupResult,
+  SmtpVerificationResult,
+  YahooApiOptions,
 };
 
 /**
@@ -2435,5 +2435,4 @@ async function verifySmtpConnectionWithErrorParsing(
 }
 
 // Export functions for testing
-export { verifyYahooApi, verifyYahooHeadless, verifyGmailHeadless, SmtpErrorParser };
-export { HeadlessBrowser };
+export { HeadlessBrowser, SmtpErrorParser, verifyGmailHeadless, verifyYahooApi, verifyYahooHeadless };

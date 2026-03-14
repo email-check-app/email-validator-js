@@ -142,4 +142,4 @@ if (require.main === module) {
   main().catch(console.error);
 }
 
-export { processUserRegistration, processBatchUserEmails, cleanExistingNames, updateUserProfileWithCleanName };
+export { cleanExistingNames, processBatchUserEmails, processUserRegistration, updateUserProfileWithCleanName };

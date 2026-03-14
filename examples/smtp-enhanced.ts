@@ -212,4 +212,4 @@ if (require.main === module) {
   runExamples().catch(console.error);
 }
 
-export { basicVerification, customPortVerification, secureVerification, testSpecificPort, fastVerification };
+export { basicVerification, customPortVerification, fastVerification, secureVerification, testSpecificPort };

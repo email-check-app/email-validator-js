@@ -494,10 +494,10 @@ if (require.main === module) {
 // Export for use in other modules
 export {
   basicCheckIfExistsDemo,
-  providerOptimizationsDemo,
   customSmtpVerificationDemo,
-  performanceComparisonDemo,
   errorHandlingDemo,
+  performanceComparisonDemo,
+  providerOptimizationsDemo,
   realWorldScenariosDemo,
   runCheckIfEmailExistsDemo,
 };

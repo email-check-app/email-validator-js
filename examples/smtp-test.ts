@@ -221,9 +221,9 @@ if (require.main === module) {
 }
 
 export {
-  testPortConnectivity,
+  testCustomSequences,
   testMultiPortWithCaching,
+  testPortConnectivity,
   testTimeoutHandling,
   testTLSConfiguration,
-  testCustomSequences,
 };
