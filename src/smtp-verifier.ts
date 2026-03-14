@@ -30,8 +30,13 @@ function isIPAddress(host: string): boolean {
  */
 function isHighVolume(smtpReply: string): boolean {
   // 550 5.7.1 [IR] Our system has detected an excessively high number of invalid recipients originating from your account.
-  // check against part of the string - high number of
-  return Boolean(smtpReply && /high number of/gi.test(smtpReply));
+  // 550 5.7.1 [IRR] Our system has detected unusual activity from your account. Contact your service provider for support
+  return Boolean(
+    smtpReply &&
+      /(high number of|our system has detected unusual activity|contact your service provider for support|\[irr\])/gi.test(
+        smtpReply
+      )
+  );
 }
 
 /**

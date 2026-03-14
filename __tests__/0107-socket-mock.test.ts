@@ -222,6 +222,52 @@ describe('0107 Socket Mock', () => {
         expect(result.validMx).toBe(true);
       });
 
+      it('returns true on unusual activity anti-abuse lockout responses', async () => {
+        self?.connectStub?.restore(); // Restore previous stub
+        const msg =
+          '550 5.7.1 [IRR] Our system has detected unusual activity from your account. Contact your service provider for support';
+        const socket = new Socket({});
+        let greetingSent = false;
+
+        self.connectStub = self?.sandbox?.stub(net, 'connect').callsFake((options, callback) => {
+          setTimeout(() => {
+            if (callback) callback();
+            setTimeout(() => {
+              socket.emit('data', '220 test.example.com ESMTP\r\n');
+              greetingSent = true;
+            }, 10);
+          }, 5);
+          return socket;
+        });
+
+        self?.sandbox?.stub(socket, 'write').callsFake(function (data) {
+          const command = data.toString().trim();
+          if (!command.includes('QUIT') && greetingSent) {
+            setTimeout(() => {
+              if (command.includes('EHLO') || command.includes('HELO')) {
+                this.emit('data', '250 Hello\r\n');
+              } else if (command.includes('MAIL FROM')) {
+                this.emit('data', '250 Mail OK\r\n');
+              } else if (command.includes('RCPT TO')) {
+                this.emit('data', msg + '\r\n');
+              }
+            }, 10);
+          }
+          return true;
+        });
+
+        const result = await verifyEmail({
+          emailAddress: 'bar@foo.com',
+          verifySmtp: true,
+          verifyMx: true,
+          debug: true,
+        });
+
+        expect(result.validSmtp).toBe(true);
+        expect(result.validFormat).toBe(true);
+        expect(result.validMx).toBe(true);
+      });
+
       it('returns null when socket connection error occurs', async () => {
         self?.connectStub?.restore(); // Restore previous stub
         const socket = new Socket({});
