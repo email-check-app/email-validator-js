@@ -28,6 +28,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    services:
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+
     permissions:
       contents: write
       issues: write
@@ -37,7 +43,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
