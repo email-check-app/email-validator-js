@@ -19,9 +19,11 @@ describe('0203 Redis Adapter', () => {
         store.set(key, value);
         if (duration) {
           // Simulate expiration (in a real test, you'd use setTimeout)
-          setTimeout(() => {
+          const expirationTimer = setTimeout(() => {
             store.delete(key);
           }, duration * 1000);
+          // Do not keep the process alive for mock TTL timers.
+          expirationTimer.unref?.();
         }
         return 'OK';
       },

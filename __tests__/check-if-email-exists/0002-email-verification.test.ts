@@ -174,25 +174,20 @@ describe('0002 MX Records Query', () => {
 describe('0002 SMTP Connection Verification', () => {
   test('should apply Gmail-specific optimizations during SMTP verification', async () => {
     // This test verifies that the Gmail optimization logic is properly applied
-    // Full SMTP connection mocking would require extensive test infrastructure
+    // Full SMTP connection mocking would require extensive test infrastructure.
+    // Use a closed local port to avoid real network traffic.
     const gmailOptions = {
-      timeout: 10000,
+      timeout: 100,
       fromEmail: 'test@gmail.com',
       helloName: 'test.com',
-      port: 25,
-      retries: 3,
+      port: 2525,
+      retries: 0,
     };
 
-    // Test that Gmail optimizations are applied without throwing
-    expect(async () => {
-      await verifySmtpConnection(
-        'test@gmail.com',
-        'gmail.com',
-        'gmail-smtp-in.l.google.com',
-        gmailOptions,
-        EmailProvider.gmail
-      );
-    }).not.toThrow();
+    // Test that Gmail optimizations are applied and function resolves, not throws.
+    await expect(
+      verifySmtpConnection('test@gmail.com', 'gmail.com', 'localhost', gmailOptions, EmailProvider.gmail)
+    ).resolves.toBeDefined();
   });
 });
 

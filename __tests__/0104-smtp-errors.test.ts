@@ -343,6 +343,7 @@ describe('0104 SMTP Errors', () => {
           options: {
             ports: [587],
             timeout: 3000,
+            maxRetries: 0,
             cache: getDefaultCache(),
           },
         });

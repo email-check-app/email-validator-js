@@ -1382,20 +1382,30 @@ const isCommon = COMMON_EMAIL_DOMAINS.includes('gmail.com'); // true
 
 ## Testing
 
-Run the test suite:
+Run the fast deterministic unit suite (default):
 ```bash
 yarn test
 ```
 
+Run integration suites (network/timeouts/live-behavior):
+```bash
+yarn test:integration
+```
+
+Run everything:
+```bash
+yarn test:all
+```
+
 Run with coverage:
 ```bash
-yarn test --coverage
+yarn test:unit --coverage
 ```
 
 Lint the code:
 ```bash
 yarn lint
-yarn lint-fix  # Auto-fix issues
+yarn lint:fix  # Auto-fix issues
 ```
 
 Build the project:
@@ -1447,9 +1457,11 @@ email-validator-js/
 ### Scripts
 ```bash
 yarn build      # Build TypeScript with Rollup
-yarn test       # Run tests with Jest
+yarn test       # Run fast unit suite
+yarn test:integration # Run slow integration/live suites
+yarn test:all   # Run unit + integration suites
 yarn lint       # Run Biome linting
-yarn lint-fix   # Auto-fix linting issues
+yarn lint:fix   # Auto-fix linting issues
 yarn typecheck  # Run TypeScript type checking
 ```
 

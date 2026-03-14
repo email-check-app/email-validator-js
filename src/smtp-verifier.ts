@@ -217,10 +217,10 @@ export async function verifyMailboxSMTP(
   for (const port of ports) {
     log(`Testing port ${port}`);
 
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       if (attempt > 0) {
         const delay = Math.min(200 * 2 ** (attempt - 1), 800);
-        log(`Retry ${attempt + 1}, waiting ${delay}ms`);
+        log(`Retry ${attempt}, waiting ${delay}ms`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
@@ -293,10 +293,11 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
   const implicitTLS = portConfig.tls;
 
   // Default sequence if not provided
-  const defaultSequence: SMTPSequence = {
-    steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
+  const defaultSteps = [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo];
+  const activeSequence: SMTPSequence = {
+    ...sequence,
+    steps: [...(sequence?.steps ?? defaultSteps)],
   };
-  const activeSequence = sequence || defaultSequence;
 
   // For port 25, use HELO instead of EHLO (original behavior)
   if (port === 25) {
@@ -328,7 +329,8 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
         socket?.write('QUIT\r\n');
       } catch {}
 
-      setTimeout(() => socket?.destroy(), 100);
+      const destroyTimer = setTimeout(() => socket?.destroy(), 100);
+      destroyTimer.unref?.();
     };
 
     const finish = (result: boolean | null, reason?: string) => {
@@ -651,9 +653,6 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
       originalHandleData(data);
     };
 
-    // Store original cleanup before replacing
-    const originalCleanup = cleanup;
-
     // Enhanced cleanup function
     const enhancedCleanup = () => {
       if (resolved) return;
@@ -667,7 +666,8 @@ async function testSMTPConnection(params: ConnectionTestParams): Promise<boolean
         socket?.write('QUIT\r\n');
       } catch {}
 
-      setTimeout(() => socket?.destroy(), 100);
+      const destroyTimer = setTimeout(() => socket?.destroy(), 100);
+      destroyTimer.unref?.();
     };
 
     // Replace cleanup with enhanced version
