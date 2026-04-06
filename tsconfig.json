@@ -2,8 +2,8 @@
   "compilerOptions": {
     "outDir": "./dist",
     "target": "es2019",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "allowJs": true,
     "checkJs": true,
     "strict": true,
@@ -21,7 +21,6 @@
     "declarationDir": "./dist",
     "declaration": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "typeRoots": [
       "./node_modules/@types",
       "./src"
