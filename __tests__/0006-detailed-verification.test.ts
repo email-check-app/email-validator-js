@@ -91,7 +91,7 @@ describe('0006 Detailed Email Verification', () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
       const socket = new Socket({});
-      sandbox.stub(socket, 'write').callsFake(function (data) {
+      sandbox.stub(socket, 'write').callsFake(function (this: Socket, data) {
         if (!data.toString().includes('QUIT')) {
           this.emit('data', '550 User not found');
         }
@@ -143,7 +143,7 @@ describe('0006 Detailed Email Verification', () => {
       sandbox.stub(dnsPromises, 'resolveMx').resolves([{ exchange: 'mx1.example.com', priority: 10 }]);
 
       const socket = new Socket({});
-      sandbox.stub(socket, 'write').callsFake(function (data) {
+      sandbox.stub(socket, 'write').callsFake(function (this: Socket, data) {
         if (!data.toString().includes('QUIT')) {
           this.emit('data', '250 OK');
         }

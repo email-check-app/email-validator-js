@@ -12,7 +12,7 @@ type SelfMockType = {
 };
 
 function stubResolveMx(self: SelfMockType, domain = 'foo.com') {
-  self.resolveMxStub = self?.sandbox?.stub(dnsPromises, 'resolveMx').callsFake(async (_hostname: string) => [
+  self.resolveMxStub = self.sandbox!.stub(dnsPromises, 'resolveMx').callsFake(async (_hostname: string) => [
     { exchange: `mx1.${domain}`, priority: 30 },
     { exchange: `mx2.${domain}`, priority: 10 },
     { exchange: `mx3.${domain}`, priority: 20 },
@@ -24,7 +24,7 @@ function stubSocket(self: SelfMockType) {
   let greetingSent = false;
 
   // Mock the connect function to emit the socket immediately with a greeting
-  self.connectStub = self?.sandbox?.stub(net, 'connect').callsFake((options, callback) => {
+  self.connectStub = self.sandbox!.stub(net, 'connect').callsFake((options: string, callback?: () => void) => {
     // Emit the socket with a small delay
     setTimeout(() => {
       if (callback) callback();
@@ -34,10 +34,10 @@ function stubSocket(self: SelfMockType) {
         greetingSent = true;
       }, 10);
     }, 5);
-    return self.socket;
-  });
+    return self.socket!;
+  }) as SelfMockType['connectStub'];
 
-  self?.sandbox?.stub(self.socket, 'write').callsFake(function (data) {
+  self.sandbox!.stub(self.socket, 'write').callsFake(function (this: Socket, data) {
     const command = data.toString().trim();
     if (!command.includes('QUIT') && greetingSent) {
       // Respond to SMTP commands
@@ -89,8 +89,8 @@ describe('0107 Socket Mock', () => {
         verifySmtp: true,
         debug: true,
       });
-      sinon.assert.called(self.resolveMxStub);
-      sinon.assert.called(self.connectStub);
+      sinon.assert.called(self.resolveMxStub!);
+      sinon.assert.called(self.connectStub!);
       expect(result.validFormat).toBe(true);
       expect(result.validMx).toBe(true);
       expect(result.validSmtp).toBe(true);
@@ -98,8 +98,8 @@ describe('0107 Socket Mock', () => {
 
     it('returns early if email format is invalid', async () => {
       const result = await verifyEmail({ emailAddress: 'bar.com' });
-      sinon.assert.notCalled(self.resolveMxStub);
-      sinon.assert.notCalled(self.connectStub);
+      sinon.assert.notCalled(self.resolveMxStub!);
+      sinon.assert.notCalled(self.connectStub!);
       expect(result.validFormat).toBe(false);
       expect(result.validMx).toBe(null);
       expect(result.validSmtp).toBe(null);

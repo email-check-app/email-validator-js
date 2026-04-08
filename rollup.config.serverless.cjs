@@ -112,13 +112,14 @@ module.exports = [
       {
         file: 'dist/serverless/adapters/aws-lambda.cjs.js',
         format: 'cjs',
+        exports: 'named',
         sourcemap: true,
       },
     ],
     external,
     plugins,
   },
-  
+
   // Vercel adapter
   {
     input: 'src/serverless/adapters/vercel.ts',
@@ -131,13 +132,14 @@ module.exports = [
       {
         file: 'dist/serverless/adapters/vercel.cjs.js',
         format: 'cjs',
+        exports: 'named',
         sourcemap: true,
       },
     ],
     external,
     plugins,
   },
-  
+
   // Cloudflare adapter
   {
     input: 'src/serverless/adapters/cloudflare.ts',
@@ -150,6 +152,7 @@ module.exports = [
       {
         file: 'dist/serverless/adapters/cloudflare.cjs.js',
         format: 'cjs',
+        exports: 'named',
         sourcemap: true,
       },
     ],

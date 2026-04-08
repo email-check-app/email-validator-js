@@ -185,7 +185,7 @@ export async function getDomainAge(
     }
 
     const whoisData = await getWhoisData(cleanDomain, timeout, debug, cache);
-    if (!whoisData || !whoisData.creationDate) {
+    if (!whoisData?.creationDate) {
       log(`[whois] no creation date found for ${cleanDomain}`);
       return null;
     }
