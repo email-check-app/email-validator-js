@@ -45,7 +45,11 @@ export interface VerificationResult {
   /** Whether the email/account is disabled */
   isDisabled?: boolean;
 
-  metadata?: {
+  /**
+   * Always populated by `verifyEmail`. Optional in older shapes is gone —
+   * callers can read it directly without optional chaining.
+   */
+  metadata: {
     verificationTime: number;
     cached: boolean;
     error?: VerificationErrorCode;
@@ -202,151 +206,6 @@ export interface BatchVerificationResult {
   };
 }
 
-/**
- * Parse SMTP error message to determine error type
- * Handles both SMTP protocol errors and system/network errors
- */
-export function parseSmtpError(errorMessage: string): {
-  isDisabled: boolean;
-  hasFullInbox: boolean;
-  isInvalid: boolean;
-  isCatchAll: boolean;
-} {
-  const lowerError = errorMessage.toLowerCase();
-
-  // Check for network/connection errors first
-  const networkErrorPatterns = [
-    'etimedout',
-    'econnrefused',
-    'enotfound',
-    'econnreset',
-    'socket hang up',
-    'connection_timeout',
-    'socket_timeout',
-    'connection_error',
-    'connection_closed',
-  ];
-
-  const isNetworkError = networkErrorPatterns.some((pattern) => lowerError.includes(pattern));
-
-  // If it's a network error, return as invalid (not deliverable)
-  if (isNetworkError) {
-    return {
-      isDisabled: false,
-      hasFullInbox: false,
-      isInvalid: true,
-      isCatchAll: false,
-    };
-  }
-
-  // Check for disabled account
-  const disabledPatterns = [
-    'account disabled',
-    'account is disabled',
-    'user disabled',
-    'user is disabled',
-    'account locked',
-    'account is locked',
-    'user blocked',
-    'user is blocked',
-    'mailbox disabled',
-    'delivery not authorized',
-    'message rejected',
-    'access denied',
-    'permission denied',
-    'recipient unknown',
-    'recipient address rejected',
-    'user unknown',
-    'address unknown',
-    'invalid recipient',
-    'not a valid recipient',
-    'recipient does not exist',
-    'no such user',
-    'user does not exist',
-    'mailbox unavailable',
-    'recipient unavailable',
-    'address rejected',
-    '550',
-    '551',
-    '553',
-    'not_found',
-    'ambiguous',
-  ];
-
-  // Check for full inbox
-  const fullInboxPatterns = [
-    'mailbox full',
-    'inbox full',
-    'quota exceeded',
-    'over quota',
-    'storage limit exceeded',
-    'message too large',
-    'insufficient storage',
-    'mailbox over quota',
-    'over the quota',
-    'mailbox size limit exceeded',
-    'account over quota',
-    'storage space',
-    'overquota',
-    '452',
-    '552',
-    'over_quota',
-  ];
-
-  // Check for catch-all (accepts all recipients)
-  const catchAllPatterns = [
-    'accept all mail',
-    'catch-all',
-    'catchall',
-    'wildcard',
-    'accepts any recipient',
-    'recipient address accepted',
-  ];
-
-  // Check for rate limiting but still deliverable
-  const rateLimitPatterns = [
-    'receiving mail at a rate that',
-    'rate limit',
-    'too many messages',
-    'temporarily rejected',
-    'try again later',
-    'greylisted',
-    'greylist',
-    'deferring',
-    'temporarily deferred',
-    '421',
-    '450',
-    '451',
-    'temporary_failure',
-  ];
-
-  const isDisabled =
-    disabledPatterns.some((pattern) => lowerError.includes(pattern)) ||
-    lowerError.startsWith('550') ||
-    lowerError.startsWith('551') ||
-    lowerError.startsWith('553');
-  const hasFullInbox =
-    fullInboxPatterns.some((pattern) => lowerError.includes(pattern)) ||
-    lowerError.startsWith('452') ||
-    lowerError.startsWith('552');
-  const isCatchAll = catchAllPatterns.some((pattern) => lowerError.includes(pattern));
-  const isInvalid =
-    !isDisabled &&
-    !hasFullInbox &&
-    !isCatchAll &&
-    !rateLimitPatterns.some((pattern) => lowerError.includes(pattern)) &&
-    !lowerError.startsWith('421') &&
-    !lowerError.startsWith('450') &&
-    !lowerError.startsWith('451');
-
-  return {
-    isDisabled,
-    hasFullInbox,
-    isInvalid,
-    isCatchAll,
-  };
-}
-
 /** TLS configuration options for the SMTP probe. */
 export interface SMTPTLSConfig {
   rejectUnauthorized?: boolean;
@@ -434,20 +293,6 @@ export type NameDetectionMethod = (email: string) => DetectedName | null;
 export interface NameDetectionParams {
   email: string;
   customMethod?: NameDetectionMethod;
-}
-
-/**
- * WHOIS data structure
- */
-export interface WhoisData {
-  domainName: string | null;
-  registrar: string | null;
-  creationDate: Date | null;
-  expirationDate: Date | null;
-  updatedDate: Date | null;
-  status: string[];
-  nameServers: string[];
-  rawData: string;
 }
 
 /**

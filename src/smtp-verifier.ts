@@ -14,7 +14,7 @@ import * as net from 'node:net';
 import * as tls from 'node:tls';
 import { getCacheStore } from './cache';
 import type { SMTPSequence, SMTPTLSConfig, SmtpVerificationResult, VerifyMailboxSMTPParams } from './types';
-import { EmailProvider, parseSmtpError, SMTPStep } from './types';
+import { EmailProvider, SMTPStep } from './types';
 
 const DEFAULT_PORTS = [25, 587, 465]; // plain → STARTTLS-able → implicit-TLS
 const DEFAULT_TIMEOUT_MS = 3000;
@@ -162,15 +162,17 @@ function failureResult(error: string): SmtpVerificationResult {
 }
 
 function toSmtpVerificationResult(result: boolean | null): SmtpVerificationResult {
-  const reason = result === true ? 'valid' : result === null ? 'ambiguous' : 'not_found';
-  const parsed = parseSmtpError(reason);
+  // The verifier resolves to one of three states; map each directly. The old
+  // implementation routed through a large pattern-matcher in types.ts that
+  // never saw any input besides these three literals, so the branching was
+  // dead weight.
   return {
     canConnectSmtp: result !== null,
-    hasFullInbox: parsed.hasFullInbox,
-    isCatchAll: parsed.isCatchAll,
+    hasFullInbox: false,
+    isCatchAll: false,
     isDeliverable: result === true,
-    isDisabled: result === false && parsed.isDisabled,
-    error: result === true ? undefined : reason,
+    isDisabled: result === false,
+    error: result === true ? undefined : result === null ? 'ambiguous' : 'not_found',
     providerUsed: EmailProvider.everythingElse,
     checkedAt: Date.now(),
   };
@@ -353,14 +355,11 @@ class SMTPProbeConnection {
       return;
     }
 
-    // Multiline continuation — collect EHLO advertisements, wait for final line.
-    if (MULTILINE_RE.test(line)) {
-      const step = this.steps[this.currentStepIndex];
-      if (step === SMTPStep.ehlo && line.startsWith('250') && /STARTTLS/i.test(line)) {
-        this.supportsSTARTTLS = true;
-      }
-      return;
-    }
+    // Multiline continuation — wait for the final line (no leading dash) before
+    // dispatching. EHLO advertisements (STARTTLS, VRFY, PIPELINING, …) are
+    // captured by the transcript but not parsed; this verifier walks a fixed
+    // sequence and never branches on capabilities.
+    if (MULTILINE_RE.test(line)) return;
 
     const code = line.slice(0, 3);
     const numericCode = /^\d{3}$/.test(code) ? parseInt(code, 10) : null;

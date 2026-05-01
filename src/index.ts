@@ -222,7 +222,7 @@ export async function verifyEmail(params: VerifyEmailParams): Promise<Verificati
       logger: log,
     });
     log(`[verifyEmail] disposable: ${result.isDisposable}`);
-    if (result.isDisposable) result.metadata!.error = VerificationErrorCode.disposableEmail;
+    if (result.isDisposable) result.metadata.error = VerificationErrorCode.disposableEmail;
   }
   if (params.checkFree ?? true) {
     result.isFree = await isFreeEmail({ emailOrDomain: params.emailAddress, cache: params.cache, logger: log });
@@ -244,7 +244,7 @@ export async function verifyEmail(params: VerifyEmailParams): Promise<Verificati
     }
   }
 
-  result.metadata!.verificationTime = Date.now() - startTime;
+  result.metadata.verificationTime = Date.now() - startTime;
   return result;
 }
 
@@ -261,8 +261,8 @@ function blankResult(email: string): VerificationResult {
 }
 
 function finalize(result: VerificationResult, error: VerificationErrorCode, startTime: number): VerificationResult {
-  result.metadata!.error = error;
-  result.metadata!.verificationTime = Date.now() - startTime;
+  result.metadata.error = error;
+  result.metadata.verificationTime = Date.now() - startTime;
   return result;
 }
 
@@ -323,14 +323,14 @@ async function runMxAndSmtp(
     log('[verifyEmail] MX lookup failed', error);
     result.validMx = false;
     result.mxRecords = null;
-    result.metadata!.error = VerificationErrorCode.noMxRecords;
+    result.metadata.error = VerificationErrorCode.noMxRecords;
     return;
   }
 
   result.mxRecords = mxRecords;
   result.validMx = mxRecords.length > 0;
   if (!result.validMx) {
-    result.metadata!.error = VerificationErrorCode.noMxRecords;
+    result.metadata.error = VerificationErrorCode.noMxRecords;
     return;
   }
 
@@ -353,7 +353,7 @@ async function runSmtp(
 
   if (cached) {
     applySmtpResult(result, cached);
-    result.metadata!.cached = true;
+    result.metadata.cached = true;
     log(`[verifyEmail] SMTP cache hit: ${result.validSmtp} for ${params.emailAddress}`);
   } else {
     const { smtpResult, cached: probedFromCache } = await verifyMailboxSMTP({
@@ -369,10 +369,10 @@ async function runSmtp(
     });
     await smtpCache.set(cacheKey, smtpResult);
     applySmtpResult(result, smtpResult);
-    result.metadata!.cached = probedFromCache;
+    result.metadata.cached = probedFromCache;
     log(`[verifyEmail] SMTP probed: ${result.validSmtp} for ${params.emailAddress}`);
   }
 
-  if (result.validSmtp === false) result.metadata!.error = VerificationErrorCode.mailboxNotFound;
-  else if (result.validSmtp === null) result.metadata!.error = VerificationErrorCode.smtpConnectionFailed;
+  if (result.validSmtp === false) result.metadata.error = VerificationErrorCode.mailboxNotFound;
+  else if (result.validSmtp === null) result.metadata.error = VerificationErrorCode.smtpConnectionFailed;
 }

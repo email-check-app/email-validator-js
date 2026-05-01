@@ -58,24 +58,6 @@ const COMMON_TITLES = [
   'sister',
 ];
 
-// Common middle name indicators
-const middleNameIndicators = [
-  'van',
-  'von',
-  'de',
-  'del',
-  'dela',
-  'da',
-  'di',
-  'le',
-  'la',
-  'du',
-  'den',
-  'der',
-  'ter',
-  'ten',
-];
-
 // Common first names across English, Latin, Arabic, Asian, European, African cultures.
 // Source data lives in src/data/common-first-names.json — JSON keeps the source
 // file readable instead of buried under hundreds of string literals.
@@ -105,10 +87,6 @@ function isTitle(str: string) {
 }
 
 // Check if a string is a middle name indicator
-function _isMiddleNameIndicator(str: string) {
-  return middleNameIndicators.includes(str.toLowerCase());
-}
-
 // Score how likely a string is to be a first name
 function getFirstNameScore(str: string) {
   const lower = str.toLowerCase();

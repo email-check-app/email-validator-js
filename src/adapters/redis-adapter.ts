@@ -67,26 +67,26 @@ export class RedisAdapter<T> implements CacheStore<T> {
   }
 
   /**
-   * Recursively process an object to convert Date instances to a serializable format
+   * Walk an arbitrary value and replace `Date` instances with a tagged
+   * envelope `{__type: 'Date', value: <ISO>}` so JSON.stringify can round-trip
+   * them. The reverse (parsing the envelope) lives in the JSON `parse` reviver
+   * configured in the constructor.
    */
-  private processDatesForSerialization(obj: any): any {
-    if (obj instanceof Date) {
-      return { __type: 'Date', value: obj.toISOString() };
+  private processDatesForSerialization(value: unknown): unknown {
+    if (value instanceof Date) {
+      return { __type: 'Date', value: value.toISOString() };
     }
-
-    if (obj && typeof obj === 'object') {
-      if (Array.isArray(obj)) {
-        return obj.map((item) => this.processDatesForSerialization(item));
-      }
-
-      const result: any = {};
-      for (const [key, value] of Object.entries(obj)) {
-        result[key] = this.processDatesForSerialization(value);
+    if (Array.isArray(value)) {
+      return value.map((item) => this.processDatesForSerialization(item));
+    }
+    if (value && typeof value === 'object') {
+      const result: Record<string, unknown> = {};
+      for (const [key, v] of Object.entries(value)) {
+        result[key] = this.processDatesForSerialization(v);
       }
       return result;
     }
-
-    return obj;
+    return value;
   }
 
   async get(key: string): Promise<T | null> {

@@ -168,13 +168,14 @@ async function workerHandler(
   }
 }
 
-// Durable Object for stateful validation.
+// Durable Object for stateful validation. The `state` and `env` arguments are
+// part of the Durable Object constructor contract but unused here — the cache
+// lives entirely in process memory; persisting to `state.storage` is a future
+// enhancement, not the current behavior.
 export class EmailValidatorDO {
-  private cache: EdgeCache<EmailValidationResult>;
+  private readonly cache: EdgeCache<EmailValidationResult>;
 
-  constructor(state: DurableObjectState, env: CloudflareEnv) {
-    this.state = state;
-    this.env = env;
+  constructor(_state: DurableObjectState, _env: CloudflareEnv) {
     this.cache = new EdgeCache(1000, 3600000);
   }
 
