@@ -269,7 +269,7 @@ describe('0101 SMTP Ports', () => {
     it('should fail fast when no port responds', async () => {
       const params = createTestParams({
         options: {
-          ports: [9999], // Will definitely fail
+          ports: [9999], // Closed port → immediate connection_error or short timeout
           timeout: 1000,
         },
       });
@@ -279,33 +279,13 @@ describe('0101 SMTP Ports', () => {
       const duration = Date.now() - start;
 
       expect(smtpResult.isDeliverable).toBe(false);
-      // Should attempt 3 times (initial + 2 retries)
-      // With 1 second timeout each, should take at least 3 seconds
-      expect(duration).toBeGreaterThan(500);
+      // Single port walk is bounded by the timeout — anything under 5s is OK.
+      expect(duration).toBeLessThan(5000);
     });
 
-    it('should retry with exponential backoff', async () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-
-      const params = createTestParams({
-        options: {
-          ports: [587],
-          timeout: 1, // Very short to trigger immediate retries
-          debug: true,
-        },
-      });
-
-      const start = Date.now();
-      await verifyMailboxSMTP(params);
-      const duration = Date.now() - start;
-
-      // Check that debug logs show retry delays
-      const logs = consoleSpy.mock.calls.flat().join(' ');
-      expect(logs).toContain('Retry');
-      expect(logs).toContain('waiting');
-
-      consoleSpy.mockRestore();
-    });
+    // Removed: 'should retry with exponential backoff' — the verifier walks ports
+    // sequentially and does not retry within a port. Retry/backoff was a feature
+    // of the old implementation; the refactor surfaced this dead test.
   });
 
   describe('Domain-Specific Port Preferences', () => {

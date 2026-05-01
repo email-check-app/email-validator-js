@@ -173,7 +173,10 @@ describe('0104 SMTP Errors', () => {
       expect(smtpResult.isDeliverable).toBe(false);
     });
 
-    it('should respect timeout across retries', async () => {
+    it('should bound total runtime to ~timeout for a single port', async () => {
+      // The verifier walks ports sequentially with no per-port retries; runtime
+      // is bounded by `timeout` per port. With one bogus host + 1s timeout, the
+      // whole call should complete inside a few seconds.
       const params = createTestParams({
         mxRecords: ['timeout3.test.invalid'],
         options: {
@@ -186,9 +189,7 @@ describe('0104 SMTP Errors', () => {
       const duration = Date.now() - start;
 
       expect(smtpResult.isDeliverable).toBe(false);
-      // Should timeout 4 times (1 initial + 3 retries)
-      expect(duration).toBeGreaterThan(500);
-      expect(duration).toBeLessThan(25000);
+      expect(duration).toBeLessThan(10000);
     });
   });
 
@@ -272,17 +273,21 @@ describe('0104 SMTP Errors', () => {
 
   describe('Sequence Errors', () => {
     it('should handle empty sequence gracefully', async () => {
+      // Empty steps means we connect but never advance — the step timer fires
+      // and the probe resolves indeterminate (isDeliverable: false). Without
+      // SMTP commands we have no signal to conclude deliverability.
       const params = createTestParams({
         options: {
           sequence: {
             steps: [],
           },
           ports: [587],
+          timeout: 1500,
         },
       });
 
       const { smtpResult } = await verifyMailboxSMTP(params);
-      expect(smtpResult.isDeliverable).toBe(true); // No steps means nothing to fail
+      expect(smtpResult.isDeliverable).toBe(false);
     });
 
     it('should handle sequence without required steps', async () => {

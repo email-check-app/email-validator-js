@@ -46,28 +46,32 @@ export async function isValidEmailDomain(emailOrDomain: string, cache?: Cache | 
 }
 
 /**
- * Validates email address format using RFC-compliant regex
- * @param emailAddress - The email address to validate
- * @returns true if email format is valid
+ * Validates email-address format with a pragmatic (not strictly RFC-5322) regex.
+ *
+ * The local-part allow-list is `[a-zA-Z0-9._+'-]` — letters, digits, dot,
+ * underscore, plus, apostrophe, hyphen. Characters that are technically valid
+ * in RFC atext but virtually never appear in real mailboxes (`= ? ^ ~ { } | *
+ * & % $ # ! / `` `) are rejected. Quoted local-parts (`"..."@example.com`) are
+ * accepted as-is — they're rare but legal — but their interior is not parsed.
  */
 export function isValidEmail(emailAddress: string) {
   if (!emailAddress || typeof emailAddress !== 'string') {
     return false;
   }
 
-  // Updated regex to be more comprehensive
+  // Local-part: dot-atom-text with the pragmatic character set, OR a
+  // quoted-string. Domain: IPv4 literal in brackets, OR labels-and-TLD.
   const re =
-    /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    /^(([a-zA-Z0-9_+'-]+(\.[a-zA-Z0-9_+'-]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}))$/;
 
-  // Additional checks
   const emailLower = emailAddress.toLowerCase();
 
-  // Check for invalid patterns
+  // Heuristic guards on top of the regex — these are subtle invalid patterns
+  // that the regex's dot-atom structure can still permit at the seams.
   if (emailLower.indexOf('.+') !== -1) return false;
   if (emailLower.indexOf('..') !== -1) return false;
   if (emailLower.startsWith('.') || emailLower.endsWith('.')) return false;
 
-  // Check length constraints
   const parts = emailAddress.split('@');
   if (parts.length !== 2) return false;
 

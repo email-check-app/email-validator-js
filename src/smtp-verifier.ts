@@ -82,8 +82,12 @@ function isInvalidMailboxError(reply: string): boolean {
 export async function verifyMailboxSMTP(
   params: VerifyMailboxSMTPParams
 ): Promise<{ smtpResult: SmtpVerificationResult; cached: boolean; port: number; portCached: boolean }> {
-  const { local, domain, mxRecords = [], options = {} } = params;
-  const ports = options.ports ?? DEFAULT_PORTS;
+  const { local, domain, options = {} } = params;
+  // Coerce null → empty array (destructuring default only fires on undefined).
+  const mxRecords = params.mxRecords ?? [];
+  // Filter out non-integer / out-of-range ports — net.connect throws RangeError
+  // synchronously for those, which would crash the promise executor.
+  const ports = (options.ports ?? DEFAULT_PORTS).filter((port) => Number.isInteger(port) && port > 0 && port < 65536);
   const timeout = options.timeout ?? DEFAULT_TIMEOUT_MS;
   const tlsConfig = options.tls ?? true;
   const hostname = options.hostname ?? 'localhost';
@@ -300,8 +304,15 @@ class SMTPProbeConnection {
   run(): Promise<ProbeResult> {
     return new Promise<ProbeResult>((resolve) => {
       this.resolveFn = resolve;
-      this.connect();
-      this.armConnectionTimer();
+      // Belt-and-braces: filterPorts() already drops invalid ports, but if a
+      // weird host or TLS config makes net/tls.connect throw synchronously,
+      // resolve as indeterminate instead of rejecting the promise.
+      try {
+        this.connect();
+        this.armConnectionTimer();
+      } catch (error) {
+        this.finish(null, `connect_throw:${error instanceof Error ? error.message : 'unknown'}`);
+      }
     });
   }
 

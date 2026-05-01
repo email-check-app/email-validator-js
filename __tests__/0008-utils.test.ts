@@ -18,6 +18,27 @@ describe('0008 Utils', () => {
       expect(isValidEmail('bar.com')).toBe(false);
       expect(isValidEmail('email.+plug@gmail.com')).toBe(false);
     });
+
+    it('should reject local-parts with characters outside the pragmatic set', async () => {
+      // RFC-valid but virtually never seen in real mailboxes — reject as typos.
+      expect(isValidEmail('hey=mo@gmail.com')).toBe(false);
+      expect(isValidEmail('hey=mo.meabed@gmail.com')).toBe(false);
+      expect(isValidEmail('foo?bar@gmail.com')).toBe(false);
+      expect(isValidEmail('foo^bar@gmail.com')).toBe(false);
+      expect(isValidEmail('foo!bar@gmail.com')).toBe(false);
+      expect(isValidEmail('foo$bar@gmail.com')).toBe(false);
+      expect(isValidEmail('foo|bar@gmail.com')).toBe(false);
+      expect(isValidEmail('foo&bar@gmail.com')).toBe(false);
+    });
+
+    it('should accept the pragmatic local-part character set', async () => {
+      expect(isValidEmail("o'brien@gmail.com")).toBe(true);
+      expect(isValidEmail('first.last@gmail.com')).toBe(true);
+      expect(isValidEmail('first_last@gmail.com')).toBe(true);
+      expect(isValidEmail('first-last@gmail.com')).toBe(true);
+      expect(isValidEmail('first+tag@gmail.com')).toBe(true);
+      expect(isValidEmail('user123@gmail.com')).toBe(true);
+    });
   });
 
   describe('isValidEmailDomain', () => {

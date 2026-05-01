@@ -67,7 +67,7 @@ export const mxCache = new EdgeCache<string[]>(500);
 
 /** Same regex the main validator uses — kept inline because edge runtimes don't auto-resolve psl. */
 const VALID_EMAIL_REGEX =
-  /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  /^(([a-zA-Z0-9_+'-]+(\.[a-zA-Z0-9_+'-]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}))$/;
 
 /**
  * Common email domains — re-exported so callers (Vercel Edge, etc.) can pass a
