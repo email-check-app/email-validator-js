@@ -44,6 +44,12 @@ bun run test
 | [`name-detection-example.ts`](./name-detection-example.ts)        | First/last name extraction from local-part           |
 | [`algolia-integration.ts`](./algolia-integration.ts)              | Pattern for plugging the validator into a search UI  |
 
+### CLI
+
+| File                                       | What it shows                                         |
+| ------------------------------------------ | ----------------------------------------------------- |
+| [`cli-usage.md`](./cli-usage.md)           | `email-validate` recipes, flags, JSON log file shape, programmatic embedding |
+
 ## 🔧 Running
 
 ```bash
