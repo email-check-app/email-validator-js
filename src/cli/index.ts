@@ -26,7 +26,6 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     // Read from the bundled package.json — the build copies it next to the bin.
     // For unbundled (Bun-direct) runs, fall back to a placeholder.
     try {
-      // biome-ignore lint/suspicious/noConsole: legitimate CLI output
       const pkg = require('../../package.json') as { version: string };
       process.stdout.write(`${pkg.version}\n`);
     } catch {

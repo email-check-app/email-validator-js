@@ -75,38 +75,54 @@ describe('0510 _shared/validation — classifyRequest', () => {
 });
 
 describe('0510 _shared/validation — validateBatchEmailsField', () => {
-  it('returns null for a valid array', () => {
-    expect(validateBatchEmailsField(['a@b.com'])).toBeNull();
+  it('returns ok=true with the validated emails for a valid array', () => {
+    const r = validateBatchEmailsField(['a@b.com']);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.emails).toEqual(['a@b.com']);
   });
 
   it('rejects null', () => {
-    const err = validateBatchEmailsField(null);
-    expect(err?.status).toBe(400);
-    expect(err?.message).toBe('Emails array is required');
+    const r = validateBatchEmailsField(null);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.status).toBe(400);
+      expect(r.message).toBe('Emails array is required');
+    }
   });
 
   it('rejects undefined', () => {
-    expect(validateBatchEmailsField(undefined)?.status).toBe(400);
+    const r = validateBatchEmailsField(undefined);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.status).toBe(400);
   });
 
   it('rejects empty array', () => {
-    expect(validateBatchEmailsField([])?.message).toBe('Emails array is required');
+    const r = validateBatchEmailsField([]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toBe('Emails array is required');
   });
 
   it('rejects strings (false-positive guard for misshapen input)', () => {
-    expect(validateBatchEmailsField('a@b.com' as unknown)?.message).toBe('Emails array is required');
+    const r = validateBatchEmailsField('a@b.com' as unknown);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toBe('Emails array is required');
   });
 
   it('rejects objects', () => {
-    expect(validateBatchEmailsField({ length: 1 } as unknown)?.message).toBe('Emails array is required');
+    const r = validateBatchEmailsField({ length: 1 } as unknown);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toBe('Emails array is required');
   });
 
   it('rejects oversize batch', () => {
     const oversize = Array(MAX_BATCH_SIZE + 1).fill('a@b.com');
-    expect(validateBatchEmailsField(oversize)?.message).toBe(`Maximum ${MAX_BATCH_SIZE} emails allowed per batch`);
+    const r = validateBatchEmailsField(oversize);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toBe(`Maximum ${MAX_BATCH_SIZE} emails allowed per batch`);
   });
 
   it('accepts exactly MAX_BATCH_SIZE', () => {
-    expect(validateBatchEmailsField(Array(MAX_BATCH_SIZE).fill('a@b.com'))).toBeNull();
+    const r = validateBatchEmailsField(Array(MAX_BATCH_SIZE).fill('a@b.com'));
+    expect(r.ok).toBe(true);
   });
 });

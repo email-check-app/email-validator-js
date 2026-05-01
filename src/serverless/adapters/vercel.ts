@@ -194,14 +194,14 @@ export async function handler(request: Request): Promise<Response> {
       const parsed = await readJsonBody(request);
       if ('error' in parsed) return parsed.error;
       const body = parsed.body as ValidationRequestBody;
-      const error = validateBatchEmailsField(body.emails);
-      if (error) return jsonResponse(error.status, { error: error.message }, ROUTED_HEADERS);
+      const validated = validateBatchEmailsField(body.emails);
+      if (!validated.ok) return jsonResponse(validated.status, { error: validated.message }, ROUTED_HEADERS);
 
       const options: { batchSize?: number } = {};
       const batchSizeParam = url.searchParams.get('batchSize');
       if (batchSizeParam) options.batchSize = parseInt(batchSizeParam, 10);
 
-      const results = await validateEmailBatch(body.emails!, options);
+      const results = await validateEmailBatch(validated.emails, options);
       return jsonResponse(200, { results }, ROUTED_HEADERS);
     }
 

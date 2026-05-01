@@ -99,12 +99,12 @@ export function formatPretty(result: VerificationResult): string {
   if (result.domainRegistration) {
     const r = result.domainRegistration;
     lines.push(
-      `  ${c.dim('registration:')}  ${r.isRegistered ? c.green('registered') : c.red('available')}${r.isExpired ? ' ' + c.red('(expired)') : ''}${r.isLocked ? ' ' + c.dim('(locked)') : ''}`
+      `  ${c.dim('registration:')}  ${r.isRegistered ? c.green('registered') : c.red('available')}${r.isExpired ? ` ${c.red('(expired)')}` : ''}${r.isLocked ? ` ${c.dim('(locked)')}` : ''}`
     );
   }
   if (result.metadata.error) lines.push(`  ${c.dim('error:')}         ${c.red(result.metadata.error)}`);
   lines.push(
-    `  ${c.dim('elapsed:')}       ${result.metadata.verificationTime} ms${result.metadata.cached ? ' ' + c.dim('(cached)') : ''}`
+    `  ${c.dim('elapsed:')}       ${result.metadata.verificationTime} ms${result.metadata.cached ? ` ${c.dim('(cached)')}` : ''}`
   );
 
   // Transcript block (if captured).

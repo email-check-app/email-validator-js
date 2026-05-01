@@ -97,12 +97,11 @@ export async function verifyMailboxSMTP(
   const cache = options.cache;
   const log = debug ? (...args: unknown[]) => console.log('[SMTP]', ...args) : () => {};
 
-  if (mxRecords.length === 0) {
+  const mxHost = mxRecords[0];
+  if (!mxHost) {
     log('No MX records found');
     return { smtpResult: failureResult('No MX records found'), cached: false, port: 0, portCached: false };
   }
-
-  const mxHost = mxRecords[0]!;
   log(`Verifying ${local}@${domain} via ${mxHost}`);
 
   // Aggregate transcript across port attempts for caller-side debugging.
@@ -361,11 +360,12 @@ class SMTPProbeConnection {
 
   private nextStep(): void {
     this.currentStepIndex++;
-    if (this.currentStepIndex >= this.steps.length) {
+    const step = this.steps[this.currentStepIndex];
+    if (step === undefined) {
       this.finish(true, 'sequence_complete');
       return;
     }
-    this.executeStep(this.steps[this.currentStepIndex]!);
+    this.executeStep(step);
   }
 
   private executeStep(step: SMTPStep): void {

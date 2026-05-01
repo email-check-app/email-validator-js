@@ -25,14 +25,16 @@ export interface ValidationFailure {
  * a 400 failure if emails is missing/empty/oversized, or null when valid.
  * Routed `/validate/batch` paths use this so error messages stay batch-specific.
  */
-export function validateBatchEmailsField(emails: unknown): { status: 400; message: string } | null {
+export type BatchValidation = { ok: true; emails: string[] } | { ok: false; status: 400; message: string };
+
+export function validateBatchEmailsField(emails: unknown): BatchValidation {
   if (!Array.isArray(emails) || emails.length === 0) {
-    return { status: 400, message: 'Emails array is required' };
+    return { ok: false, status: 400, message: 'Emails array is required' };
   }
   if (emails.length > MAX_BATCH_SIZE) {
-    return { status: 400, message: `Maximum ${MAX_BATCH_SIZE} emails allowed per batch` };
+    return { ok: false, status: 400, message: `Maximum ${MAX_BATCH_SIZE} emails allowed per batch` };
   }
-  return null;
+  return { ok: true, emails: emails as string[] };
 }
 
 /**
@@ -58,6 +60,9 @@ export function classifyRequest(
     }
     return { kind: 'batch', emails: body.emails, options: body.options };
   }
-  // body.email is set per the first guard.
-  return { kind: 'single', email: body.email!, options: body.options };
+  // body.email must be set per the first guard (which checks both fields).
+  if (!body.email) {
+    return { kind: 'invalid', status: 400, message: 'Email or emails array is required' };
+  }
+  return { kind: 'single', email: body.email, options: body.options };
 }

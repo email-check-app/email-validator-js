@@ -188,7 +188,8 @@ export function parseArgs(argv: readonly string[]): ParseResult {
   let logFile = true;
 
   for (let i = 0; i < argv.length; i++) {
-    const token = argv[i]!;
+    const token = argv[i];
+    if (token === undefined) continue;
 
     // Positional (the email)
     if (!token.startsWith('-')) {
@@ -308,7 +309,9 @@ export function parseArgs(argv: readonly string[]): ParseResult {
     return { kind: 'error', messages: errors, exitCode: 2 };
   }
 
-  result.email = positional[0]!;
+  const [email] = positional;
+  if (!email) return { kind: 'error', messages: ['Missing required argument: <email>'], exitCode: 2 };
+  result.email = email;
   return { kind: 'args', ...result };
 }
 

@@ -155,9 +155,9 @@ export async function handler(event: APIGatewayProxyEvent, _context?: unknown): 
   if (event.path === '/validate/batch' && event.httpMethod === 'POST') {
     try {
       const body = decodeBody(event) as ValidationRequestBody;
-      const error = validateBatchEmailsField(body.emails);
-      if (error) return jsonResponse(error.status, { error: error.message }, ROUTED_HEADERS);
-      const results = await executeValidation({ kind: 'batch', emails: body.emails! });
+      const validated = validateBatchEmailsField(body.emails);
+      if (!validated.ok) return jsonResponse(validated.status, { error: validated.message }, ROUTED_HEADERS);
+      const results = await executeValidation({ kind: 'batch', emails: validated.emails });
       return jsonResponse(200, { results }, ROUTED_HEADERS);
     } catch (error) {
       console.error('Batch validation error:', error);
