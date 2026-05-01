@@ -23,6 +23,22 @@ const plugins = [
   }),
 ];
 
+// CLI bundle uses a separate esbuild target because src/cli/index.ts uses
+// `import.meta.main` (Bun's direct-execution check). `import.meta` is only
+// supported from es2020 onward. The bundle output is still CJS — Node treats
+// `import.meta` as `undefined` there, which is exactly the runtime semantics
+// our `isDirectInvocation` predicate expects.
+const cliPlugins = [
+  json({ compact: true, preferConst: true }),
+  resolve({ preferBuiltins: true }),
+  commonjs(),
+  esbuild({
+    target: 'es2020',
+    tsconfig: './tsconfig.json',
+    sourceMap: true,
+  }),
+];
+
 const declarationPlugin = typescript({
   tsconfig: './tsconfig.json',
   declaration: true,
@@ -79,6 +95,6 @@ module.exports = [
       banner: '#!/usr/bin/env node',
     },
     external,
-    plugins,
+    plugins: cliPlugins,
   },
 ];
