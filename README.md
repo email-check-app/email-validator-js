@@ -1315,7 +1315,15 @@ DEFAULT_CACHE_OPTIONS.maxSize = {
 ```
 ## 🌐 Serverless Deployment
 
-The package ships a serverless build (`@emailcheck/email-validator-js/serverless/*`) that runs without `node:net` / `node:dns` / `node:tls`. It targets AWS Lambda, Vercel Edge Functions, Cloudflare Workers, Netlify Edge Functions, and Deno Deploy.
+The package ships a serverless build (`@emailcheck/email-validator-js/serverless/*`) that runs without `node:net` / `node:dns` / `node:tls`. It targets:
+
+- **AWS Lambda** — API Gateway, direct invocation, routed handler
+- **GCP Cloud Functions (2nd gen)** — Express-style `(req, res)` on Cloud Run
+- **Vercel** — Edge Functions and Node.js runtime
+- **Cloudflare Workers** — including KV write-through and Durable Objects
+- **Netlify Functions** — Lambda-shaped event with redirect-aware path stripping
+- **Azure Functions (v4 model)** — Web-API-shaped HTTP triggers
+- **Netlify Edge Functions / Deno Deploy** — direct `validateEmailCore` use
 
 ### AWS Lambda (routed handler)
 
@@ -1346,6 +1354,37 @@ export { default } from '@emailcheck/email-validator-js/serverless/cloudflare';
 ```
 
 Bind a `EMAIL_CACHE` KV namespace in `wrangler.toml` to get write-through caching across instances. Bind `EMAIL_VALIDATOR` as a Durable Object (class `EmailValidatorDO`, also exported) for stateful validation with `/validate`, `/cache/clear`, `/cache/stats`.
+
+### GCP Cloud Functions (2nd gen)
+
+```typescript
+import { gcpHandler } from '@emailcheck/email-validator-js/serverless/gcp';
+export const validateEmail = gcpHandler;
+```
+
+Deploy with `gcloud functions deploy --gen2 --runtime=nodejs20 --trigger-http`. See [SERVERLESS.md](SERVERLESS.md#gcp-cloud-functions-2nd-gen) for the Functions Framework integration and Cloud Run usage.
+
+### Netlify Functions
+
+```typescript
+// netlify/functions/validate.ts
+export { netlifyHandler as handler } from '@emailcheck/email-validator-js/serverless/netlify';
+```
+
+The adapter strips `/.netlify/functions/<name>` and `/api/*` prefixes automatically, so the same handler works whether you hit the raw function URL or a redirect.
+
+### Azure Functions (v4)
+
+```typescript
+import { app } from '@azure/functions';
+import { azureHandler } from '@emailcheck/email-validator-js/serverless/azure';
+
+app.http('validateEmail', {
+  methods: ['GET', 'POST', 'OPTIONS'],
+  route: '{*path}',
+  handler: azureHandler,
+});
+```
 
 ### Edge MX support via injected DNS resolver
 

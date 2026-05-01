@@ -16,8 +16,11 @@ platform.
 - [Core API — `validateEmailCore` / `validateEmailBatch`](#core-api)
 - [Platform adapters](#platform-adapters)
   - [AWS Lambda](#aws-lambda)
+  - [GCP Cloud Functions (2nd gen)](#gcp-cloud-functions-2nd-gen)
   - [Vercel](#vercel)
   - [Cloudflare Workers](#cloudflare-workers)
+  - [Netlify Functions](#netlify-functions)
+  - [Azure Functions (v4 model)](#azure-functions-v4-model)
   - [Netlify Edge Functions](#netlify-edge-functions)
   - [Deno Deploy](#deno-deploy)
 - [DNS resolver injection (for MX checks)](#dns-resolver-injection)
@@ -52,8 +55,11 @@ what you need. Each one is bundled CJS + ESM.
   "@emailcheck/email-validator-js/serverless":            "verifier + all adapters",
   "@emailcheck/email-validator-js/serverless/verifier":   "validateEmailCore, EdgeCache, types",
   "@emailcheck/email-validator-js/serverless/aws":        "AWS Lambda adapter",
+  "@emailcheck/email-validator-js/serverless/gcp":        "GCP Cloud Functions 2nd gen adapter",
   "@emailcheck/email-validator-js/serverless/vercel":     "Vercel Edge / Node adapter",
-  "@emailcheck/email-validator-js/serverless/cloudflare": "Workers + Durable Objects"
+  "@emailcheck/email-validator-js/serverless/cloudflare": "Workers + Durable Objects",
+  "@emailcheck/email-validator-js/serverless/netlify":    "Netlify Functions adapter (Lambda-shaped)",
+  "@emailcheck/email-validator-js/serverless/azure":      "Azure Functions v4 adapter"
 }
 ```
 
@@ -343,6 +349,202 @@ export default {
 The DO supports `POST /validate`, `POST /cache/clear`, and `GET /cache/stats`.
 Validation cache lives in DO instance memory (1000 entries, 1-hour TTL).
 
+### GCP Cloud Functions (2nd gen)
+
+2nd-gen Cloud Functions run on Cloud Run and use the Functions Framework's
+Express-style `(req, res)` signature. The adapter accepts both forms (1st-gen
+HTTP-trigger and 2nd-gen Cloud Run) since the surface is identical.
+
+```typescript
+import { gcpHandler, gcpFunction } from '@emailcheck/email-validator-js/serverless/gcp';
+```
+
+Routes (when using `gcpHandler`):
+
+| Method   | Path                | Purpose                                   |
+| -------- | ------------------- | ----------------------------------------- |
+| `GET`    | `/health`           | Liveness check                            |
+| `POST`   | `/validate`         | `{ "email": "..." }`                      |
+| `POST`   | `/validate/batch`   | `{ "emails": ["...", "..."] }` (max 100)  |
+
+#### Routed handler
+
+```typescript
+// index.ts (or whatever you set as entry-point)
+import { gcpHandler } from '@emailcheck/email-validator-js/serverless/gcp';
+
+// 2nd gen registers via the @google-cloud/functions-framework decorators or
+// the older default-export style — both work.
+export const validateEmail = gcpHandler;
+```
+
+Deploy with `gcloud`:
+
+```bash
+gcloud functions deploy validateEmail \
+  --gen2 \
+  --runtime=nodejs20 \
+  --trigger-http \
+  --allow-unauthenticated \
+  --region=us-central1 \
+  --entry-point=validateEmail
+```
+
+#### Single-route convenience
+
+If your function URL itself is the API endpoint (no internal routing), use
+`gcpFunction`:
+
+```typescript
+import { gcpFunction } from '@emailcheck/email-validator-js/serverless/gcp';
+
+export const validateEmail = gcpFunction;
+// Accepts both { email: "..." } and { emails: ["..."] } in the body.
+// Response: { success: true, data: <result | result[]> }
+```
+
+#### With `@google-cloud/functions-framework`
+
+```typescript
+import { http } from '@google-cloud/functions-framework';
+import { gcpHandler } from '@emailcheck/email-validator-js/serverless/gcp';
+
+http('validateEmail', gcpHandler);
+```
+
+> **Cloud Run compatibility:** GCP 2nd-gen Functions run as Cloud Run services
+> internally, so the same `gcpHandler` works as a Cloud Run entry point if
+> you mount it on an Express app: `app.all('*', gcpHandler);`.
+
+### Netlify Functions
+
+Netlify Functions run on AWS Lambda, so the event shape is structurally
+identical to API Gateway proxy events. The adapter strips Netlify-specific
+URL prefixes (`/.netlify/functions/<name>` and the common `/api/*` redirect)
+so route matching works with whatever URL strategy you've configured.
+
+```typescript
+import { netlifyHandler, netlifyFunction } from '@emailcheck/email-validator-js/serverless/netlify';
+```
+
+Routes (when using `netlifyHandler`, after prefix-stripping):
+
+| Method   | Path                | Purpose                                   |
+| -------- | ------------------- | ----------------------------------------- |
+| `GET`    | `/health`           | Liveness check                            |
+| `POST`   | `/validate`         | `{ "email": "..." }`                      |
+| `POST`   | `/validate/batch`   | `{ "emails": ["...", "..."] }` (max 100)  |
+
+#### Routed handler
+
+```typescript
+// netlify/functions/validate.ts
+export { netlifyHandler as handler } from '@emailcheck/email-validator-js/serverless/netlify';
+```
+
+`netlify.toml`:
+
+```toml
+[build]
+  functions = "netlify/functions"
+
+# Optional: clean URLs via redirect — adapter strips the prefix automatically.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/validate/:splat"
+  status = 200
+```
+
+This makes:
+
+- `GET  /api/health`        → `GET  /health`
+- `POST /api/validate`      → `POST /validate`
+- `POST /api/validate/batch`→ `POST /validate/batch`
+
+#### Single-route convenience
+
+```typescript
+// netlify/functions/validate.ts
+export { netlifyFunction as handler } from '@emailcheck/email-validator-js/serverless/netlify';
+```
+
+The function infers single vs. batch from the body shape and ignores the path.
+Use this when you want one function per URL (e.g. distinct functions for
+single vs. batch with separate rate limits).
+
+#### Base64-encoded bodies
+
+Netlify base64-encodes binary bodies and sets `isBase64Encoded: true` on the
+event. The adapter decodes both forms transparently — no extra config needed.
+
+### Azure Functions (v4 model)
+
+The adapter targets Azure Functions v4 — the simpler programming model where
+each function is a registered HTTP trigger taking a Web-API-shaped request:
+`(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit>`.
+
+```typescript
+import { azureHandler, azureFunction } from '@emailcheck/email-validator-js/serverless/azure';
+```
+
+Routes (when using `azureHandler` — note the `/api` prefix that Azure adds
+to all HTTP-triggered functions by default):
+
+| Method   | Path                    | Purpose                                  |
+| -------- | ----------------------- | ---------------------------------------- |
+| `GET`    | `/api/health`           | Liveness check                           |
+| `POST`   | `/api/validate`         | `{ "email": "..." }`                     |
+| `POST`   | `/api/validate/batch`   | `{ "emails": ["...", "..."] }` (max 100) |
+
+#### Routed handler
+
+```typescript
+// src/functions/validateEmail.ts
+import { app } from '@azure/functions';
+import { azureHandler } from '@emailcheck/email-validator-js/serverless/azure';
+
+app.http('validateEmail', {
+  methods: ['GET', 'POST', 'OPTIONS'],
+  authLevel: 'anonymous',
+  route: '{*path}',          // wildcard route → adapter does the routing
+  handler: azureHandler,
+});
+```
+
+#### Single-route convenience
+
+If you'd rather have Azure's binding system handle the routing, register one
+function per route and use `azureFunction`:
+
+```typescript
+import { app } from '@azure/functions';
+import { azureFunction } from '@emailcheck/email-validator-js/serverless/azure';
+
+app.http('validate', {
+  methods: ['POST', 'OPTIONS'],
+  authLevel: 'anonymous',
+  handler: azureFunction,    // body decides single vs. batch
+});
+```
+
+#### `host.json` for v4
+
+```json
+{
+  "version": "2.0",
+  "extensions": {
+    "http": {
+      "routePrefix": "api",
+      "maxOutstandingRequests": 200
+    }
+  }
+}
+```
+
+> **v3 model:** for the older `(context, req)` model, wrap the Web-API
+> handler: `module.exports = async (context, req) => { context.res =
+> await azureFunction(req); }`. The adapter only ships the v4 surface.
+
 ### Netlify Edge Functions
 
 The Netlify runtime is V8 (Deno-based) and supports the Web API. Use
@@ -454,9 +656,12 @@ production sizes (gzipped):
 | --------------------------------------------------- | ----- | ------------------------------------------ |
 | `serverless/verifier`                               | ~50 KB | core + EdgeCache + lists                   |
 | `serverless/aws`                                    | ~55 KB | core + AWS adapter                         |
+| `serverless/gcp`                                    | ~54 KB | core + GCP adapter                         |
 | `serverless/vercel`                                 | ~55 KB | core + Vercel adapter                      |
 | `serverless/cloudflare`                             | ~58 KB | core + Workers adapter + Durable Object    |
-| `serverless` (umbrella — all adapters + verifier)   | ~65 KB | everything                                 |
+| `serverless/netlify`                                | ~55 KB | core + Netlify adapter                     |
+| `serverless/azure`                                  | ~54 KB | core + Azure v4 adapter                    |
+| `serverless` (umbrella — all adapters + verifier)   | ~70 KB | everything                                 |
 
 The bulk of the size is the bundled disposable / free / common-domain JSON.
 For a slimmer payload, deep-import only `serverless/verifier` and skip the

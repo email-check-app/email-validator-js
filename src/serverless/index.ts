@@ -14,7 +14,10 @@ export type {
 
 // Platform adapters
 export { default as awsLambda } from './adapters/aws-lambda';
+export { default as azure } from './adapters/azure';
 export { default as cloudflare, EmailValidatorDO } from './adapters/cloudflare';
+export { default as gcp } from './adapters/gcp';
+export { default as netlify } from './adapters/netlify';
 export { default as vercel } from './adapters/vercel';
 // Core functionality
 export {

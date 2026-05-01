@@ -159,7 +159,40 @@ module.exports = [
     external,
     plugins,
   },
-  
+
+  // GCP Cloud Functions adapter
+  {
+    input: 'src/serverless/adapters/gcp.ts',
+    output: [
+      { file: 'dist/serverless/adapters/gcp.esm.js', format: 'esm', sourcemap: true },
+      { file: 'dist/serverless/adapters/gcp.cjs.js', format: 'cjs', exports: 'named', sourcemap: true },
+    ],
+    external,
+    plugins,
+  },
+
+  // Netlify Functions adapter
+  {
+    input: 'src/serverless/adapters/netlify.ts',
+    output: [
+      { file: 'dist/serverless/adapters/netlify.esm.js', format: 'esm', sourcemap: true },
+      { file: 'dist/serverless/adapters/netlify.cjs.js', format: 'cjs', exports: 'named', sourcemap: true },
+    ],
+    external,
+    plugins,
+  },
+
+  // Azure Functions adapter
+  {
+    input: 'src/serverless/adapters/azure.ts',
+    output: [
+      { file: 'dist/serverless/adapters/azure.esm.js', format: 'esm', sourcemap: true },
+      { file: 'dist/serverless/adapters/azure.cjs.js', format: 'cjs', exports: 'named', sourcemap: true },
+    ],
+    external,
+    plugins,
+  },
+
   // Complete bundle with all adapters
   {
     input: 'src/serverless/index.ts',
