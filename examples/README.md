@@ -50,6 +50,20 @@ bun run test
 | ------------------------------------------ | ----------------------------------------------------- |
 | [`cli-usage.md`](./cli-usage.md)           | `email-validate` recipes, flags, JSON log file shape, programmatic embedding |
 
+### Serverless deployments
+
+Deploy-ready scaffolding for the serverless build (`@emailcheck/email-validator-js/serverless/*`).
+See [SERVERLESS.md](../SERVERLESS.md) for the full API surface, DNS resolver
+patterns, KV write-through, and Durable Objects.
+
+| Folder                                                                       | Platform                            |
+| ---------------------------------------------------------------------------- | ----------------------------------- |
+| [`serverless/aws-lambda/`](./serverless/aws-lambda/)                         | AWS Lambda + Serverless Framework   |
+| [`serverless/vercel-edge/`](./serverless/vercel-edge/)                       | Vercel Edge Function                |
+| [`serverless/cloudflare-worker/`](./serverless/cloudflare-worker/)           | Cloudflare Workers + Durable Object |
+| [`serverless/deno-deploy/`](./serverless/deno-deploy/)                       | Deno Deploy                         |
+| [`serverless/browser/`](./serverless/browser/)                               | Browser-side (no Node APIs)         |
+
 ## 🔧 Running
 
 ```bash

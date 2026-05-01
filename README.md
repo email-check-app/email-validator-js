@@ -1315,52 +1315,82 @@ DEFAULT_CACHE_OPTIONS.maxSize = {
 ```
 ## 🌐 Serverless Deployment
 
-The package includes serverless adapters for major cloud platforms. The serverless implementation provides email validation without Node.js dependencies, making it suitable for edge computing environments.
+The package ships a serverless build (`@emailcheck/email-validator-js/serverless/*`) that runs without `node:net` / `node:dns` / `node:tls`. It targets AWS Lambda, Vercel Edge Functions, Cloudflare Workers, Netlify Edge Functions, and Deno Deploy.
 
-### AWS Lambda
+### AWS Lambda (routed handler)
 
-```javascript
-import { apiGatewayHandler } from '@emailcheck/email-validator-js/serverless/aws';
-
-export const handler = apiGatewayHandler;
+```typescript
+// Routed: GET /health, POST /validate, POST /validate/batch
+export { handler } from '@emailcheck/email-validator-js/serverless/aws';
 ```
+
+Other shapes available: `apiGatewayHandler` (legacy, no path routing) and `lambdaHandler` (direct invocation).
 
 ### Vercel Edge Functions
 
-```javascript
-import { edgeHandler } from '@emailcheck/email-validator-js/serverless/vercel';
+```typescript
+// app/api/validate/route.ts
+import { handler } from '@emailcheck/email-validator-js/serverless/vercel';
 
-export const config = {
-  runtime: 'edge',
-};
-
-export default edgeHandler;
+export const runtime = 'edge';
+export async function POST(request: Request) { return handler(request); }
 ```
+
+Other shapes: `edgeHandler` (no routing) and `nodeHandler` (Express-style).
 
 ### Cloudflare Workers
 
-```javascript
-import { workerHandler } from '@emailcheck/email-validator-js/serverless/cloudflare';
-
-export default {
-  async fetch(request, env, ctx) {
-    return workerHandler(request, env, ctx);
-  },
-};
+```typescript
+// src/worker.ts
+export { default } from '@emailcheck/email-validator-js/serverless/cloudflare';
 ```
 
-### Features in Serverless Mode
+Bind a `EMAIL_CACHE` KV namespace in `wrangler.toml` to get write-through caching across instances. Bind `EMAIL_VALIDATOR` as a Durable Object (class `EmailValidatorDO`, also exported) for stateful validation with `/validate`, `/cache/clear`, `/cache/stats`.
 
-- ✅ Syntax validation
-- ✅ Typo detection and domain suggestions
-- ✅ Disposable email detection (full database)
-- ✅ Free email provider detection (full database)
-- ✅ Batch processing
-- ✅ Built-in caching
-- ❌ MX record validation (requires DNS)
-- ❌ SMTP verification (requires TCP sockets)
+### Edge MX support via injected DNS resolver
 
-For detailed serverless documentation and more platform examples, see [docs/SERVERLESS.md](SERVERLESS.md).
+```typescript
+import {
+  validateEmailCore,
+  type DNSResolver,
+} from '@emailcheck/email-validator-js/serverless/verifier';
+
+class DoHResolver implements DNSResolver {
+  async resolveMx(domain: string) {
+    const r = await fetch(
+      `https://cloudflare-dns.com/dns-query?name=${domain}&type=MX`,
+      { headers: { Accept: 'application/dns-json' } },
+    ).then((r) => r.json() as Promise<{ Answer?: { data: string }[] }>);
+    return (r.Answer ?? []).map((a) => {
+      const [priority, exchange] = a.data.split(' ');
+      return { exchange: exchange.replace(/\.$/, ''), priority: Number(priority) };
+    });
+  }
+}
+
+const result = await validateEmailCore('alice@example.com', {
+  validateMx: true,
+  dnsResolver: new DoHResolver(),
+});
+```
+
+### What works in serverless mode
+
+| Capability                   | Edge   | Notes |
+| ---------------------------- | :----: | ----- |
+| Syntax validation            |   ✅   | RFC-pragmatic regex |
+| Typo detection / suggestions |   ✅   | Same data as Node API |
+| Disposable detection         |   ✅   | Full list bundled |
+| Free-provider detection      |   ✅   | Full list bundled |
+| MX records                   |   ✅¹  | Requires `dnsResolver` injection |
+| SMTP probe                   |   ❌   | Needs raw TCP — Node-only |
+| WHOIS lookups                |   ❌   | Needs raw TCP — Node-only |
+| Batch processing             |   ✅   | `validateEmailBatch` (max 100 / call) |
+| Built-in caching             |   ✅   | `EdgeCache` (in-memory) + Cloudflare KV |
+
+¹ See the DNS resolver example above. Bring your own resolver — the serverless build doesn't bundle one.
+
+For full docs (DNS resolver patterns, KV write-through, Durable Objects, Deno Deploy, bundle-size table, migration diff), see [SERVERLESS.md](SERVERLESS.md).
 
 ## 🔬 Verification Transcript
 
@@ -1503,7 +1533,7 @@ bun run build
 ### Quality Assurance
 - ✅ **TypeScript Strict Mode**: Full type safety with comprehensive type checking
 - ✅ **Biome**: Automated lint + format
-- ✅ **bun:test**: 670+ unit & mocked-IO tests, 0 jest, 0 sinon
+- ✅ **bun:test**: 720+ unit & mocked-IO tests, 0 jest, 0 sinon
 - ✅ **CI/CD**: Automated test + lint + build on all PRs
 
 ### Project Structure
@@ -1550,7 +1580,7 @@ email-validator-js/
 ### Scripts
 ```bash
 bun run build           # Rollup CJS + ESM bundles
-bun run test            # Default: unit + mocked-IO (~600 tests)
+bun run test            # Default: unit + mocked-IO (~730 tests)
 bun run test:integration  # Real-network suite (INTEGRATION=1)
 bun run test:extras     # check-if-email-exists module (opt-in, ~200 tests)
 bun run test:all        # test + test:integration
