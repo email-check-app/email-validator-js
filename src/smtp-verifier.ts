@@ -179,6 +179,7 @@ export async function verifyMailboxSMTP(
   let portAttempts = 0;
   let lastReason = 'all_attempts_failed';
   let lastEnhancedStatus: string | undefined;
+  let lastResponseCode: number | undefined;
 
   for (const mxHost of mxRecords) {
     mxHostsTried.push(mxHost);
@@ -195,6 +196,7 @@ export async function verifyMailboxSMTP(
       collectTranscript(transcript, commands, probe, mxHost, port);
       lastReason = probe.reason;
       if (probe.enhancedStatus !== undefined) lastEnhancedStatus = probe.enhancedStatus;
+      if (probe.responseCode !== undefined) lastResponseCode = probe.responseCode;
 
       // Definitive answer (250/251 deliverable, 550/552/etc. rejected) ends
       // the search. Indeterminate (null) falls through to the next port/MX.
@@ -220,6 +222,7 @@ export async function verifyMailboxSMTP(
   const smtpResult: SmtpVerificationResult = {
     ...failureResult(lastReason, metrics),
     ...(lastEnhancedStatus !== undefined ? { enhancedStatus: lastEnhancedStatus } : {}),
+    ...(lastResponseCode !== undefined ? { responseCode: lastResponseCode } : {}),
     ...(captureTranscript ? { transcript: [...transcript], commands: [...commands] } : {}),
   };
   return { smtpResult, cached: false, port: 0, portCached: false };
@@ -286,6 +289,7 @@ function toSmtpVerificationResult(probe: ProbeResult, extras: ToResultExtras): S
     checkedAt: Date.now(),
     metrics: extras.metrics,
     ...(probe.enhancedStatus !== undefined ? { enhancedStatus: probe.enhancedStatus } : {}),
+    ...(probe.responseCode !== undefined ? { responseCode: probe.responseCode } : {}),
   };
   if (extras.transcript) out.transcript = [...extras.transcript];
   if (extras.commands) out.commands = [...extras.commands];
@@ -342,6 +346,8 @@ interface ProbeResult {
   reason: string;
   /** RFC 3463 enhanced status from the most recent reply that carried one. */
   enhancedStatus?: string;
+  /** SMTP response code from the most recent reply (e.g. 250, 550). */
+  responseCode?: number;
   /**
    * Catch-all flag from the dual-probe. `true` when both real + probe RCPT
    * returned 250; `false` otherwise; `undefined` only if the probe never
@@ -388,6 +394,8 @@ class SMTPProbeConnection {
   private readonly commands: string[] = [];
   /** Last RFC 3463 enhanced status seen (last-write semantics — most recent wins). */
   private lastEnhancedStatus?: string;
+  /** Last 3-digit SMTP response code seen (last-write semantics). */
+  private lastResponseCode?: number;
 
   // ── EHLO capability advertisement ────────────────────────────────────────
   private supportsPipelining = false;
@@ -545,6 +553,11 @@ class SMTPProbeConnection {
     this.transcript.push(line);
     this.p.log(`← ${line}`);
 
+    // Parse code + DSN up-front so the result carries them even when a
+    // heuristic short-circuits before dispatch.
+    const codeStr = line.slice(0, 3);
+    const numericCode = /^\d{3}$/.test(codeStr) ? parseInt(codeStr, 10) : null;
+    if (numericCode !== null) this.lastResponseCode = numericCode;
     const dsn = parseDsn(line);
     if (dsn) this.lastEnhancedStatus = dsnToString(dsn);
 
@@ -581,8 +594,6 @@ class SMTPProbeConnection {
       return;
     }
 
-    const code = line.slice(0, 3);
-    const numericCode = /^\d{3}$/.test(code) ? parseInt(code, 10) : null;
     if (numericCode === null) {
       this.finish(null, 'unrecognized_response');
       return;
@@ -749,6 +760,7 @@ class SMTPProbeConnection {
       result,
       reason,
       ...(this.lastEnhancedStatus !== undefined ? { enhancedStatus: this.lastEnhancedStatus } : {}),
+      ...(this.lastResponseCode !== undefined ? { responseCode: this.lastResponseCode } : {}),
       ...(this.isCatchAllFlag !== undefined ? { isCatchAll: this.isCatchAllFlag } : {}),
       transcript: this.transcript,
       commands: this.commands,

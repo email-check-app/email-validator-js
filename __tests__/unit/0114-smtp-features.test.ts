@@ -173,7 +173,7 @@ describe('0114 SMTP — catch-all detection (always-on dual-probe)', () => {
 
   it('catchAllProbeLocal callback overrides the random local-part', async () => {
     fakeNet.script(ENVELOPE_VALID_NOT_CATCH_ALL);
-    let captured: { realLocal: string; domain: string } | null = null;
+    const captured: { realLocal?: string; domain?: string } = {};
 
     await verifyMailboxSMTP({
       local: 'alice',
@@ -184,7 +184,8 @@ describe('0114 SMTP — catch-all detection (always-on dual-probe)', () => {
         timeout: 200,
         pipelining: 'never',
         catchAllProbeLocal: (realLocal, domain) => {
-          captured = { realLocal, domain };
+          captured.realLocal = realLocal;
+          captured.domain = domain;
           return 'fixed-test-probe';
         },
       },
@@ -335,6 +336,19 @@ describe('0114 SMTP — enhancedStatus (RFC 3463)', () => {
     });
 
     expect(smtpResult.enhancedStatus).toBe('4.7.0');
+  });
+
+  it('result.responseCode carries the most recent SMTP code', async () => {
+    fakeNet.script(['220 mx.example.com ESMTP', '250 mx.example.com Hello', '250 sender ok', '550 5.1.1 user unknown']);
+
+    const { smtpResult } = await verifyMailboxSMTP({
+      local: 'missing',
+      domain: 'example.com',
+      mxRecords: ['mx.example.com'],
+      options: { ports: [25], timeout: 200, pipelining: 'never' },
+    });
+
+    expect(smtpResult.responseCode).toBe(550);
   });
 
   it('last-write semantics: most recent DSN wins', async () => {
