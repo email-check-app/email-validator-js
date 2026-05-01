@@ -25,6 +25,10 @@
         "preset": "angular",
         "releaseRules": [
           {
+            "breaking": true,
+            "release": "major"
+          },
+          {
             "type": "breaking",
             "release": "major"
           },
@@ -44,7 +48,10 @@
             "subject": "*",
             "release": "patch"
           }
-        ]
+        ],
+        "parserOpts": {
+          "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES", "BREAKING"]
+        }
       }
     ],
     "@semantic-release/release-notes-generator",
