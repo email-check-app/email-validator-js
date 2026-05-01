@@ -72,6 +72,12 @@ function isInvalidMailboxError(reply: string): boolean {
  * Public entry point. Tries each port in order and returns the first port that
  * yields a deterministic answer (deliverable / not-deliverable / over-quota).
  * If every port is indeterminate, returns the most recent failure reason.
+ *
+ * When `options.captureTranscript === true`, the returned `SmtpVerificationResult`
+ * carries `transcript` and `commands` arrays prefixed with `<port>|s| …` for
+ * server lines and `<port>|c| …` for our commands. The arrays aggregate across
+ * every port attempted, so a debug session shows why earlier ports failed
+ * before a later port answered.
  */
 export async function verifyMailboxSMTP(
   params: VerifyMailboxSMTPParams
@@ -82,6 +88,7 @@ export async function verifyMailboxSMTP(
   const tlsConfig = options.tls ?? true;
   const hostname = options.hostname ?? 'localhost';
   const debug = options.debug ?? false;
+  const captureTranscript = options.captureTranscript ?? false;
   const sequence = options.sequence;
   const cache = options.cache;
   const log = debug ? (...args: unknown[]) => console.log('[SMTP]', ...args) : () => {};
@@ -93,6 +100,10 @@ export async function verifyMailboxSMTP(
 
   const mxHost = mxRecords[0]!;
   log(`Verifying ${local}@${domain} via ${mxHost}`);
+
+  // Aggregate transcript across port attempts for caller-side debugging.
+  const transcript: string[] = [];
+  const commands: string[] = [];
 
   // Cache short-circuits.
   const verdictCache = cache ? getCacheStore<SmtpVerificationResult>(cache, 'smtp') : null;
@@ -110,7 +121,7 @@ export async function verifyMailboxSMTP(
     const cachedPort = await safeCacheGet(portCache, mxHost);
     if (cachedPort) {
       log(`Using cached port: ${cachedPort}`);
-      const result = await runProbe({
+      const probe = await runProbe({
         mxHost,
         port: cachedPort,
         local,
@@ -121,7 +132,11 @@ export async function verifyMailboxSMTP(
         sequence,
         log,
       });
-      const smtpResult = toSmtpVerificationResult(result);
+      collectTranscript(transcript, commands, probe, cachedPort);
+      const smtpResult = toSmtpVerificationResult(
+        probe.result,
+        captureTranscript ? { transcript, commands } : undefined
+      );
       await safeCacheSet(verdictCache, verdictKey, smtpResult);
       return { smtpResult, cached: false, port: cachedPort, portCached: true };
     }
@@ -130,10 +145,11 @@ export async function verifyMailboxSMTP(
   // Walk ports in order.
   for (const port of ports) {
     log(`Testing port ${port}`);
-    const result = await runProbe({ mxHost, port, local, domain, timeout, tlsConfig, hostname, sequence, log });
-    const smtpResult = toSmtpVerificationResult(result);
+    const probe = await runProbe({ mxHost, port, local, domain, timeout, tlsConfig, hostname, sequence, log });
+    collectTranscript(transcript, commands, probe, port);
+    const smtpResult = toSmtpVerificationResult(probe.result, captureTranscript ? { transcript, commands } : undefined);
     await safeCacheSet(verdictCache, verdictKey, smtpResult);
-    if (result !== null) {
+    if (probe.result !== null) {
       await safeCacheSet(portCache, mxHost, port);
       return { smtpResult, cached: false, port, portCached: false };
     }
@@ -141,11 +157,19 @@ export async function verifyMailboxSMTP(
 
   log('All ports failed');
   return {
-    smtpResult: failureResult('All SMTP connection attempts failed'),
+    smtpResult: {
+      ...failureResult('All SMTP connection attempts failed'),
+      ...(captureTranscript ? { transcript: [...transcript], commands: [...commands] } : {}),
+    },
     cached: false,
     port: 0,
     portCached: false,
   };
+}
+
+function collectTranscript(transcript: string[], commands: string[], probe: ProbeResult, port: number): void {
+  for (const line of probe.transcript) transcript.push(`${port}|s| ${line}`);
+  for (const cmd of probe.commands) commands.push(`${port}|c| ${cmd}`);
 }
 
 function failureResult(error: string): SmtpVerificationResult {
@@ -161,12 +185,15 @@ function failureResult(error: string): SmtpVerificationResult {
   };
 }
 
-function toSmtpVerificationResult(result: boolean | null): SmtpVerificationResult {
+function toSmtpVerificationResult(
+  result: boolean | null,
+  capture?: { transcript: string[]; commands: string[] }
+): SmtpVerificationResult {
   // The verifier resolves to one of three states; map each directly. The old
   // implementation routed through a large pattern-matcher in types.ts that
   // never saw any input besides these three literals, so the branching was
   // dead weight.
-  return {
+  const base: SmtpVerificationResult = {
     canConnectSmtp: result !== null,
     hasFullInbox: false,
     isCatchAll: false,
@@ -176,6 +203,9 @@ function toSmtpVerificationResult(result: boolean | null): SmtpVerificationResul
     providerUsed: EmailProvider.everythingElse,
     checkedAt: Date.now(),
   };
+  if (!capture) return base;
+  // Snapshot — caller may keep mutating the aggregator.
+  return { ...base, transcript: [...capture.transcript], commands: [...capture.commands] };
 }
 
 async function safeCacheGet<T>(
@@ -216,7 +246,16 @@ interface ProbeParams {
   log: (...args: unknown[]) => void;
 }
 
-async function runProbe(p: ProbeParams): Promise<boolean | null> {
+interface ProbeResult {
+  /** true=deliverable, false=hard-rejected, null=indeterminate */
+  result: boolean | null;
+  /** Server lines, in arrival order, no port prefix. */
+  transcript: string[];
+  /** Client commands sent, in send order, no port prefix. */
+  commands: string[];
+}
+
+async function runProbe(p: ProbeParams): Promise<ProbeResult> {
   return new SMTPProbeConnection(p).run();
 }
 
@@ -235,10 +274,13 @@ class SMTPProbeConnection {
 
   private connectionTimer?: NodeJS.Timeout;
   private stepTimer?: NodeJS.Timeout;
-  private resolveFn!: (value: boolean | null) => void;
+  private resolveFn!: (value: ProbeResult) => void;
 
   private readonly steps: SMTPStep[];
   private readonly tlsOptions: tls.ConnectionOptions;
+  /** Server lines + client commands captured unconditionally (cost is trivial). */
+  private readonly transcript: string[] = [];
+  private readonly commands: string[] = [];
 
   constructor(private readonly p: ProbeParams) {
     // Default sequence — every modern MX speaks ESMTP, so EHLO works on port 25 too.
@@ -255,8 +297,8 @@ class SMTPProbeConnection {
     };
   }
 
-  run(): Promise<boolean | null> {
-    return new Promise<boolean | null>((resolve) => {
+  run(): Promise<ProbeResult> {
+    return new Promise<ProbeResult>((resolve) => {
       this.resolveFn = resolve;
       this.connect();
       this.armConnectionTimer();
@@ -301,6 +343,7 @@ class SMTPProbeConnection {
 
   private send(cmd: string): void {
     if (this.resolved) return;
+    this.commands.push(cmd);
     this.p.log(`→ ${cmd}`);
     this.socket?.write(`${cmd}\r\n`);
   }
@@ -339,6 +382,7 @@ class SMTPProbeConnection {
 
   private processLine(line: string): void {
     if (this.resolved) return;
+    this.transcript.push(line);
     this.p.log(`← ${line}`);
 
     // Heuristics that override per-step interpretation.
@@ -420,6 +464,6 @@ class SMTPProbeConnection {
     const drain = setTimeout(() => this.socket?.destroy(), QUIT_DRAIN_MS);
     drain.unref?.();
 
-    this.resolveFn(result);
+    this.resolveFn({ result, transcript: this.transcript, commands: this.commands });
   }
 }

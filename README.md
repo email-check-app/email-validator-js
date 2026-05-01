@@ -22,6 +22,7 @@
 - [Configuration](#configuration-options)
 - [Examples](#examples)
 - [Custom Cache Injection](#-custom-cache-injection)
+- [Verification Transcript](#-verification-transcript)
 - [Performance & Caching](#-performance--caching)
 - [Email Provider Databases](#️-email-provider-databases)
 - [Testing](#testing)
@@ -29,47 +30,19 @@
 
 ## Features
 
-✅ Check email address validity
-
-✅ Check email address domain validity in domain TLD list
-
-✅ Check email address MX records
-
-✅ Check email address SMTP connection
-
-✅ Check email address disposable or burnable status
-
-✅ Check email address free email provider status
-
-✅ **NEW:** Batch email verification with concurrency control
-
-✅ **NEW:** Detailed verification results with error codes
-
-✅ **NEW:** Built-in caching for improved performance
-
-✅ **NEW:** Automatic retry mechanism for transient failures
-
-✅ **NEW:** RFC 5321 compliant validation
-
-✅ **NEW:** **Enhanced SMTP verification** with TLS/SSL support
-
-✅ **NEW:** **Multi-port testing** (25, 587, 465) with automatic port optimization
-
-✅ **NEW:** **Custom SMTP sequences** and command control (EHLO/HELO, VRFY, STARTTLS)
-
-✅ **NEW:** **Smart caching** for port performance and SMTP results
-
-✅ **NEW:** Enhanced name detection from email addresses with composite name support
-
-✅ **NEW:** Domain typo detection and suggestions with caching
-
-✅ **NEW:** Get domain age via WHOIS lookup
-
-✅ **NEW:** Get domain registration status via WHOIS lookup
-
-✅ **NEW:** Serverless support for AWS Lambda, Vercel Edge, Cloudflare Workers, and more
-
-✅ **Code Quality**: Comprehensive linting, type checking, and automated testing
+- ✅ RFC-5321-compliant format & TLD validation
+- ✅ MX record lookup with cache
+- ✅ Live SMTP probe with multi-port walk (25 → 587 → 465), TLS, custom step sequences
+- ✅ Disposable + free-provider detection (10k+ domains shipped as JSON)
+- ✅ Domain typo detection + suggestions (Levenshtein + curated typo map)
+- ✅ Name extraction from local-part with composite-name support
+- ✅ WHOIS-driven domain age and registration status
+- ✅ Pluggable cache (in-memory LRU, Redis, or your own backend)
+- ✅ **Verification transcript** — opt-in structured per-step trace including the full SMTP wire-level transcript
+- ✅ **`parseSmtpError`** — public utility to classify a free-form SMTP error string
+- ✅ Batch email verification with concurrency control + per-error classification
+- ✅ Serverless adapters for AWS Lambda, Vercel (Edge + Node), and Cloudflare Workers/Durable Objects
+- ✅ Strict TypeScript types — zero `any` in `src/`
 
 ## Use Cases
 
@@ -108,24 +81,26 @@ email-validator-js is licensed under [Business Source License 1.1](LICENSE.md).
 
 ## Installation
 
-Install the module through Yarn:
 ```bash
-yarn add @emailcheck/email-validator-js
-```
-
-Or NPM:
-```bash
+bun add @emailcheck/email-validator-js
+# or
 npm install @emailcheck/email-validator-js
+# or
+pnpm add @emailcheck/email-validator-js
 ```
 
-### Requirements
-- Node.js >= 12.0
+### Requirements (consumers)
+- Node.js >= 18 (runtime target — the published bundle is plain Node.js + ESM/CJS)
 - TypeScript >= 4.0 (for TypeScript users)
 
+### Requirements (contributing)
+- Bun >= 1.3 (test runner, package manager, dev tooling)
+- Node.js >= 24 only needed for `semantic-release` during the publish step
+
 ### Build System
-- Uses Rollup for efficient bundling and tree-shaking
-- Optimized build output with separate CJS and ESM modules
-- Serverless builds for edge environments
+- Rollup builds CJS + ESM bundles for the main package and the serverless entry
+- `bun test` for the unit + mocked-IO suite (no jest, no ts-jest)
+- Source data (common names, typo patterns, WHOIS servers) lives in `src/data/*.json`
 
 ## Quick Start
 
@@ -806,105 +781,89 @@ const result = await verifyEmailBatch({
 
 ### Enhanced SMTP Verification (NEW)
 ```typescript
-import { verifyMailboxSMTP } from '@emailcheck/email-validator-js';
-import { getDefaultCache } from '@emailcheck/email-validator-js';
+import { verifyMailboxSMTP, getDefaultCache } from '@emailcheck/email-validator-js';
 
-// Direct SMTP verification with enhanced features
-const { result, port, cached, portCached } = await verifyMailboxSMTP({
+// Direct SMTP probe — caller already has resolved MX records.
+const { smtpResult, port, cached, portCached } = await verifyMailboxSMTP({
   local: 'user',
   domain: 'example.com',
   mxRecords: ['mx.example.com'],
   options: {
-    ports: [25, 587, 465], // Test multiple ports with TLS support
+    ports: [25, 587, 465],   // Plain → STARTTLS-able → implicit-TLS
     timeout: 5000,
-    cache: getDefaultCache(), // Smart caching for performance
+    cache: getDefaultCache(), // Per-isolate verdict + port cache
     debug: false,
     tls: {
-      rejectUnauthorized: false, // Lenient TLS for compatibility
+      rejectUnauthorized: false,
       minVersion: 'TLSv1.2',
     },
-    hostname: 'your-domain.com', // Custom EHLO hostname
-    useVRFY: true, // Enable VRFY command as fallback
+    hostname: 'your-domain.com',  // EHLO/HELO identity
+    captureTranscript: false,     // see "SMTP Transcript Capture" below
   },
 });
 
-// result: boolean - SMTP verification result
-// port: number - The successful port used
-// cached: boolean - If result was cached
-// portCached: boolean - If port was cached from previous successful attempts
-console.log(`SMTP result: ${result} via port ${port} (cached: ${cached || portCached})`);
+console.log(`SMTP result: ${smtpResult.isDeliverable} via port ${port}`);
+console.log(`canConnectSmtp=${smtpResult.canConnectSmtp}, error=${smtpResult.error ?? 'none'}`);
 ```
 
-### Advanced SMTP Configuration
+### Custom SMTP step sequence
+
+Override the default `greeting → EHLO → MAIL FROM → RCPT TO` walk for advanced cases:
+
 ```typescript
 import { verifyMailboxSMTP, SMTPStep } from '@emailcheck/email-validator-js';
 
-// Custom SMTP command sequence
-const { result } = await verifyMailboxSMTP({
+const { smtpResult } = await verifyMailboxSMTP({
   local: 'user',
   domain: 'example.com',
   mxRecords: ['mx.example.com'],
   options: {
     sequence: {
-      steps: [
-        SMTPStep.greeting,
-        SMTPStep.ehlo,    // Extended SMTP
-        SMTPStep.startTls, // Upgrade to TLS
-        SMTPStep.mailFrom,
-        SMTPStep.rcptTo,
-        SMTPStep.vrfy,    // Additional verification
-      ],
-      from: '<noreply@yourdomain.com>', // Custom MAIL FROM
+      steps: [SMTPStep.greeting, SMTPStep.helo, SMTPStep.mailFrom, SMTPStep.rcptTo],
+      from: '<noreply@yourdomain.com>',  // Custom MAIL FROM payload
     },
-    ports: [587, 465], // Try STARTTLS first, then implicit TLS
-    maxRetries: 2,
+    ports: [587, 465],
   },
 });
-
-// Port-specific optimization
-const testPorts = async (email: string, mxHosts: string[]) => {
-  const [local, domain] = email.split('@');
-
-  const { result, port, portCached } = await verifyMailboxSMTP({
-    local,
-    domain,
-    mxRecords: mxHosts,
-    options: {
-      cache: getDefaultCache(),
-      // Port order matters: tests in sequence, stops at first success
-      ports: [587, 465, 25], // STARTTLS -> SMTPS -> SMTP
-    },
-  });
-
-  console.log(`Optimal port for ${domain}: ${port} (cached: ${portCached})`);
-  return { result, port };
-};
 ```
+
+### SMTP Transcript Capture
+
+Set `captureTranscript: true` to get the full server reply log and command sequence on the result. Useful for debugging delivery quirks or building admin UIs:
+
+```typescript
+import { verifyMailboxSMTP } from '@emailcheck/email-validator-js';
+
+const { smtpResult } = await verifyMailboxSMTP({
+  local: 'user',
+  domain: 'example.com',
+  mxRecords: ['mx.example.com'],
+  options: { ports: [25, 587], timeout: 5000, captureTranscript: true },
+});
+
+// Both arrays aggregate across every port attempted, prefixed with the port:
+//   "25|s| 220 mx.example.com ESMTP"
+//   "25|c| EHLO localhost"
+console.log(smtpResult.transcript);
+console.log(smtpResult.commands);
+```
+
+For verification across the entire pipeline (syntax / disposable / free / MX / SMTP / WHOIS / name / suggestion), enable `captureTranscript` on `verifyEmail` to get a structured per-step trace — see [Verification Transcript](#verification-transcript) below.
 
 ### Running Examples
 
-All examples have been recently improved with:
-- ✅ Consistent import styles and error handling
-- ✅ Fixed async/await patterns
-- ✅ Enhanced documentation and comments
-- ✅ Renamed files for better clarity
-
-**Development (Recommended):**
 ```bash
-# Run examples with ts-node for full type checking
-npx ts-node examples/smtp-usage.ts
-npx ts-node examples/smtp-test.ts
-npx ts-node examples/smtp-enhanced.ts
-npx ts-node examples/smtp-comprehensive-tests.ts
-npx ts-node examples/custom-cache-memory.ts
-npx ts-node examples/smtp-sequences.ts
-npx ts-node examples/algolia-integration.ts
+# Bun runs TS directly — no compilation step
+bun run examples/smtp-usage.ts
+bun run examples/smtp-test.ts
+bun run examples/smtp-enhanced.ts
+bun run examples/custom-cache-memory.ts
+bun run examples/algolia-integration.ts
 ```
 
-**Direct TypeScript Execution (v2.14.0+):**
+**After installation in your own project:**
 ```bash
-# After the next release (v2.14.0) with updated distribution exports:
-yarn build
+bun run build
 node --experimental-strip-types examples/smtp-usage.ts
 
 # Requires Node.js 20.10+ or Node.js 21.0+ for --experimental-strip-types support
@@ -1337,6 +1296,70 @@ export default {
 
 For detailed serverless documentation and more platform examples, see [docs/SERVERLESS.md](SERVERLESS.md).
 
+## 🔬 Verification Transcript
+
+Set `captureTranscript: true` on `verifyEmail` to get a structured per-step trace of everything the library did — what was looked up, what came back, how long each step took, and (for SMTP) the full wire-level transcript:
+
+```typescript
+import { verifyEmail } from '@emailcheck/email-validator-js';
+
+const result = await verifyEmail({
+  emailAddress: 'alice@example.com',
+  verifyMx: true,
+  verifySmtp: true,
+  checkDisposable: true,
+  checkFree: true,
+  detectName: true,
+  suggestDomain: true,
+  captureTranscript: true,
+});
+
+for (const step of result.transcript ?? []) {
+  console.log(`[${step.kind}] ${step.durationMs}ms ok=${step.ok}`, step.details);
+}
+```
+
+Each entry has:
+```typescript
+interface VerificationStep {
+  kind:
+    | 'syntax' | 'domain-validation' | 'name-detection' | 'domain-suggestion'
+    | 'disposable' | 'free' | 'mx-lookup' | 'smtp-probe'
+    | 'whois-age' | 'whois-registration';
+  startedAt: number;       // Date.now() at step start
+  durationMs: number;
+  ok: boolean;             // false if the step threw
+  details: Record<string, unknown>;  // step-specific structured data
+}
+```
+
+Step-specific `details` shapes:
+
+| `kind` | Notable `details` fields |
+|---|---|
+| `mx-lookup` | `domain`, `records`, `count` |
+| `smtp-probe` | `port`, `verdict` (`'deliverable' \| 'undeliverable' \| 'indeterminate'`), `cacheHit`, `transcript`, `commands` |
+| `whois-age` | `creationDate`, `ageInDays`, `ageInYears` |
+| `whois-registration` | `isRegistered`, `isExpired`, `isLocked`, `isPendingDelete`, `daysUntilExpiration`, `status[]` |
+| `disposable` / `free` | `domain`, `isDisposable` / `isFree` |
+| `name-detection` | `detected` (`{ firstName, lastName, confidence }` or `null`) |
+| `domain-suggestion` | `suggestion` (`{ original, suggested, confidence }` or `null`) |
+
+When `captureTranscript` is **not** set (the default), no recording happens and `result.transcript` is `undefined` — zero overhead.
+
+### Classifying a flattened error string
+
+If you have a stringified SMTP error in hand (e.g. from a logged bounce, or `result.smtp.error`), use `parseSmtpError` to get a structured verdict:
+
+```typescript
+import { parseSmtpError } from '@emailcheck/email-validator-js';
+
+const parsed = parseSmtpError('552 5.2.2 mailbox over quota');
+// { isDisabled: false, hasFullInbox: true, isCatchAll: false, isInvalid: false }
+```
+
+The four flags are orthogonal — a single message can fire multiple. See `__tests__/0112-smtp-error-parser.test.ts` for the full classification matrix.
+
 ## 📊 Performance & Caching
 
 The library includes intelligent caching to improve performance:
@@ -1382,120 +1405,112 @@ const isCommon = COMMON_EMAIL_DOMAINS.includes('gmail.com'); // true
 
 ## Testing
 
-Run the fast deterministic unit suite (default):
+Default suite (fast, deterministic — no network):
 ```bash
-yarn test
+bun run test
 ```
 
-Run integration suites (network/timeouts/live-behavior):
+Real-network integration suite (`INTEGRATION=1` is set automatically):
 ```bash
-yarn test:integration
+bun run test:integration
 ```
 
-Run everything:
+Everything:
 ```bash
-yarn test:all
+bun run test:all
 ```
 
-Run with coverage:
+Lint:
 ```bash
-yarn test:unit --coverage
+bun run lint        # check
+bun run lint:fix    # auto-fix
 ```
 
-Lint the code:
+Typecheck + build:
 ```bash
-yarn lint
-yarn lint:fix  # Auto-fix issues
-```
-
-Build the project:
-```bash
-yarn build
+bun run typecheck
+bun run build
 ```
 
 ## Code Quality & Maintenance
 
 ### Quality Assurance
 - ✅ **TypeScript Strict Mode**: Full type safety with comprehensive type checking
-- ✅ **ESLint + Biome**: Automated code quality and formatting
-- ✅ **Jest Test Suite**: Comprehensive test coverage with 600+ test cases
-- ✅ **CI/CD Pipeline**: Automated testing and linting on all PRs
-- ✅ **All Tests Pass**: 615 tests passing, 1 skipped
-
-### Recent Code Improvements (v3.x)
-- **Naming Convention Migration**: All enum values and constants now use `camelCase` for consistency with TypeScript/JavaScript conventions
-- **Async Code Fixes**: Replaced `forEach` with `for...of` loops for proper async handling
-- **Import Standardization**: Consistent ES6 imports across all files
-- **Mock Improvements**: Enhanced Jest spy usage with proper cleanup
-- **Error Handling**: Added null checks and better error boundaries
-- **File Organization**: Split long test files and renamed for clarity
-- **Type Safety**: Fixed enum usage and property naming consistency
-- **Documentation Updates**: Comprehensive README with migration guide and updated examples
-
-### Breaking Changes in v3.x
-- **Enum camelCase Migration**: `EmailProvider.GMAIL` → `EmailProvider.gmail`
-- **Error Code camelCase Migration**: `VerificationErrorCode.INVALID_FORMAT` → `VerificationErrorCode.invalidFormat`
-- **SMTP Step camelCase Migration**: `SMTPStep.GREETING` → `SMTPStep.greeting`
-- **Constants camelCase Migration**: `CHECK_IF_EMAIL_EXISTS_CONSTANTS.DEFAULT_TIMEOUT` → `checkIfEmailExistsConstants.defaultTimeout`
+- ✅ **Biome**: Automated lint + format
+- ✅ **bun:test**: 670+ unit & mocked-IO tests, 0 jest, 0 sinon
+- ✅ **CI/CD**: Automated test + lint + build on all PRs
 
 ### Project Structure
 ```
 email-validator-js/
-├── src/                 # Source code
-│   ├── index.ts        # Main entry point
-│   ├── smtp.ts         # SMTP verification
-│   ├── dns.ts          # DNS/MX lookups
-│   ├── validator.ts    # Format validation
-│   ├── cache.ts        # Caching system
-│   ├── batch.ts        # Batch processing
-│   └── types.ts        # TypeScript types
-├── __tests__/          # Test files (200+ tests)
-├── examples/           # Usage examples (20+ files)
-└── dist/              # Compiled output
+├── src/                          # Library sources
+│   ├── index.ts                 # Public entry — verifyEmail orchestrator
+│   ├── email-validator.ts       # Format / TLD validation
+│   ├── smtp-verifier.ts         # SMTP probe (class-based state machine)
+│   ├── smtp-error-parser.ts     # parseSmtpError public utility
+│   ├── transcript.ts            # Transcript collector for verifyEmail
+│   ├── mx-resolver.ts           # DNS MX lookup with cache
+│   ├── whois.ts                 # WHOIS query pipeline
+│   ├── whois-parser.ts          # TLD-specific WHOIS parsers
+│   ├── domain-suggester.ts      # Typo / similarity suggestions
+│   ├── name-detector.ts         # Local-part name extraction
+│   ├── is-spam-email.ts         # Spam-pattern detection
+│   ├── batch-verifier.ts        # Concurrent batch validator
+│   ├── cache.ts / cache-interface.ts  # Pluggable cache surface
+│   ├── adapters/
+│   │   ├── lru-adapter.ts       # In-memory LRU
+│   │   └── redis-adapter.ts     # Redis-backed (SCAN-safe clear)
+│   ├── data/                    # Source-of-truth JSON tables
+│   │   ├── common-{first,last}-names.json
+│   │   ├── common-email-domains.json
+│   │   ├── typo-patterns.json
+│   │   └── whois-servers.json
+│   ├── types.ts                 # Public type definitions
+│   └── serverless/              # Edge-runtime variant
+│       ├── verifier.ts          # No-Node-deps validator
+│       ├── _shared/             # Cross-platform helpers
+│       │   ├── cors.ts
+│       │   ├── dispatch.ts
+│       │   └── validation.ts
+│       └── adapters/            # AWS Lambda, Vercel, Cloudflare
+├── __tests__/
+│   ├── helpers/                 # Shared fake-net + setup
+│   ├── integration/             # Real-network suite (INTEGRATION=1)
+│   └── *.test.ts                # Unit + mocked-IO suites
+├── extras/check-if-email-exists/  # Out-of-scope module + its tests
+└── dist/                        # Rollup output (CJS + ESM)
 ```
 
 ### Scripts
 ```bash
-yarn build      # Build TypeScript with Rollup
-yarn test       # Run fast unit suite
-yarn test:integration # Run slow integration/live suites
-yarn test:all   # Run unit + integration suites
-yarn lint       # Run Biome linting
-yarn lint:fix   # Auto-fix linting issues
-yarn typecheck  # Run TypeScript type checking
+bun run build           # Rollup CJS + ESM bundles
+bun run test            # Default: unit + mocked-IO (~600 tests)
+bun run test:integration  # Real-network suite (INTEGRATION=1)
+bun run test:extras     # check-if-email-exists module (opt-in, ~200 tests)
+bun run test:all        # test + test:integration
+bun run lint            # Biome check
+bun run lint:fix        # Biome check --write
+bun run typecheck       # tsc against src + tests
 ```
-
-### Build Optimizations
-- **Type Safety**: Improved type inference reduces redundant type declarations
-- **Bundle Size**: Optimized with tree-shaking and minification
-- **Performance**: Faster builds with parallelized compilation
-- **Code Quality**: Strict TypeScript mode with comprehensive type checking
 
 ## Contributing
 
-We welcome contributions! Please feel free to open an issue or create a pull request and fix bugs or add features. All contributions are welcome!
-
-### How to Contribute
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+We welcome contributions! Please feel free to open an issue or create a pull request.
 
 ### Development Setup
 ```bash
-# Clone the repo
+# Clone
 git clone https://github.com/email-check-app/email-validator-js.git
 cd email-validator-js
 
-# Install dependencies
-yarn install
+# Install with Bun
+bun install
 
-# Run tests
-yarn test
+# Run the default (no-network) suite
+bun run test
 
 # Build
-yarn build
+bun run build
 ```
 
 ## Support

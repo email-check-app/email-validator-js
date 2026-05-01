@@ -19,6 +19,33 @@ export enum VerificationErrorCode {
 /**
  * Main verification result interface (flat structure)
  */
+/** Discriminator for `VerificationStep.kind`. */
+export type VerificationStepKind =
+  | 'syntax'
+  | 'domain-validation'
+  | 'name-detection'
+  | 'domain-suggestion'
+  | 'disposable'
+  | 'free'
+  | 'mx-lookup'
+  | 'smtp-probe'
+  | 'whois-age'
+  | 'whois-registration';
+
+/**
+ * One unit of work in the verification pipeline. Produced when
+ * `VerifyEmailParams.captureTranscript === true`. The `details` shape varies
+ * per step — see the inline interfaces under each kind.
+ */
+export interface VerificationStep {
+  kind: VerificationStepKind;
+  startedAt: number;
+  durationMs: number;
+  /** Whether the step completed without throwing. Step-level result lives in `details`. */
+  ok: boolean;
+  details: Record<string, unknown>;
+}
+
 export interface VerificationResult {
   email: string;
   validFormat: boolean;
@@ -54,6 +81,13 @@ export interface VerificationResult {
     cached: boolean;
     error?: VerificationErrorCode;
   };
+  /**
+   * Per-step trace of what `verifyEmail` did. Present only when
+   * `VerifyEmailParams.captureTranscript === true`. Each entry records timing
+   * and step-specific details (raw WHOIS data, SMTP transcript, MX records,
+   * cache hit/miss, etc.) for debugging and diagnostics.
+   */
+  transcript?: VerificationStep[];
 }
 
 /**
@@ -79,6 +113,14 @@ export interface VerifyEmailParams {
   skipMxForDisposable?: boolean;
   skipDomainWhoisForDisposable?: boolean;
   cache?: Cache;
+  /**
+   * When true, populates `result.transcript` with a per-step trace covering
+   * every subsystem (syntax / disposable / free / MX / SMTP / WHOIS / name
+   * detection / domain suggestion). Each step records timing + step-specific
+   * structured details. Safe to leave off for production; turn on for
+   * diagnostics or building debug UIs.
+   */
+  captureTranscript?: boolean;
 }
 
 /**
@@ -190,6 +232,16 @@ export interface SmtpVerificationResult {
   };
   /** Timestamp when this was checked (for cache) */
   checkedAt?: number;
+  /**
+   * Server reply lines, in arrival order, prefixed `<port>|s| <line>` so
+   * multi-port probes stay readable. Present when `captureTranscript` is set.
+   */
+  transcript?: string[];
+  /**
+   * Client commands sent, in send order, prefixed `<port>|c| <command>`.
+   * Present when `captureTranscript` is set.
+   */
+  commands?: string[];
 }
 
 /**
@@ -239,6 +291,12 @@ export interface SMTPVerifyOptions {
   hostname?: string;
   cache?: Cache | null;
   debug?: boolean;
+  /**
+   * When true, the returned `SmtpVerificationResult` carries `transcript` and
+   * `commands` arrays prefixed with `<port>|s| …` / `<port>|c| …`. Aggregated
+   * across every port attempted.
+   */
+  captureTranscript?: boolean;
   sequence?: SMTPSequence;
 }
 
