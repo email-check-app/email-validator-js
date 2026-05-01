@@ -1384,32 +1384,24 @@ app.http('validateEmail', {
 });
 ```
 
-### Edge MX support via injected DNS resolver
+### Edge MX support via the built-in DoH resolver
+
+A built-in `DoHResolver` ships with the package — works in any runtime with `fetch` (Cloudflare Workers, Vercel Edge, Deno, browsers, Node 18+):
 
 ```typescript
 import {
   validateEmailCore,
-  type DNSResolver,
+  DoHResolver,
 } from '@emailcheck/email-validator-js/serverless/verifier';
-
-class DoHResolver implements DNSResolver {
-  async resolveMx(domain: string) {
-    const r = await fetch(
-      `https://cloudflare-dns.com/dns-query?name=${domain}&type=MX`,
-      { headers: { Accept: 'application/dns-json' } },
-    ).then((r) => r.json() as Promise<{ Answer?: { data: string }[] }>);
-    return (r.Answer ?? []).map((a) => {
-      const [priority, exchange] = a.data.split(' ');
-      return { exchange: exchange.replace(/\.$/, ''), priority: Number(priority) };
-    });
-  }
-}
 
 const result = await validateEmailCore('alice@example.com', {
   validateMx: true,
-  dnsResolver: new DoHResolver(),
+  dnsResolver: new DoHResolver(),  // defaults to Cloudflare 1.1.1.1
 });
+// result.validators.mx === { valid: true, records: ['mx.example.com'] }
 ```
+
+Configurable: pass `{ endpoint, timeoutMs, fetch }` to point at Google/NextDNS/self-hosted, tune the per-query timeout, or inject a custom fetch. Compatible with [`cf-doh`](https://www.npmjs.com/package/cf-doh) — see [SERVERLESS.md](SERVERLESS.md#dns-resolver-injection) for the full breakdown.
 
 ### What works in serverless mode
 

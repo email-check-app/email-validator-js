@@ -24,6 +24,8 @@ export {
   COMMON_DOMAINS,
   clearCache,
   type DNSResolver,
+  DoHResolver,
+  type DoHResolverOptions,
   EdgeCache,
   StubDNSResolver,
   suggestDomain,

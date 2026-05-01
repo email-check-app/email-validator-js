@@ -591,41 +591,76 @@ Deno.serve(async (req) => {
 
 ## DNS resolver injection
 
-Edge runtimes don't ship `node:dns`. To resolve MX records on the edge, pass
-your own `DNSResolver`:
+Edge runtimes don't ship `node:dns`. The package now ships a built-in
+**`DoHResolver`** (DNS-over-HTTPS) that works in any environment with a
+`fetch` (Cloudflare Workers, Vercel Edge, Deno, browsers, Node 18+):
 
 ```typescript
 import {
   validateEmailCore,
-  type DNSResolver,
+  DoHResolver,
 } from '@emailcheck/email-validator-js/serverless/verifier';
-
-class CloudflareDoHResolver implements DNSResolver {
-  async resolveMx(domain: string) {
-    const r = await fetch(
-      `https://cloudflare-dns.com/dns-query?name=${domain}&type=MX`,
-      { headers: { Accept: 'application/dns-json' } },
-    ).then((r) => r.json() as Promise<{ Answer?: { data: string }[] }>);
-
-    return (r.Answer ?? []).map((a) => {
-      const [priority, exchange] = a.data.split(' ');
-      return { exchange: exchange.replace(/\.$/, ''), priority: Number(priority) };
-    });
-  }
-}
 
 const result = await validateEmailCore('alice@example.com', {
   validateMx: true,
-  dnsResolver: new CloudflareDoHResolver(),
+  dnsResolver: new DoHResolver(),  // defaults to https://cloudflare-dns.com/dns-query
 });
 // result.validators.mx === { valid: true, records: ['mx.example.com'] }
 ```
 
-A `StubDNSResolver` is exported for tests — it returns a fixed answer.
+### Configuration
+
+```typescript
+new DoHResolver({
+  endpoint: 'https://cloudflare-dns.com/dns-query', // default
+  // endpoint: 'https://dns.google/resolve',         // Google
+  // endpoint: 'https://dns.nextdns.io/<id>/resolve', // self-hosted
+  timeoutMs: 5000,    // per-query abort threshold (default: 5000)
+  fetch: globalThis.fetch,  // override for testing or custom transport
+});
+```
+
+### Behavior
+
+- **MX records:** parsed from Cloudflare's JSON shape (`<priority> <exchange>`),
+  trailing dot stripped, sorted by ascending priority — matching what
+  `node:dns/promises#resolveMx` returns.
+- **TXT records:** quoted strings unwrapped (`"v=spf1 ..."` → `v=spf1 ...`).
+- **Failure modes** (network error, 5xx, NXDOMAIN, timeout): return an empty
+  array. The validator treats that as `validators.mx.valid === false`.
+
+### Compatibility with `cf-doh`
+
+The built-in `DoHResolver` implements the same `DNSResolver` interface that
+[`cf-doh`](https://www.npmjs.com/package/cf-doh) exposes, so either works:
+
+```typescript
+// Using cf-doh (extra dep):
+import * as doh from 'cf-doh';
+
+const resolver: DNSResolver = {
+  async resolveMx(domain) {
+    const records = await doh.resolveMx(domain);
+    return records.map((r) => ({ exchange: r.exchange, priority: r.priority }));
+  },
+  async resolveTxt(domain) {
+    return doh.resolveTxt(domain);
+  },
+};
+```
+
+Pick whichever you prefer — the built-in keeps the package zero-dep, but
+`cf-doh` is fine if you already use it elsewhere.
+
+### Custom resolvers (raw `connect()`)
 
 > **Cloudflare Workers tip:** the runtime supports `connect()` for raw TCP, so
-> a custom resolver against `1.1.1.1:53` is feasible. DoH (the example above)
-> is the simplest path because `fetch` is already available.
+> a custom resolver against `1.1.1.1:53` (UDP-over-TCP) is feasible if you
+> need to avoid DoH for some reason. DoH (above) is the simplest path because
+> `fetch` is universally available.
+
+A `StubDNSResolver` is also exported for tests — it returns a fixed empty
+answer for both `resolveMx` and `resolveTxt`.
 
 ## Caching
 

@@ -99,6 +99,94 @@ export class StubDNSResolver implements DNSResolver {
 }
 
 /**
+ * DNS-over-HTTPS resolver — works in any runtime with `fetch` (Cloudflare
+ * Workers, Vercel Edge, Deno, browsers, Node 18+). Defaults to Cloudflare's
+ * 1.1.1.1 endpoint; pass `endpoint` to use Google (8.8.8.8), NextDNS, or
+ * a self-hosted resolver.
+ *
+ * Compatible with [`cf-doh`](https://www.npmjs.com/package/cf-doh) — if you
+ * already use that, drop it in directly. This built-in keeps the package
+ * zero-dep so the same code works on every edge runtime without an extra
+ * install step.
+ */
+export interface DoHResolverOptions {
+  /** DoH endpoint URL. Default: https://cloudflare-dns.com/dns-query */
+  endpoint?: string;
+  /** Per-query request timeout, ms. Default: 5000 */
+  timeoutMs?: number;
+  /** Custom fetch (e.g. to add headers / proxy). Default: globalThis.fetch */
+  fetch?: typeof fetch;
+}
+
+interface DoHAnswer {
+  name: string;
+  type: number;
+  TTL: number;
+  data: string;
+}
+
+interface DoHResponse {
+  Status: number;
+  Answer?: DoHAnswer[];
+}
+
+const DOH_RECORD_TYPE = { MX: 15, TXT: 16 } as const;
+
+export class DoHResolver implements DNSResolver {
+  private readonly endpoint: string;
+  private readonly timeoutMs: number;
+  private readonly fetchFn: typeof fetch;
+
+  constructor(options: DoHResolverOptions = {}) {
+    this.endpoint = options.endpoint ?? 'https://cloudflare-dns.com/dns-query';
+    this.timeoutMs = options.timeoutMs ?? 5000;
+    this.fetchFn = options.fetch ?? globalThis.fetch;
+  }
+
+  async resolveMx(domain: string): Promise<Array<{ exchange: string; priority: number }>> {
+    const records = await this.query(domain, DOH_RECORD_TYPE.MX);
+    if (!records) return [];
+    return records
+      .map((answer) => {
+        // MX answer data: "<priority> <exchange>" (with optional trailing dot).
+        const match = answer.data.match(/^(\d+)\s+(.+?)\.?$/);
+        if (!match) return null;
+        return { priority: Number(match[1]), exchange: match[2] as string };
+      })
+      .filter((r): r is { exchange: string; priority: number } => r !== null)
+      .sort((a, b) => a.priority - b.priority);
+  }
+
+  async resolveTxt(domain: string): Promise<string[]> {
+    const records = await this.query(domain, DOH_RECORD_TYPE.TXT);
+    if (!records) return [];
+    // TXT answers come back as quoted strings — strip the surrounding quotes.
+    return records.map((answer) => answer.data.replace(/^"(.*)"$/, '$1'));
+  }
+
+  private async query(domain: string, type: number): Promise<DoHAnswer[] | null> {
+    const url = `${this.endpoint}?name=${encodeURIComponent(domain)}&type=${type}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await this.fetchFn(url, {
+        headers: { Accept: 'application/dns-json' },
+        signal: controller.signal,
+      });
+      if (!response.ok) return null;
+      const json = (await response.json()) as DoHResponse;
+      // Status 0 = NOERROR. Anything else (NXDOMAIN, SERVFAIL, etc.) → no answers.
+      if (json.Status !== 0) return [];
+      return json.Answer ?? [];
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+/**
  * Suggest a corrected domain. Returns the canonical for a known typo,
  * otherwise the closest match within the threshold, otherwise null.
  */
