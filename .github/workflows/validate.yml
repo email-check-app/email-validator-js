@@ -9,10 +9,10 @@ on:
   workflow_call:
     inputs:
       node-version:
-        description: 'Node.js version to test against'
+        description: 'Node.js version to test against (must be a supported LTS line)'
         required: false
         type: string
-        default: '20'
+        default: '22'
       run-build:
         description: 'Whether to run the build step (skip for fast PR checks).'
         required: false

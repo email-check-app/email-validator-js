@@ -91,7 +91,7 @@ pnpm add @emailcheck/email-validator-js
 ```
 
 ### Requirements (consumers)
-- Node.js >= 18 (runtime target — the published bundle is plain Node.js + ESM/CJS)
+- Node.js >= 22 (currently-supported LTS lines: 22 Maintenance, 24 Active)
 - TypeScript >= 4.0 (for TypeScript users)
 
 ### Requirements (contributing)
@@ -864,7 +864,7 @@ bun run examples/high-level/advanced-usage.ts
 bun run examples/integrations/algolia.ts
 ```
 
-**After installation in your own project (Node 20.10+):**
+**After installation in your own project (Node 22+):**
 
 ```bash
 node --experimental-strip-types examples/smtp/usage.ts
@@ -1386,7 +1386,7 @@ app.http('validateEmail', {
 
 ### Edge MX support via the built-in DoH resolver
 
-A built-in `DoHResolver` ships with the package — works in any runtime with `fetch` (Cloudflare Workers, Vercel Edge, Deno, browsers, Node 18+):
+A built-in `DoHResolver` ships with the package — works in any runtime with `fetch` (Cloudflare Workers, Vercel Edge, Deno, browsers, Node 22+):
 
 ```typescript
 import {

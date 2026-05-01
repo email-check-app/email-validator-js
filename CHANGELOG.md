@@ -61,6 +61,22 @@ Files like `examples/smtp-usage.ts` have moved to
 `examples/smtp/usage.ts`, `examples/cache/custom-redis.ts`, etc. See the
 new [examples/README.md](./examples/README.md) for the full layout.
 
+#### 6. Minimum Node.js bumped from 18 to 22
+
+`engines.node` is now `>= 22.0`. Node 18 reached end-of-life on
+**2025-04-30** and Node 20 on **2026-04-30** — both stopped receiving
+security patches before this release. Supported lines:
+
+| Line  | Status                | EOL          |
+| ----- | --------------------- | ------------ |
+| 22.x  | Maintenance LTS       | 2027-04-30   |
+| 24.x  | Active LTS            | 2028-04-30   |
+
+CI runs the test matrix against both. Older Node lines may still
+work — `npm install` issues an `EBADENGINE` warning rather than a hard
+failure — but they're no longer covered by tests or security updates
+upstream.
+
 ### ✨ Added
 
 #### `email-validate` CLI
@@ -126,7 +142,7 @@ const result = await validateEmailCore('alice@example.com', {
 ```
 
 Works in any runtime with `fetch` — Cloudflare Workers, Vercel Edge, Deno,
-browsers, Node 18+. Configurable endpoint (Google / NextDNS / self-hosted),
+browsers, Node 22+. Configurable endpoint (Google / NextDNS / self-hosted),
 per-query timeout, custom fetch. Compatible with the
 [`cf-doh`](https://www.npmjs.com/package/cf-doh) package — same
 `DNSResolver` interface, drop-in interchangeable. The built-in keeps the

@@ -38,7 +38,8 @@ jobs:
     name: Validate before release
     uses: ./.github/workflows/validate.yml
     with:
-      node-version: '22'
+      # Pin to the current Active LTS for the release pipeline.
+      node-version: '24'
       run-build: true
 
   release:
@@ -73,7 +74,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          # Active LTS — same version the validate job ran against.
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Cache Bun install

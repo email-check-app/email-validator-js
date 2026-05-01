@@ -37,16 +37,24 @@ permissions:
   contents: read
 
 jobs:
-  # Matrix on the two LTS Node versions we care about. Node 18 is the
-  # `engines.node` floor; Node 22 is the latest LTS. We don't matrix on Node 24
-  # in CI to keep the cost down — the release job runs on a fixed Node.
+  # Matrix on the two currently-supported LTS Node lines:
+  #   - 22 (Maintenance LTS until 2027-04-30) — also the engines.node floor
+  #   - 24 (Active LTS until 2026-10-20, then Maintenance until 2028-04-30)
+  #
+  # Node 18 (EOL 2025-04-30) and Node 20 (EOL 2026-04-30) are deliberately
+  # NOT tested — running on EOL Node is a security liability and surfaces
+  # spurious failures from features that have moved on.
+  #
+  # When a new Node major reaches Active LTS, drop the now-Maintenance line
+  # only after its EOL — keep at least one Maintenance LTS in the matrix so
+  # downstream consumers still on it have a passing signal.
   validate:
     name: Validate
     if: github.event.pull_request.draft == false || github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
-        node-version: ['18', '22']
+        node-version: ['22', '24']
     uses: ./.github/workflows/validate.yml
     with:
       node-version: ${{ matrix.node-version }}
