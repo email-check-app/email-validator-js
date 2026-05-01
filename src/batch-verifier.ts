@@ -91,7 +91,7 @@ export async function verifyEmailBatch(params: BatchVerifyParams): Promise<Batch
   };
 }
 
-function createErrorResult(email: string, _error: unknown): VerificationResult {
+function createErrorResult(email: string, error: unknown): VerificationResult {
   return {
     email,
     validFormat: false,
@@ -102,7 +102,20 @@ function createErrorResult(email: string, _error: unknown): VerificationResult {
     metadata: {
       verificationTime: 0,
       cached: false,
-      error: VerificationErrorCode.smtpConnectionFailed,
+      error: classifyBatchError(error),
     },
   };
+}
+
+/**
+ * The catch site is one level above the SMTP/DNS/format checks, so any throw
+ * here reflects an unexpected runtime failure — not a specific protocol step.
+ * `networkError` is the broadest applicable code; refine if the message gives
+ * a clearer signal.
+ */
+function classifyBatchError(error: unknown): VerificationErrorCode {
+  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  if (msg.includes('timeout') || msg.includes('timed out')) return VerificationErrorCode.smtpTimeout;
+  if (msg.includes('mx') || msg.includes('enotfound')) return VerificationErrorCode.noMxRecords;
+  return VerificationErrorCode.networkError;
 }

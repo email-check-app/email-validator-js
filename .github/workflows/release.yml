@@ -5,7 +5,7 @@ on:
   push:
     paths:
       - 'src/**'
-      - 'yarn.lock'
+      - 'bun.lock'
     branches:
       - 'master'
 
@@ -44,26 +44,27 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Setup Node.js
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js (semantic-release runs on Node)
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: 'yarn'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Verify dependency integrity
-        run: yarn audit || true
+        run: bun install --frozen-lockfile
 
       - name: Lint
-        run: yarn lint
+        run: bun run lint
 
       - name: Test
-        run: yarn test
+        run: bun run test
 
       - name: Build
-        run: yarn build
+        run: bun run build
 
       - name: Release
         id: semantic_release

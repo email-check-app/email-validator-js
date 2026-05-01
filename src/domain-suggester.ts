@@ -1,97 +1,22 @@
 import { stringSimilarity } from 'string-similarity-js';
 import { getCacheStore } from './cache';
 import type { Cache } from './cache-interface';
+import commonEmailDomainsJson from './data/common-email-domains.json';
+import typoPatternsJson from './data/typo-patterns.json';
 import type { DomainSuggestion, DomainSuggestionParams } from './types';
 
 /**
- * List of common email domains for typo detection
- * Includes popular free providers, business providers, and hosting services
+ * List of common email domains for typo detection — popular free providers,
+ * business providers, and hosting services. Source data lives in
+ * src/data/common-email-domains.json.
  */
-export const commonEmailDomains = [
-  // Popular free email providers
-  'gmail.com',
-  'yahoo.com',
-  'outlook.com',
-  'hotmail.com',
-  'icloud.com',
-  'aol.com',
-  'mail.com',
-  'protonmail.com',
-  'proton.me',
-  'yandex.com',
-
-  // Business/Professional email providers
-  'google.com',
-  'microsoft.com',
-  'apple.com',
-  'amazon.com',
-  'amazonaws.com',
-
-  // Secure/Privacy-focused providers
-  'tutanota.com',
-  'tuta.com',
-  'fastmail.com',
-  'posteo.de',
-  'mailbox.org',
-  'runbox.com',
-  'startmail.com',
-
-  // European providers
-  'gmx.com',
-  'gmx.de',
-  'gmx.net',
-  'web.de',
-  'freenet.de',
-  't-online.de',
-  'arcor.de',
-
-  // Business email hosting
-  'zoho.com',
-  'titan.email',
-  'neo.space',
-  'rackspace.com',
-  'ionos.com',
-  'hostinger.com',
-  'bluehost.com',
-  'siteground.com',
-  'dreamhost.com',
-  'inmotionhosting.com',
-  'godaddy.com',
-  'namecheap.com',
-  'migadu.com',
-  'purelymail.com',
-  'infomaniak.com',
-  'uberspace.de',
-  'manitu.de',
-  'hetzner.com',
-  'scalahosting.com',
-  'hostpapa.com',
-  'liquidweb.com',
-  'icewarp.com',
-  'hostgator.com',
-  'a2hosting.com',
-  'spacemail.com',
-  'mxroute.com',
-
-  // Regional providers
-  'qq.com',
-  '163.com',
-  '126.com',
-  'sina.com',
-  'naver.com',
-  'daum.net',
-  'kakao.com',
-];
+export const commonEmailDomains: readonly string[] = commonEmailDomainsJson as string[];
 
 /**
- * Common typo patterns to check
+ * Hand-curated typo → canonical map. Faster + more accurate than the
+ * similarity heuristic for common misspellings of the top providers.
  */
-const TYPO_PATTERNS: Record<string, string[]> = {
-  'gmail.com': ['gmai.com', 'gmial.com', 'gmali.com', 'gmil.com', 'gmaill.com', 'gmail.co', 'gmail.cm'],
-  'yahoo.com': ['yaho.com', 'yahooo.com', 'yahoo.co', 'yahoo.cm', 'yhaoo.com'],
-  'hotmail.com': ['hotmai.com', 'hotmial.com', 'hotmal.com', 'hotmil.com', 'hotmail.co', 'hotmail.cm'],
-  'outlook.com': ['outlok.com', 'outloo.com', 'outlook.co', 'outlook.cm', 'outlokk.com'],
-};
+const TYPO_PATTERNS = typoPatternsJson as Record<string, string[]>;
 
 /**
  * Calculate similarity threshold based on domain length
@@ -105,301 +30,117 @@ function getSimilarityThreshold(domain: string) {
 }
 
 /**
- * Check if a domain is likely a typo based on common patterns
+ * Pure matching logic — no caching, no I/O. Returns the best suggestion for
+ * `domain` against `candidates` or null. Both the sync and the async
+ * (cache-aware) public entry points share this single implementation.
  */
-function _isLikelyTypo(domain: string) {
-  // Check if domain matches any known typo patterns
-  for (const patterns of Object.values(TYPO_PATTERNS)) {
-    if (patterns.includes(domain.toLowerCase())) {
-      return true;
+function findSuggestion(domain: string, candidates: readonly string[]): DomainSuggestion | null {
+  const lower = domain.toLowerCase();
+
+  // Already a known good domain → no suggestion.
+  if (candidates.includes(lower)) return null;
+
+  // Hand-crafted typo table beats the similarity heuristic for common cases.
+  for (const [correct, typos] of Object.entries(TYPO_PATTERNS)) {
+    if (typos.includes(lower)) {
+      return { original: domain, suggested: correct, confidence: 0.95 };
     }
   }
 
-  // Check for common typo characteristics
-  const lowerDomain = domain.toLowerCase();
+  const threshold = getSimilarityThreshold(lower);
+  let best: { domain: string; similarity: number } | null = null;
 
-  // Missing letters (e.g., "gmai.com" instead of "gmail.com")
-  if (lowerDomain.match(/^gmai\.com$/) || lowerDomain.match(/^yaho\.com$/) || lowerDomain.match(/^hotmai\.com$/)) {
-    return true;
+  for (const candidate of candidates) {
+    const similarity = stringSimilarity(lower, candidate.toLowerCase());
+    if (similarity >= threshold && (!best || similarity > best.similarity)) {
+      best = { domain: candidate, similarity };
+    }
   }
 
-  // Double letters where they shouldn't be
-  if (lowerDomain.match(/^gmaill\.com$/) || lowerDomain.match(/^yahooo\.com$/)) {
-    return true;
+  // Second pass with a relaxed threshold for length-similar domains.
+  if (!best) {
+    for (const candidate of candidates) {
+      if (Math.abs(lower.length - candidate.length) > 2) continue;
+      const similarity = stringSimilarity(lower, candidate.toLowerCase());
+      if (similarity >= 0.7 && (!best || similarity > best.similarity)) {
+        best = { domain: candidate, similarity };
+      }
+    }
   }
 
-  // Wrong TLD variations of popular domains
-  if (
-    lowerDomain.match(/^gmail\.(co|cm|net|org)$/) ||
-    lowerDomain.match(/^yahoo\.(co|cm|net|org)$/) ||
-    lowerDomain.match(/^hotmail\.(co|cm|net|org)$/)
-  ) {
-    return true;
-  }
+  if (!best) return null;
+  // Reject suggestions whose first letter differs unless similarity is very high
+  // — this avoids "amazon.com" being suggested for "yahoo.com" type junk.
+  if (best.domain.charAt(0) !== lower.charAt(0) && best.similarity < 0.9) return null;
 
-  return false;
+  return { original: domain, suggested: best.domain, confidence: best.similarity };
 }
 
-/**
- * Default domain suggestion method using string similarity (sync version)
- */
+/** Sync default — no cache. Public for callers that need a synchronous answer. */
 export function defaultDomainSuggestionMethod(domain: string, commonDomains?: string[]): DomainSuggestion | null {
-  // For sync version, we need to create a synchronous implementation
-  // without cache to avoid async issues
-  const domainsToCheck = commonDomains || commonEmailDomains;
-  const lowerDomain = domain.toLowerCase();
-
-  // If domain is already in the common list, no suggestion needed
-  if (domainsToCheck.includes(lowerDomain)) {
-    return null;
-  }
-
-  // First check if it's a known typo pattern
-  for (const [correctDomain, typos] of Object.entries(TYPO_PATTERNS)) {
-    if (typos.includes(lowerDomain)) {
-      return {
-        original: domain,
-        suggested: correctDomain,
-        confidence: 0.95, // High confidence for known typo patterns
-      };
-    }
-  }
-
-  // Find the most similar domain
-  let bestMatch: { domain: string; similarity: number } | null = null;
-  const threshold = getSimilarityThreshold(lowerDomain);
-
-  for (const commonDomain of domainsToCheck) {
-    const similarity = stringSimilarity(lowerDomain, commonDomain.toLowerCase());
-
-    if (similarity >= threshold) {
-      if (!bestMatch || similarity > bestMatch.similarity) {
-        bestMatch = { domain: commonDomain, similarity };
-      }
-    }
-  }
-
-  // Additional check for very similar domains (edit distance of 1-2)
-  if (!bestMatch) {
-    for (const commonDomain of domainsToCheck) {
-      if (Math.abs(lowerDomain.length - commonDomain.length) <= 2) {
-        const similarity = stringSimilarity(lowerDomain, commonDomain.toLowerCase());
-        if (similarity >= 0.7) {
-          // Lower threshold for length-similar domains
-          if (!bestMatch || similarity > bestMatch.similarity) {
-            bestMatch = { domain: commonDomain, similarity };
-          }
-        }
-      }
-    }
-  }
-
-  if (bestMatch) {
-    // Don't suggest if the domains are too different despite similarity score
-    // This prevents suggesting unrelated domains
-    if (bestMatch.domain.charAt(0) !== lowerDomain.charAt(0) && bestMatch.similarity < 0.9) {
-      return null;
-    }
-
-    return {
-      original: domain,
-      suggested: bestMatch.domain,
-      confidence: bestMatch.similarity,
-    };
-  }
-
-  return null;
+  if (!domain || domain.length < 3) return null;
+  return findSuggestion(domain, commonDomains ?? commonEmailDomains);
 }
 
-/**
- * Async version of default domain suggestion method
- */
+/** Async default — wraps the sync match with a per-domain cache layer. */
 export async function defaultDomainSuggestionMethodAsync(
   domain: string,
   commonDomains?: string[],
   cache?: Cache
 ): Promise<DomainSuggestion | null> {
-  return defaultDomainSuggestionMethodImpl(domain, commonDomains, cache);
-}
-
-/**
- * Internal implementation of domain suggestion
- */
-async function defaultDomainSuggestionMethodImpl(
-  domain: string,
-  commonDomains?: string[],
-  cache?: Cache
-): Promise<DomainSuggestion | null> {
-  if (!domain || domain.length < 3) {
-    return null;
-  }
-
-  const domainsToCheck = commonDomains || commonEmailDomains;
-  const lowerDomain = domain.toLowerCase();
-
-  // Check cache first
-  const cacheKey = `${lowerDomain}:${domainsToCheck.length}`;
+  if (!domain || domain.length < 3) return null;
+  const candidates = commonDomains ?? commonEmailDomains;
+  const cacheKey = `${domain.toLowerCase()}:${candidates.length}`;
   const cacheStore = getCacheStore<DomainSuggestion | null>(cache, 'domainSuggestion');
+
   const cached = await cacheStore.get(cacheKey);
+  if (cached !== null && cached !== undefined) return cached as DomainSuggestion | null;
 
-  // Handle both sync and async cache returns
-  const resolved = cached && typeof cached === 'object' && 'then' in cached ? await cached : cached;
-
-  if (resolved !== null && resolved !== undefined) {
-    return resolved as DomainSuggestion | null;
-  }
-
-  // If domain is already in the common list, no suggestion needed
-  if (domainsToCheck.includes(lowerDomain)) {
-    await cacheStore.set(cacheKey, null);
-    return null;
-  }
-
-  // First check if it's a known typo pattern
-  for (const [correctDomain, typos] of Object.entries(TYPO_PATTERNS)) {
-    if (typos.includes(lowerDomain)) {
-      const result = {
-        original: domain,
-        suggested: correctDomain,
-        confidence: 0.95, // High confidence for known typo patterns
-      };
-      // Cache the result
-      await cacheStore.set(cacheKey, result);
-      return result;
-    }
-  }
-
-  // Find the most similar domain
-  let bestMatch: { domain: string; similarity: number } | null = null;
-  const threshold = getSimilarityThreshold(lowerDomain);
-
-  for (const commonDomain of domainsToCheck) {
-    const similarity = stringSimilarity(lowerDomain, commonDomain.toLowerCase());
-
-    if (similarity >= threshold) {
-      if (!bestMatch || similarity > bestMatch.similarity) {
-        bestMatch = { domain: commonDomain, similarity };
-      }
-    }
-  }
-
-  // Additional check for very similar domains (edit distance of 1-2)
-  if (!bestMatch) {
-    for (const commonDomain of domainsToCheck) {
-      if (Math.abs(lowerDomain.length - commonDomain.length) <= 2) {
-        const similarity = stringSimilarity(lowerDomain, commonDomain.toLowerCase());
-        if (similarity >= 0.7) {
-          // Lower threshold for length-similar domains
-          if (!bestMatch || similarity > bestMatch.similarity) {
-            bestMatch = { domain: commonDomain, similarity };
-          }
-        }
-      }
-    }
-  }
-
-  if (bestMatch) {
-    // Don't suggest if the domains are too different despite similarity score
-    // This prevents suggesting unrelated domains
-    if (bestMatch.domain.charAt(0) !== lowerDomain.charAt(0) && bestMatch.similarity < 0.9) {
-      await cacheStore.set(cacheKey, null);
-      return null;
-    }
-
-    const result = {
-      original: domain,
-      suggested: bestMatch.domain,
-      confidence: bestMatch.similarity,
-    };
-
-    // Cache the result
-    await cacheStore.set(cacheKey, result);
-    return result;
-  }
-
-  // Cache null result
-  await cacheStore.set(cacheKey, null);
-  return null;
+  const result = findSuggestion(domain, candidates);
+  await cacheStore.set(cacheKey, result);
+  return result;
 }
 
-/**
- * Suggest a corrected domain for a potentially misspelled email domain
- * @param params - Parameters including domain and optional custom method
- * @returns Domain suggestion with confidence score, or null if no suggestion
- */
+/** Sync entry: pass a domain (or email-shaped string), get a suggestion or null. */
 export function suggestDomain(params: DomainSuggestionParams): DomainSuggestion | null {
   const { domain, customMethod, commonDomains } = params;
+  if (!domain || domain.length < 3) return null;
 
-  if (!domain || domain.length < 3) {
-    return null;
-  }
-
-  // Use custom method if provided
   if (customMethod) {
     try {
       return customMethod(domain);
     } catch (error) {
-      // Fall back to default method if custom method fails
+      // Fall back to the default if the user's method throws.
       console.warn('Custom domain suggestion method failed, falling back to default:', error);
     }
   }
-
-  // Use default method
   return defaultDomainSuggestionMethod(domain, commonDomains);
 }
 
-/**
- * Convenience function to suggest domain from email address
- * @param email - Email address to check for domain typos
- * @param commonDomains - Optional list of common domains to check against
- * @param cache - Optional cache instance
- * @returns Domain suggestion with confidence score, or null if no suggestion
- */
+/** Async entry: takes a full email, returns a suggestion that rewrites the local-part too. */
 export async function suggestEmailDomain(
   email: string,
   commonDomains?: string[],
   cache?: Cache
 ): Promise<DomainSuggestion | null> {
-  if (!email || !email.includes('@')) {
-    return null;
-  }
-
+  if (!email?.includes('@')) return null;
   const [localPart, domain] = email.split('@');
-  if (!domain || !localPart) {
-    return null;
-  }
+  if (!domain || !localPart) return null;
 
   const suggestion = await defaultDomainSuggestionMethodAsync(domain, commonDomains, cache);
+  if (!suggestion) return null;
 
-  // If we have a suggestion, update it to include the full email
-  if (suggestion) {
-    return {
-      original: email,
-      suggested: `${localPart}@${suggestion.suggested}`,
-      confidence: suggestion.confidence,
-    };
-  }
-
-  return null;
+  return {
+    original: email,
+    suggested: `${localPart}@${suggestion.suggested}`,
+    confidence: suggestion.confidence,
+  };
 }
 
-/**
- * Check if a domain is in the common domains list
- * @param domain - Domain to check
- * @param commonDomains - Optional custom list of common domains
- * @returns True if domain is common, false otherwise
- */
-export function isCommonDomain(domain: string, commonDomains?: string[]) {
-  const domainsToCheck = commonDomains || commonEmailDomains;
-  return domainsToCheck.includes(domain.toLowerCase());
+export function isCommonDomain(domain: string, commonDomains?: string[]): boolean {
+  return (commonDomains ?? commonEmailDomains).includes(domain.toLowerCase());
 }
 
-/**
- * Get similarity score between two domains
- * @param domain1 - First domain
- * @param domain2 - Second domain
- * @returns Similarity score between 0 and 1
- */
-export function getDomainSimilarity(domain1: string, domain2: string) {
+export function getDomainSimilarity(domain1: string, domain2: string): number {
   return stringSimilarity(domain1.toLowerCase(), domain2.toLowerCase());
 }

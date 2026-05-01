@@ -1,0 +1,7 @@
+# Bun runtime + test configuration.
+# Tests live in __tests__ split into:
+#   - __tests__/**/*.test.ts        — default unit/mocked suite
+#   - __tests__/integration/*.test.ts — real-network suite (run on demand)
+[test]
+preload = ["./__tests__/helpers/setup.ts"]
+timeout = 30000

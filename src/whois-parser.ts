@@ -223,9 +223,11 @@ function parseDate(dateStr: string, format: string): Date | null {
     // Clean up the date string
     dateStr = dateStr.trim();
 
-    // Handle ISO format
+    // Handle ISO format. Validate before returning — `new Date('garbage')`
+    // returns an Invalid Date object that crashes `.toISOString()` callers.
     if (format === "yyyy-MM-dd'T'HH:mm:ss'Z'" || dateStr.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
-      return new Date(dateStr);
+      const isoDate = new Date(dateStr);
+      return Number.isNaN(isoDate.getTime()) ? null : isoDate;
     }
 
     // Handle various date formats
@@ -343,179 +345,145 @@ function parseDate(dateStr: string, format: string): Date | null {
   }
 }
 
-export function parseWhoisData({ rawData, domain }: { rawData: string; domain: string }): ParsedWhoisResult {
-  if (!rawData) {
-    return { domainName: domain, isAvailable: true };
+/**
+ * TLD → registry-specific regex set. Multiple TLDs share a regex when their
+ * WHOIS servers use the same response shape (`.com` and `.net` are both
+ * served by Verisign with identical formatting).
+ */
+const TLD_REGEX: Record<string, Regex> = {
+  com: comRegex,
+  net: comRegex,
+  name: comRegex,
+  org: orgRegex,
+  me: orgRegex,
+  mobi: orgRegex,
+  au: auRegex,
+  ru: ruRegex,
+  рф: ruRegex,
+  su: ruRegex,
+  us: usRegex,
+  biz: usRegex,
+  uk: ukRegex,
+  fr: frRegex,
+  nl: nlRegex,
+  fi: fiRegex,
+  jp: jpRegex,
+  pl: plRegex,
+  br: brRegex,
+  eu: euRegex,
+  ee: eeRegex,
+  kr: krRegex,
+  bg: bgRegex,
+  de: deRegex,
+  at: atRegex,
+  ca: caRegex,
+  be: beRegex,
+  kg: kgRegex,
+  info: infoRegex,
+  id: idRegex,
+  sk: skRegex,
+  se: seRegex,
+  nu: seRegex,
+  is: isRegex,
+  co: coRegex,
+};
+
+/** Generic free-text WHOIS fields shared across registries. */
+const COMMON_FIELD_PATTERNS: ReadonlyArray<{
+  pattern: RegExp;
+  property: keyof ParsedWhoisResult;
+  multiple?: boolean;
+}> = [
+  { pattern: /Name Server:\s*(.*)/gi, property: 'nameServers', multiple: true },
+  { pattern: /Registrar URL:\s*(.*)/i, property: 'registrarUrl' },
+  { pattern: /Registrar WHOIS Server:\s*(.*)/i, property: 'registrarWhoisServer' },
+  { pattern: /Registry Domain ID:\s*(.*)/i, property: 'registryDomainId' },
+  { pattern: /Registrar Abuse Contact Email:\s*(.*)/i, property: 'registrarAbuseContactEmail' },
+  { pattern: /Registrar Abuse Contact Phone:\s*(.*)/i, property: 'registrarAbuseContactPhone' },
+  { pattern: /DNSSEC:\s*(.*)/i, property: 'dnssec' },
+  { pattern: /Registrar IANA ID:\s*(.*)/i, property: 'registrarIanaId' },
+];
+
+const ISO_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
+
+function pickRegex(domain: string): Regex {
+  const tld = domain.split('.').pop()?.toLowerCase();
+  if (!tld) return defaultRegex;
+  return TLD_REGEX[tld] ?? defaultRegex;
+}
+
+function collectStatuses(rawData: string, pattern: string): string[] {
+  const out: string[] = [];
+  const re = new RegExp(pattern, 'gi');
+  for (const match of rawData.matchAll(re)) {
+    if (match[1]) out.push(match[1].trim());
   }
+  return out;
+}
 
-  const result: ParsedWhoisResult = { domainName: domain };
+function extractDate(rawData: string, pattern: string, dateFormat: string): string | undefined {
+  // The default `Creat(ed|ion) Date:` pattern wraps the keyword in a capture
+  // group, so we use a non-capturing variant when reading the value.
+  const dateRegex = pattern.includes('Creat(ed|ion)') ? /Creat(?:ed|ion) Date:\s*(.+)/i : new RegExp(pattern, 'i');
+  const dateStr = rawData.match(dateRegex)?.[1]?.trim();
+  if (!dateStr) return undefined;
+  return parseDate(dateStr, dateFormat)?.toISOString() ?? dateStr;
+}
 
-  let domainRegex: Regex;
-
-  // Select the appropriate regex based on TLD
-  if (domain.endsWith('.com') || domain.endsWith('.net') || domain.endsWith('.name')) {
-    domainRegex = comRegex;
-  } else if (domain.endsWith('.org') || domain.endsWith('.me') || domain.endsWith('.mobi')) {
-    domainRegex = orgRegex;
-  } else if (domain.endsWith('.au')) {
-    domainRegex = auRegex;
-  } else if (domain.endsWith('.ru') || domain.endsWith('.рф') || domain.endsWith('.su')) {
-    domainRegex = ruRegex;
-  } else if (domain.endsWith('.us') || domain.endsWith('.biz')) {
-    domainRegex = usRegex;
-  } else if (domain.endsWith('.uk')) {
-    domainRegex = ukRegex;
-  } else if (domain.endsWith('.fr')) {
-    domainRegex = frRegex;
-  } else if (domain.endsWith('.nl')) {
-    domainRegex = nlRegex;
-  } else if (domain.endsWith('.fi')) {
-    domainRegex = fiRegex;
-  } else if (domain.endsWith('.jp')) {
-    domainRegex = jpRegex;
-  } else if (domain.endsWith('.pl')) {
-    domainRegex = plRegex;
-  } else if (domain.endsWith('.br')) {
-    domainRegex = brRegex;
-  } else if (domain.endsWith('.eu')) {
-    domainRegex = euRegex;
-  } else if (domain.endsWith('.ee')) {
-    domainRegex = eeRegex;
-  } else if (domain.endsWith('.kr')) {
-    domainRegex = krRegex;
-  } else if (domain.endsWith('.bg')) {
-    domainRegex = bgRegex;
-  } else if (domain.endsWith('.de')) {
-    domainRegex = deRegex;
-  } else if (domain.endsWith('.at')) {
-    domainRegex = atRegex;
-  } else if (domain.endsWith('.ca')) {
-    domainRegex = caRegex;
-  } else if (domain.endsWith('.be')) {
-    domainRegex = beRegex;
-  } else if (domain.endsWith('.kg')) {
-    domainRegex = kgRegex;
-  } else if (domain.endsWith('.info')) {
-    domainRegex = infoRegex;
-  } else if (domain.endsWith('.id')) {
-    domainRegex = idRegex;
-  } else if (domain.endsWith('.sk')) {
-    domainRegex = skRegex;
-  } else if (domain.endsWith('.se') || domain.endsWith('.nu')) {
-    domainRegex = seRegex;
-  } else if (domain.endsWith('.is')) {
-    domainRegex = isRegex;
-  } else if (domain.endsWith('.co')) {
-    domainRegex = coRegex;
-  } else {
-    domainRegex = defaultRegex;
-  }
-
-  // Process each regex pattern
-  Object.keys(domainRegex).forEach((key: string) => {
-    const typedKey = key as keyof Regex;
-    const pattern = domainRegex[typedKey];
-    if (!pattern || typedKey === 'dateFormat') return;
-
-    let regex = new RegExp(pattern, 'i');
-    if (typedKey === 'status') {
-      regex = new RegExp(pattern, 'gi');
-    }
-
-    const matches = rawData.match(regex);
-    if (matches) {
-      if (typedKey === 'rateLimited') {
-        result.rateLimited = true;
-        throw new Error('Rate Limited');
-      } else if (typedKey === 'notFound') {
-        result.isAvailable = true;
-      } else if (typedKey === 'status') {
-        // Handle multiple status values
-        result.status = [];
-        let match: RegExpExecArray | null;
-        const statusRegex = new RegExp(pattern, 'gi');
-        match = statusRegex.exec(rawData);
-        while (match !== null) {
-          if (match[1]) {
-            result.status.push(match[1].trim());
-          }
-          match = statusRegex.exec(rawData);
-        }
-      } else if (typedKey === 'creationDate' || typedKey === 'expirationDate' || typedKey === 'updatedDate') {
-        // Extract date value
-        const _dateMatch = matches[matches.length - 1];
-        let dateStr: string | undefined;
-
-        if (typedKey === 'creationDate' && pattern.includes('Creat(ed|ion)')) {
-          // Handle creation date with group
-          const creationMatch = rawData.match(/Creat(?:ed|ion) Date:\s*(.+)/i);
-          dateStr = creationMatch?.[1]?.trim();
-        } else {
-          // Extract the captured group
-          const extractMatch = rawData.match(new RegExp(pattern, 'i'));
-          dateStr = extractMatch?.[1]?.trim();
-        }
-
-        if (dateStr) {
-          // Parse the date based on format
-          const dateFormat = domainRegex.dateFormat || "yyyy-MM-dd'T'HH:mm:ss'Z'";
-          const parsedDate = parseDate(dateStr, dateFormat);
-
-          if (parsedDate) {
-            result[typedKey] = parsedDate.toISOString();
-          } else {
-            // Store raw date if parsing fails
-            result[typedKey] = dateStr;
-          }
-        }
-      } else if (typedKey === 'domainName') {
-        const match = rawData.match(regex);
-        if (match?.[1]) {
-          result.domainName = match[1].toLowerCase().trim();
-        }
-      } else if (typedKey === 'registrar') {
-        const match = rawData.match(regex);
-        if (match?.[1]) {
-          result.registrar = match[1].trim();
-        }
-      }
-    }
-  });
-
-  // Set default availability
-  if (result.isAvailable === undefined) {
-    result.isAvailable = false;
-  }
-
-  // Additional patterns for common fields
-  const patterns: {
-    pattern: RegExp;
-    property: keyof ParsedWhoisResult;
-    multiple?: boolean;
-  }[] = [
-    { pattern: /Name Server:\s*(.*)/gi, property: 'nameServers', multiple: true },
-    { pattern: /Registrar URL:\s*(.*)/i, property: 'registrarUrl' },
-    { pattern: /Registrar WHOIS Server:\s*(.*)/i, property: 'registrarWhoisServer' },
-    { pattern: /Registry Domain ID:\s*(.*)/i, property: 'registryDomainId' },
-    { pattern: /Registrar Abuse Contact Email:\s*(.*)/i, property: 'registrarAbuseContactEmail' },
-    { pattern: /Registrar Abuse Contact Phone:\s*(.*)/i, property: 'registrarAbuseContactPhone' },
-    { pattern: /DNSSEC:\s*(.*)/i, property: 'dnssec' },
-    { pattern: /Registrar IANA ID:\s*(.*)/i, property: 'registrarIanaId' },
-  ];
-
-  patterns.forEach(({ pattern, property, multiple }) => {
+function applyCommonFieldPatterns(rawData: string, result: ParsedWhoisResult): void {
+  for (const { pattern, property, multiple } of COMMON_FIELD_PATTERNS) {
     if (multiple) {
       const matches = Array.from(rawData.matchAll(pattern));
-      if (matches.length > 0) {
-        (result[property] as string[]) = matches.map((m) => m[1].trim());
+      if (matches.length > 0) (result[property] as string[]) = matches.map((m) => m[1].trim());
+      continue;
+    }
+    const match = rawData.match(pattern);
+    if (match?.[1]) (result[property] as string) = match[1].trim();
+  }
+}
+
+export function parseWhoisData({ rawData, domain }: { rawData: string; domain: string }): ParsedWhoisResult {
+  if (!rawData) return { domainName: domain, isAvailable: true };
+
+  const result: ParsedWhoisResult = { domainName: domain };
+  const regexSet = pickRegex(domain);
+  const dateFormat = regexSet.dateFormat ?? ISO_DATE_FORMAT;
+
+  for (const [key, pattern] of Object.entries(regexSet)) {
+    if (!pattern || key === 'dateFormat') continue;
+    if (!new RegExp(pattern, 'i').test(rawData)) continue;
+
+    switch (key as keyof Regex) {
+      case 'rateLimited':
+        result.rateLimited = true;
+        throw new Error('Rate Limited');
+      case 'notFound':
+        result.isAvailable = true;
+        break;
+      case 'status':
+        result.status = collectStatuses(rawData, pattern);
+        break;
+      case 'creationDate':
+      case 'expirationDate':
+      case 'updatedDate': {
+        const value = extractDate(rawData, pattern, dateFormat);
+        if (value) result[key as 'creationDate' | 'expirationDate' | 'updatedDate'] = value;
+        break;
       }
-    } else {
-      const match = rawData.match(pattern);
-      if (match?.[1]) {
-        (result[property] as string) = match[1].trim();
+      case 'domainName': {
+        const m = rawData.match(new RegExp(pattern, 'i'));
+        if (m?.[1]) result.domainName = m[1].toLowerCase().trim();
+        break;
+      }
+      case 'registrar': {
+        const m = rawData.match(new RegExp(pattern, 'i'));
+        if (m?.[1]) result.registrar = m[1].trim();
+        break;
       }
     }
-  });
+  }
 
+  result.isAvailable ??= false;
+  applyCommonFieldPatterns(rawData, result);
   return result;
 }

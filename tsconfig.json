@@ -18,7 +18,7 @@
       "./node_modules/@types",
       "./src"
     ],
-    "types": ["node", "jest"]
+    "types": ["node", "bun"]
   },
   "include": [
     "src",

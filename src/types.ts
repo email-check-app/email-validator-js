@@ -19,6 +19,33 @@ export enum VerificationErrorCode {
 /**
  * Main verification result interface (flat structure)
  */
+/** Discriminator for `VerificationStep.kind`. */
+export type VerificationStepKind =
+  | 'syntax'
+  | 'domain-validation'
+  | 'name-detection'
+  | 'domain-suggestion'
+  | 'disposable'
+  | 'free'
+  | 'mx-lookup'
+  | 'smtp-probe'
+  | 'whois-age'
+  | 'whois-registration';
+
+/**
+ * One unit of work in the verification pipeline. Produced when
+ * `VerifyEmailParams.captureTranscript === true`. The `details` shape varies
+ * per step — see the inline interfaces under each kind.
+ */
+export interface VerificationStep {
+  kind: VerificationStepKind;
+  startedAt: number;
+  durationMs: number;
+  /** Whether the step completed without throwing. Step-level result lives in `details`. */
+  ok: boolean;
+  details: Record<string, unknown>;
+}
+
 export interface VerificationResult {
   email: string;
   validFormat: boolean;
@@ -45,11 +72,22 @@ export interface VerificationResult {
   /** Whether the email/account is disabled */
   isDisabled?: boolean;
 
-  metadata?: {
+  /**
+   * Always populated by `verifyEmail`. Optional in older shapes is gone —
+   * callers can read it directly without optional chaining.
+   */
+  metadata: {
     verificationTime: number;
     cached: boolean;
     error?: VerificationErrorCode;
   };
+  /**
+   * Per-step trace of what `verifyEmail` did. Present only when
+   * `VerifyEmailParams.captureTranscript === true`. Each entry records timing
+   * and step-specific details (raw WHOIS data, SMTP transcript, MX records,
+   * cache hit/miss, etc.) for debugging and diagnostics.
+   */
+  transcript?: VerificationStep[];
 }
 
 /**
@@ -64,7 +102,6 @@ export interface VerifyEmailParams {
   smtpPort?: number;
   checkDisposable?: boolean;
   checkFree?: boolean;
-  retryAttempts?: number;
   detectName?: boolean;
   nameDetectionMethod?: NameDetectionMethod;
   suggestDomain?: boolean;
@@ -76,6 +113,14 @@ export interface VerifyEmailParams {
   skipMxForDisposable?: boolean;
   skipDomainWhoisForDisposable?: boolean;
   cache?: Cache;
+  /**
+   * When true, populates `result.transcript` with a per-step trace covering
+   * every subsystem (syntax / disposable / free / MX / SMTP / WHOIS / name
+   * detection / domain suggestion). Each step records timing + step-specific
+   * structured details. Safe to leave off for production; turn on for
+   * diagnostics or building debug UIs.
+   */
+  captureTranscript?: boolean;
 }
 
 /**
@@ -187,6 +232,16 @@ export interface SmtpVerificationResult {
   };
   /** Timestamp when this was checked (for cache) */
   checkedAt?: number;
+  /**
+   * Server reply lines, in arrival order, prefixed `<port>|s| <line>` so
+   * multi-port probes stay readable. Present when `captureTranscript` is set.
+   */
+  transcript?: string[];
+  /**
+   * Client commands sent, in send order, prefixed `<port>|c| <command>`.
+   * Present when `captureTranscript` is set.
+   */
+  commands?: string[];
 }
 
 /**
@@ -203,232 +258,53 @@ export interface BatchVerificationResult {
   };
 }
 
-/**
- * Parse SMTP error message to determine error type
- * Handles both SMTP protocol errors and system/network errors
- */
-export function parseSmtpError(errorMessage: string): {
-  isDisabled: boolean;
-  hasFullInbox: boolean;
-  isInvalid: boolean;
-  isCatchAll: boolean;
-} {
-  const lowerError = errorMessage.toLowerCase();
-
-  // Check for network/connection errors first
-  const networkErrorPatterns = [
-    'etimedout',
-    'econnrefused',
-    'enotfound',
-    'econnreset',
-    'socket hang up',
-    'connection_timeout',
-    'socket_timeout',
-    'connection_error',
-    'connection_closed',
-  ];
-
-  const isNetworkError = networkErrorPatterns.some((pattern) => lowerError.includes(pattern));
-
-  // If it's a network error, return as invalid (not deliverable)
-  if (isNetworkError) {
-    return {
-      isDisabled: false,
-      hasFullInbox: false,
-      isInvalid: true,
-      isCatchAll: false,
-    };
-  }
-
-  // Check for disabled account
-  const disabledPatterns = [
-    'account disabled',
-    'account is disabled',
-    'user disabled',
-    'user is disabled',
-    'account locked',
-    'account is locked',
-    'user blocked',
-    'user is blocked',
-    'mailbox disabled',
-    'delivery not authorized',
-    'message rejected',
-    'access denied',
-    'permission denied',
-    'recipient unknown',
-    'recipient address rejected',
-    'user unknown',
-    'address unknown',
-    'invalid recipient',
-    'not a valid recipient',
-    'recipient does not exist',
-    'no such user',
-    'user does not exist',
-    'mailbox unavailable',
-    'recipient unavailable',
-    'address rejected',
-    '550',
-    '551',
-    '553',
-    'not_found',
-    'ambiguous',
-  ];
-
-  // Check for full inbox
-  const fullInboxPatterns = [
-    'mailbox full',
-    'inbox full',
-    'quota exceeded',
-    'over quota',
-    'storage limit exceeded',
-    'message too large',
-    'insufficient storage',
-    'mailbox over quota',
-    'over the quota',
-    'mailbox size limit exceeded',
-    'account over quota',
-    'storage space',
-    'overquota',
-    '452',
-    '552',
-    'over_quota',
-  ];
-
-  // Check for catch-all (accepts all recipients)
-  const catchAllPatterns = [
-    'accept all mail',
-    'catch-all',
-    'catchall',
-    'wildcard',
-    'accepts any recipient',
-    'recipient address accepted',
-  ];
-
-  // Check for rate limiting but still deliverable
-  const rateLimitPatterns = [
-    'receiving mail at a rate that',
-    'rate limit',
-    'too many messages',
-    'temporarily rejected',
-    'try again later',
-    'greylisted',
-    'greylist',
-    'deferring',
-    'temporarily deferred',
-    '421',
-    '450',
-    '451',
-    'temporary_failure',
-  ];
-
-  const isDisabled =
-    disabledPatterns.some((pattern) => lowerError.includes(pattern)) ||
-    lowerError.startsWith('550') ||
-    lowerError.startsWith('551') ||
-    lowerError.startsWith('553');
-  const hasFullInbox =
-    fullInboxPatterns.some((pattern) => lowerError.includes(pattern)) ||
-    lowerError.startsWith('452') ||
-    lowerError.startsWith('552');
-  const isCatchAll = catchAllPatterns.some((pattern) => lowerError.includes(pattern));
-  const isInvalid =
-    !isDisabled &&
-    !hasFullInbox &&
-    !isCatchAll &&
-    !rateLimitPatterns.some((pattern) => lowerError.includes(pattern)) &&
-    !lowerError.startsWith('421') &&
-    !lowerError.startsWith('450') &&
-    !lowerError.startsWith('451');
-
-  return {
-    isDisabled,
-    hasFullInbox,
-    isInvalid,
-    isCatchAll,
-  };
-}
-
-/**
- * Port configuration for SMTP verification
- */
-export interface SMTPPortConfig {
-  ports: number[];
-  timeout: number;
-  maxRetries: number;
-}
-
-/**
- * TLS configuration options
- */
+/** TLS configuration options for the SMTP probe. */
 export interface SMTPTLSConfig {
   rejectUnauthorized?: boolean;
   minVersion?: 'TLSv1.2' | 'TLSv1.3';
 }
 
 /**
- * SMTP protocol steps enum
+ * SMTP protocol steps. Only the steps the verifier actually walks are listed —
+ * STARTTLS upgrade, VRFY, and QUIT used to be separate enum members but were
+ * never reachable from production callers.
  */
 export enum SMTPStep {
   greeting = 'GREETING',
   ehlo = 'EHLO',
   helo = 'HELO',
-  startTls = 'STARTTLS',
   mailFrom = 'MAIL_FROM',
   rcptTo = 'RCPT_TO',
-  vrfy = 'VRFY',
-  quit = 'QUIT',
 }
 
-/**
- * Custom SMTP sequence configuration
- */
+/** Custom SMTP step sequence for advanced callers. */
 export interface SMTPSequence {
   steps: SMTPStep[];
+  /** Override MAIL FROM payload — supply with angle brackets or `<>` for null sender. */
   from?: string;
-  vrfyTarget?: string;
 }
 
-/**
- * SMTP verification options
- */
 export interface SMTPVerifyOptions {
   ports?: number[];
   timeout?: number;
-  maxRetries?: number;
   tls?: boolean | SMTPTLSConfig;
   hostname?: string;
-  useVRFY?: boolean;
-  cache?: Cache | null; // Cache instance or null/undefined for no caching
+  cache?: Cache | null;
   debug?: boolean;
-  sequence?: SMTPSequence; // Custom step sequence
+  /**
+   * When true, the returned `SmtpVerificationResult` carries `transcript` and
+   * `commands` arrays prefixed with `<port>|s| …` / `<port>|c| …`. Aggregated
+   * across every port attempted.
+   */
+  captureTranscript?: boolean;
+  sequence?: SMTPSequence;
 }
 
-/**
- * SMTP verification parameters
- */
 export interface VerifyMailboxSMTPParams {
   local: string;
   domain: string;
   mxRecords: string[];
   options?: SMTPVerifyOptions;
-}
-
-/**
- * Connection pool configuration
- */
-export interface ConnectionPoolConfig {
-  maxConnections?: number;
-  maxIdleTime?: number;
-  connectionTimeout?: number;
-}
-
-/**
- * Email suggestion for typo correction (deprecated - use DomainSuggestion)
- */
-export interface EmailSuggestion {
-  original: string;
-  suggested: string;
-  confidence: number;
 }
 
 /**
@@ -475,20 +351,6 @@ export type NameDetectionMethod = (email: string) => DetectedName | null;
 export interface NameDetectionParams {
   email: string;
   customMethod?: NameDetectionMethod;
-}
-
-/**
- * WHOIS data structure
- */
-export interface WhoisData {
-  domainName: string | null;
-  registrar: string | null;
-  creationDate: Date | null;
-  expirationDate: Date | null;
-  updatedDate: Date | null;
-  status: string[];
-  nameServers: string[];
-  rawData: string;
 }
 
 /**
