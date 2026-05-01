@@ -1,19 +1,43 @@
 /**
  * SMTP mailbox probe.
  *
- * Walks the standard MX dialogue:
- *   greeting → EHLO → MAIL FROM → RCPT TO
+ * Walks `mxRecords` in priority order, then `ports` in the configured order.
+ * Returns the first attempt that yields a definitive answer (250 / 550 / 552 /
+ * 452); on indeterminate outcomes (timeouts, connection resets, EHLO failures,
+ * unrecognized responses), falls through to the next MX×port pair.
  *
- * Captures the verdict (`canConnectSmtp / isDeliverable / hasFullInbox / …`)
- * plus an optional debug transcript. The connection state machine lives in
- * the `SMTPProbeConnection` class — one instance per port attempt — so each
- * variable has a clear owner instead of being shared via closure mutation.
+ * Per-attempt dialogue:
+ *   greeting → EHLO → MAIL FROM → RCPT TO real → RCPT TO probe → RSET
+ *
+ * The probe RCPT uses a guaranteed-nonexistent random local-part so we can
+ * detect catch-all MXes (Outlook / Yahoo / Office 365 / ProtonMail / many
+ * corporates accept every recipient at the MX layer and bounce later).
+ * When both real + probe return 250, `result.isCatchAll = true` and callers
+ * know the deliverability signal is unreliable but that the address syntax
+ * was at least accepted.
+ *
+ * The envelope (real RCPT + probe RCPT + RSET) is batched via PIPELINING
+ * (RFC 2920) when the MX advertises support — roughly halves wire-level
+ * latency. Tests can disable with `pipelining: 'never'` for deterministic
+ * `socket.write()` call counts.
+ *
+ * Every result carries a `metrics` block with `mxAttempts`, `portAttempts`,
+ * `mxHostsTried`, `mxHostUsed?`, `totalDurationMs` — useful for region-health
+ * dashboards and root-cause-analysis when probes go wrong.
  */
 
+import { randomBytes } from 'node:crypto';
 import * as net from 'node:net';
 import * as tls from 'node:tls';
 import { getCacheStore } from './cache';
-import type { SMTPSequence, SMTPTLSConfig, SmtpVerificationResult, VerifyMailboxSMTPParams } from './types';
+import type {
+  SMTPSequence,
+  SMTPTLSConfig,
+  SMTPVerifyOptions,
+  SmtpProbeMetrics,
+  SmtpVerificationResult,
+  VerifyMailboxSMTPParams,
+} from './types';
 import { EmailProvider, SMTPStep } from './types';
 
 const DEFAULT_PORTS = [25, 587, 465]; // plain → STARTTLS-able → implicit-TLS
@@ -45,7 +69,10 @@ export function parseDsn(reply: string): ParsedDsn | null {
   return { class: Number(match[1]), subject: Number(match[2]), detail: Number(match[3]) };
 }
 
-/** True when the DSN code identifies a policy/reputation block, not a mailbox verdict. */
+function dsnToString(dsn: ParsedDsn): string {
+  return `${dsn.class}.${dsn.subject}.${dsn.detail}`;
+}
+
 function isPolicyBlock(reply: string): boolean {
   const dsn = parseDsn(reply);
   return dsn?.class === 5 && dsn?.subject === 7;
@@ -69,15 +96,25 @@ function isInvalidMailboxError(reply: string): boolean {
 }
 
 /**
- * Public entry point. Tries each port in order and returns the first port that
- * yields a deterministic answer (deliverable / not-deliverable / over-quota).
- * If every port is indeterminate, returns the most recent failure reason.
+ * 16 hex characters + suffix — long enough to never collide with any real
+ * mailbox, structured so it's clearly synthetic and passes the local-part
+ * syntax checks of every common MX.
+ */
+function defaultProbeLocal(): string {
+  return `${randomBytes(8).toString('hex')}-noexist`;
+}
+
+/**
+ * Public entry point. Walks `mxRecords × ports` and returns the first
+ * definitive answer. Always:
+ *   - iterates MX records on indeterminate outcomes (no flag)
+ *   - runs the catch-all dual-probe (no flag)
+ *   - populates `result.metrics` and `result.enhancedStatus`
  *
- * When `options.captureTranscript === true`, the returned `SmtpVerificationResult`
- * carries `transcript` and `commands` arrays prefixed with `<port>|s| …` for
- * server lines and `<port>|c| …` for our commands. The arrays aggregate across
- * every port attempted, so a debug session shows why earlier ports failed
- * before a later port answered.
+ * Opt-in only:
+ *   - `captureTranscript: true` returns the wire transcript on the result
+ *   - `pipelining: 'never'` disables PIPELINING for deterministic tests
+ *   - `catchAllProbeLocal` overrides the random-local generator
  */
 export async function verifyMailboxSMTP(
   params: VerifyMailboxSMTPParams
@@ -97,20 +134,35 @@ export async function verifyMailboxSMTP(
   const cache = options.cache;
   const log = debug ? (...args: unknown[]) => console.log('[SMTP]', ...args) : () => {};
 
-  const mxHost = mxRecords[0];
-  if (!mxHost) {
-    log('No MX records found');
-    return { smtpResult: failureResult('No MX records found'), cached: false, port: 0, portCached: false };
-  }
-  log(`Verifying ${local}@${domain} via ${mxHost}`);
+  const startedAtMs = Date.now();
 
-  // Aggregate transcript across port attempts for caller-side debugging.
+  const primaryMx = mxRecords[0];
+  if (!primaryMx) {
+    log('No MX records found');
+    const metrics = makeMetrics([], 0, 0, undefined, startedAtMs);
+    return { smtpResult: failureResult('no_mx_records', metrics), cached: false, port: 0, portCached: false };
+  }
+  log(`Verifying ${local}@${domain} via ${primaryMx} (mx count=${mxRecords.length})`);
+
   const transcript: string[] = [];
   const commands: string[] = [];
 
-  // Cache short-circuits.
+  const probeOptions: ProbeOptions = {
+    local,
+    domain,
+    timeout,
+    tlsConfig,
+    hostname,
+    sequence,
+    log,
+    catchAllProbeLocal: options.catchAllProbeLocal,
+    pipelining: options.pipelining ?? 'auto',
+  };
+
+  // Cache short-circuits — keyed on the primary MX so the cache key matches
+  // what callers compute from `mxRecords[0]`.
   const verdictCache = cache ? getCacheStore<SmtpVerificationResult>(cache, 'smtp') : null;
-  const verdictKey = `${mxHost}:${local}@${domain}`;
+  const verdictKey = `${primaryMx}:${local}@${domain}`;
   if (verdictCache) {
     const cachedResult = await safeCacheGet(verdictCache, verdictKey);
     if (cachedResult) {
@@ -120,95 +172,124 @@ export async function verifyMailboxSMTP(
   }
 
   const portCache = cache ? getCacheStore<number>(cache, 'smtpPort') : null;
-  if (portCache) {
-    const cachedPort = await safeCacheGet(portCache, mxHost);
-    if (cachedPort) {
-      log(`Using cached port: ${cachedPort}`);
-      const probe = await runProbe({
-        mxHost,
-        port: cachedPort,
-        local,
-        domain,
-        timeout,
-        tlsConfig,
-        hostname,
-        sequence,
-        log,
-      });
-      collectTranscript(transcript, commands, probe, cachedPort);
-      const smtpResult = toSmtpVerificationResult(
-        probe.result,
-        captureTranscript ? { transcript, commands } : undefined
-      );
-      await safeCacheSet(verdictCache, verdictKey, smtpResult);
-      return { smtpResult, cached: false, port: cachedPort, portCached: true };
+  const cachedPort = portCache ? await safeCacheGet(portCache, primaryMx) : null;
+
+  const mxHostsTried: string[] = [];
+  let mxAttempts = 0;
+  let portAttempts = 0;
+  let lastReason = 'all_attempts_failed';
+  let lastEnhancedStatus: string | undefined;
+
+  for (const mxHost of mxRecords) {
+    mxHostsTried.push(mxHost);
+    mxAttempts++;
+
+    // Cached-port fast path: only valid for the primary MX.
+    const portsForThisMx =
+      mxHost === primaryMx && cachedPort ? [cachedPort, ...ports.filter((p) => p !== cachedPort)] : ports;
+
+    for (const port of portsForThisMx) {
+      portAttempts++;
+      log(`Testing ${mxHost}:${port}`);
+      const probe = await runProbe({ ...probeOptions, mxHost, port });
+      collectTranscript(transcript, commands, probe, mxHost, port);
+      lastReason = probe.reason;
+      if (probe.enhancedStatus !== undefined) lastEnhancedStatus = probe.enhancedStatus;
+
+      // Definitive answer (250/251 deliverable, 550/552/etc. rejected) ends
+      // the search. Indeterminate (null) falls through to the next port/MX.
+      if (probe.result !== null) {
+        const metrics = makeMetrics(mxHostsTried, mxAttempts, portAttempts, mxHost, startedAtMs);
+        const smtpResult = toSmtpVerificationResult(probe, {
+          transcript: captureTranscript ? transcript : undefined,
+          commands: captureTranscript ? commands : undefined,
+          metrics,
+        });
+        await safeCacheSet(verdictCache, verdictKey, smtpResult);
+        if (mxHost === primaryMx) await safeCacheSet(portCache, primaryMx, port);
+        return { smtpResult, cached: false, port, portCached: cachedPort === port };
+      }
     }
   }
 
-  // Walk ports in order.
-  for (const port of ports) {
-    log(`Testing port ${port}`);
-    const probe = await runProbe({ mxHost, port, local, domain, timeout, tlsConfig, hostname, sequence, log });
-    collectTranscript(transcript, commands, probe, port);
-    const smtpResult = toSmtpVerificationResult(probe.result, captureTranscript ? { transcript, commands } : undefined);
-    await safeCacheSet(verdictCache, verdictKey, smtpResult);
-    if (probe.result !== null) {
-      await safeCacheSet(portCache, mxHost, port);
-      return { smtpResult, cached: false, port, portCached: false };
-    }
-  }
+  // Every MX×port returned indeterminate — surface the LAST attempt's reason
+  // so callers can see the failure mode (e.g. tls_error tells a different
+  // story than connection_timeout).
+  log(`All MX×port attempts failed (mx=${mxAttempts}, port=${portAttempts})`);
+  const metrics = makeMetrics(mxHostsTried, mxAttempts, portAttempts, undefined, startedAtMs);
+  const smtpResult: SmtpVerificationResult = {
+    ...failureResult(lastReason, metrics),
+    ...(lastEnhancedStatus !== undefined ? { enhancedStatus: lastEnhancedStatus } : {}),
+    ...(captureTranscript ? { transcript: [...transcript], commands: [...commands] } : {}),
+  };
+  return { smtpResult, cached: false, port: 0, portCached: false };
+}
 
-  log('All ports failed');
+function makeMetrics(
+  mxHostsTried: string[],
+  mxAttempts: number,
+  portAttempts: number,
+  mxHostUsed: string | undefined,
+  startedAtMs: number
+): SmtpProbeMetrics {
   return {
-    smtpResult: {
-      ...failureResult('All SMTP connection attempts failed'),
-      ...(captureTranscript ? { transcript: [...transcript], commands: [...commands] } : {}),
-    },
-    cached: false,
-    port: 0,
-    portCached: false,
+    mxAttempts,
+    portAttempts,
+    mxHostsTried: [...mxHostsTried],
+    ...(mxHostUsed !== undefined ? { mxHostUsed } : {}),
+    totalDurationMs: Date.now() - startedAtMs,
   };
 }
 
-function collectTranscript(transcript: string[], commands: string[], probe: ProbeResult, port: number): void {
-  for (const line of probe.transcript) transcript.push(`${port}|s| ${line}`);
-  for (const cmd of probe.commands) commands.push(`${port}|c| ${cmd}`);
+function collectTranscript(
+  transcript: string[],
+  commands: string[],
+  probe: ProbeResult,
+  mxHost: string,
+  port: number
+): void {
+  const prefix = `${mxHost}:${port}`;
+  for (const line of probe.transcript) transcript.push(`${prefix}|s| ${line}`);
+  for (const cmd of probe.commands) commands.push(`${prefix}|c| ${cmd}`);
 }
 
-function failureResult(error: string): SmtpVerificationResult {
+function failureResult(reason: string, metrics: SmtpProbeMetrics): SmtpVerificationResult {
   return {
     canConnectSmtp: false,
     hasFullInbox: false,
     isCatchAll: false,
     isDeliverable: false,
     isDisabled: false,
-    error,
+    error: reason,
     providerUsed: EmailProvider.everythingElse,
     checkedAt: Date.now(),
+    metrics,
   };
 }
 
-function toSmtpVerificationResult(
-  result: boolean | null,
-  capture?: { transcript: string[]; commands: string[] }
-): SmtpVerificationResult {
-  // The verifier resolves to one of three states; map each directly. The old
-  // implementation routed through a large pattern-matcher in types.ts that
-  // never saw any input besides these three literals, so the branching was
-  // dead weight.
-  const base: SmtpVerificationResult = {
+interface ToResultExtras {
+  transcript?: string[];
+  commands?: string[];
+  metrics: SmtpProbeMetrics;
+}
+
+function toSmtpVerificationResult(probe: ProbeResult, extras: ToResultExtras): SmtpVerificationResult {
+  const result = probe.result;
+  const out: SmtpVerificationResult = {
     canConnectSmtp: result !== null,
-    hasFullInbox: false,
-    isCatchAll: false,
+    hasFullInbox: probe.reason === 'over_quota',
+    isCatchAll: probe.isCatchAll ?? false,
     isDeliverable: result === true,
     isDisabled: result === false,
-    error: result === true ? undefined : result === null ? 'ambiguous' : 'not_found',
+    error: result === true ? undefined : probe.reason,
     providerUsed: EmailProvider.everythingElse,
     checkedAt: Date.now(),
+    metrics: extras.metrics,
+    ...(probe.enhancedStatus !== undefined ? { enhancedStatus: probe.enhancedStatus } : {}),
   };
-  if (!capture) return base;
-  // Snapshot — caller may keep mutating the aggregator.
-  return { ...base, transcript: [...capture.transcript], commands: [...capture.commands] };
+  if (extras.transcript) out.transcript = [...extras.transcript];
+  if (extras.commands) out.commands = [...extras.commands];
+  return out;
 }
 
 async function safeCacheGet<T>(
@@ -237,9 +318,7 @@ async function safeCacheSet<T>(
   }
 }
 
-interface ProbeParams {
-  mxHost: string;
-  port: number;
+interface ProbeOptions {
   local: string;
   domain: string;
   timeout: number;
@@ -247,11 +326,28 @@ interface ProbeParams {
   hostname: string;
   sequence?: SMTPSequence;
   log: (...args: unknown[]) => void;
+  catchAllProbeLocal?: SMTPVerifyOptions['catchAllProbeLocal'];
+  pipelining: 'auto' | 'never' | 'force';
+}
+
+interface ProbeParams extends ProbeOptions {
+  mxHost: string;
+  port: number;
 }
 
 interface ProbeResult {
   /** true=deliverable, false=hard-rejected, null=indeterminate */
   result: boolean | null;
+  /** Short reason vocabulary — propagated to `SmtpVerificationResult.error`. */
+  reason: string;
+  /** RFC 3463 enhanced status from the most recent reply that carried one. */
+  enhancedStatus?: string;
+  /**
+   * Catch-all flag from the dual-probe. `true` when both real + probe RCPT
+   * returned 250; `false` otherwise; `undefined` only if the probe never
+   * reached the envelope phase (indeterminate before MAIL FROM).
+   */
+  isCatchAll?: boolean;
   /** Server lines, in arrival order, no port prefix. */
   transcript: string[];
   /** Client commands sent, in send order, no port prefix. */
@@ -262,28 +358,53 @@ async function runProbe(p: ProbeParams): Promise<ProbeResult> {
   return new SMTPProbeConnection(p).run();
 }
 
+/** Buckets a numeric SMTP RCPT-TO reply into the dual-probe state machine. */
+type RcptOutcome = 'pending' | 'accept' | 'soft_reject' | 'hard_reject';
+
+/** Phase of the dual-probe envelope (after MAIL FROM is accepted). */
+type DualPhase = 'idle' | 'rcpt_real' | 'rcpt_probe' | 'rset';
+
 /**
- * One SMTP connection attempt. Lives for one port; resolves to:
- *   true   — RCPT TO accepted / high-volume reply (deliverable proxy)
- *   false  — RCPT TO definitively rejected / over-quota
- *   null   — indeterminate (timeout, hangup, unrecognized, etc.)
+ * One SMTP connection attempt. Lives for one MX×port; resolves to:
+ *   true   — RCPT TO real accepted (with `isCatchAll` set when probe also 250)
+ *   false  — RCPT TO real definitively rejected / over-quota
+ *   null   — indeterminate (timeout, hangup, unrecognized, ehlo failure, etc.)
  */
 class SMTPProbeConnection {
+  // ── Connection state ─────────────────────────────────────────────────────
   private socket?: net.Socket | tls.TLSSocket;
   private buffer = '';
   private resolved = false;
   private currentStepIndex = 0;
-  private isTLS: boolean;
-
+  private readonly isTLS: boolean;
   private connectionTimer?: NodeJS.Timeout;
   private stepTimer?: NodeJS.Timeout;
   private resolveFn!: (value: ProbeResult) => void;
 
+  // ── Dialogue tracking ────────────────────────────────────────────────────
   private readonly steps: SMTPStep[];
   private readonly tlsOptions: tls.ConnectionOptions;
-  /** Server lines + client commands captured unconditionally (cost is trivial). */
   private readonly transcript: string[] = [];
   private readonly commands: string[] = [];
+  /** Last RFC 3463 enhanced status seen (last-write semantics — most recent wins). */
+  private lastEnhancedStatus?: string;
+
+  // ── EHLO capability advertisement ────────────────────────────────────────
+  private supportsPipelining = false;
+
+  // ── Dual-probe (catch-all detection) ─────────────────────────────────────
+  private readonly probeLocal: string;
+  private dualPhase: DualPhase = 'idle';
+  private realOutcome: RcptOutcome = 'pending';
+  private probeOutcome: RcptOutcome = 'pending';
+  private dualPipelined = false;
+  /**
+   * Pipelined-only escape hatch. When the real RCPT is rejected mid-batched-
+   * envelope, the probe + RSET are already on the wire; we stash the verdict
+   * and commit it after the response loop drains.
+   */
+  private pendingDecision: { result: boolean | null; reason: string } | null = null;
+  private isCatchAllFlag?: boolean;
 
   constructor(private readonly p: ProbeParams) {
     // Default sequence — every modern MX speaks ESMTP, so EHLO works on port 25 too.
@@ -298,14 +419,12 @@ class SMTPProbeConnection {
       minVersion: 'TLSv1.2',
       ...(typeof p.tlsConfig === 'object' ? p.tlsConfig : {}),
     };
+    this.probeLocal = p.catchAllProbeLocal ? p.catchAllProbeLocal(p.local, p.domain) : defaultProbeLocal();
   }
 
   run(): Promise<ProbeResult> {
     return new Promise<ProbeResult>((resolve) => {
       this.resolveFn = resolve;
-      // Belt-and-braces: filterPorts() already drops invalid ports, but if a
-      // weird host or TLS config makes net/tls.connect throw synchronously,
-      // resolve as indeterminate instead of rejecting the promise.
       try {
         this.connect();
         this.armConnectionTimer();
@@ -372,8 +491,7 @@ class SMTPProbeConnection {
     if (this.resolved) return;
     switch (step) {
       case SMTPStep.greeting:
-        // Server-driven; nothing to send.
-        return;
+        return; // server-driven; nothing to send
       case SMTPStep.ehlo:
         this.send(`EHLO ${this.p.hostname}`);
         return;
@@ -386,9 +504,40 @@ class SMTPProbeConnection {
         return;
       }
       case SMTPStep.rcptTo:
-        this.send(`RCPT TO:<${this.p.local}@${this.p.domain}>`);
+        this.executeEnvelope();
         return;
     }
+  }
+
+  /**
+   * Send the dual-probe envelope (real RCPT + probe RCPT + RSET). Pipelined
+   * when the MX advertised PIPELINING (or `pipelining: 'force'`); sequential
+   * otherwise.
+   */
+  private executeEnvelope(): void {
+    const wantsPipelining = this.p.pipelining === 'force' || (this.p.pipelining === 'auto' && this.supportsPipelining);
+
+    const realCmd = `RCPT TO:<${this.p.local}@${this.p.domain}>`;
+
+    if (wantsPipelining) {
+      // Batch real + probe + RSET into one socket.write(). Response phases
+      // (rcpt_real → rcpt_probe → rset) demux replies in order.
+      this.dualPipelined = true;
+      const probeCmd = `RCPT TO:<${this.probeLocal}@${this.p.domain}>`;
+      const rsetCmd = 'RSET';
+      this.commands.push(realCmd, probeCmd, rsetCmd);
+      this.p.log(`→ ${realCmd}`);
+      this.p.log(`→ ${probeCmd}`);
+      this.p.log(`→ ${rsetCmd}`);
+      this.socket?.write(`${realCmd}\r\n${probeCmd}\r\n${rsetCmd}\r\n`);
+      this.dualPhase = 'rcpt_real';
+      return;
+    }
+
+    // Sequential — send real RCPT first; rest follows in handleEnvelopeReply.
+    this.dualPipelined = false;
+    this.send(realCmd);
+    this.dualPhase = 'rcpt_real';
   }
 
   private processLine(line: string): void {
@@ -396,25 +545,41 @@ class SMTPProbeConnection {
     this.transcript.push(line);
     this.p.log(`← ${line}`);
 
-    // Heuristics that override per-step interpretation.
-    if (isHighVolume(line)) {
-      this.finish(true, 'high_volume');
-      return;
-    }
-    if (isOverQuota(line)) {
-      this.finish(false, 'over_quota');
-      return;
-    }
-    if (isInvalidMailboxError(line)) {
-      this.finish(false, 'not_found');
-      return;
+    const dsn = parseDsn(line);
+    if (dsn) this.lastEnhancedStatus = dsnToString(dsn);
+
+    // Heuristic early-returns fire pre-envelope and on the real-RCPT response.
+    // Inside the probe/rset phases we ignore them — a probe response shouldn't
+    // be classified as "high volume" or "not found" (those signals refer to
+    // the real recipient). Multi-line replies (e.g. `452-4.2.2 over quota...`)
+    // trigger the heuristics here BEFORE the multiline check returns early.
+    if (this.dualPhase === 'idle' || this.dualPhase === 'rcpt_real') {
+      if (isHighVolume(line)) {
+        this.finish(true, 'high_volume');
+        return;
+      }
+      if (isOverQuota(line)) {
+        this.isCatchAllFlag = false;
+        this.finish(false, 'over_quota');
+        return;
+      }
+      if (isInvalidMailboxError(line)) {
+        this.isCatchAllFlag = false;
+        this.finish(false, 'not_found');
+        return;
+      }
     }
 
-    // Multiline continuation — wait for the final line (no leading dash) before
-    // dispatching. EHLO advertisements (STARTTLS, VRFY, PIPELINING, …) are
-    // captured by the transcript but not parsed; this verifier walks a fixed
-    // sequence and never branches on capabilities.
-    if (MULTILINE_RE.test(line)) return;
+    // Multi-line continuation. Capture EHLO advertisements so we know
+    // whether to use PIPELINING when the envelope phase fires.
+    if (MULTILINE_RE.test(line)) {
+      const step = this.steps[this.currentStepIndex];
+      if ((step === SMTPStep.ehlo || step === SMTPStep.helo) && line.startsWith('250-')) {
+        const upper = line.toUpperCase();
+        if (upper.includes('PIPELINING')) this.supportsPipelining = true;
+      }
+      return;
+    }
 
     const code = line.slice(0, 3);
     const numericCode = /^\d{3}$/.test(code) ? parseInt(code, 10) : null;
@@ -423,11 +588,18 @@ class SMTPProbeConnection {
       return;
     }
 
-    this.dispatch(numericCode);
+    this.dispatch(numericCode, line);
   }
 
-  private dispatch(code: number): void {
+  private dispatch(code: number, line: string): void {
     const step = this.steps[this.currentStepIndex];
+
+    // Inside the envelope, route by phase.
+    if (this.dualPhase !== 'idle' && step === SMTPStep.rcptTo) {
+      this.handleEnvelopeReply(code, line);
+      return;
+    }
+
     switch (step) {
       case SMTPStep.greeting:
         if (code === 220) this.nextStep();
@@ -446,11 +618,109 @@ class SMTPProbeConnection {
         else this.finish(null, 'mail_from_rejected');
         return;
       case SMTPStep.rcptTo:
-        if (code === 250 || code === 251) this.finish(true, 'valid');
-        else if (code === 552 || code === 452) this.finish(false, 'over_quota');
-        else if (code >= 400 && code < 500) this.finish(null, 'temporary_failure');
-        else this.finish(null, 'ambiguous');
+        // Only reachable if dualPhase is idle on rcptTo — should never happen
+        // in practice (executeEnvelope sets it). Treat as fall-through.
+        this.handleEnvelopeReply(code, line);
         return;
+    }
+  }
+
+  /**
+   * Dual-probe / pipelined-envelope reply router. Demuxes server replies for
+   * the three queued commands (real RCPT, probe RCPT, RSET) and resolves
+   * with the catch-all-aware verdict.
+   */
+  private handleEnvelopeReply(code: number, line: string): void {
+    if (this.dualPhase === 'rcpt_real') {
+      this.realOutcome = classifyRcpt(code);
+
+      // Over-quota short-circuits — the catch-all probe gives no extra signal.
+      if (code === 552 || code === 452 || isOverQuota(line)) {
+        this.isCatchAllFlag = false;
+        if (this.dualPipelined) {
+          this.pendingDecision = { result: false, reason: 'over_quota' };
+          this.dualPhase = 'rcpt_probe';
+          return;
+        }
+        this.finish(false, 'over_quota');
+        return;
+      }
+
+      // Soft reject — temporary; further probing would hit the same rate-limit.
+      if (this.realOutcome === 'soft_reject') {
+        if (this.dualPipelined) {
+          this.pendingDecision = { result: null, reason: 'temporary_failure' };
+          this.dualPhase = 'rcpt_probe';
+          return;
+        }
+        this.finish(null, 'temporary_failure');
+        return;
+      }
+
+      // Hard reject — distinguish "user unknown" (clean not_found) from policy /
+      // spam-flagged 5xx (genuinely ambiguous).
+      if (this.realOutcome === 'hard_reject') {
+        const reason = isInvalidMailboxError(line) ? 'not_found' : 'ambiguous';
+        const result = reason === 'not_found' ? false : null;
+        this.isCatchAllFlag = false;
+        if (this.dualPipelined) {
+          this.pendingDecision = { result, reason };
+          this.dualPhase = 'rcpt_probe';
+          return;
+        }
+        this.finish(result, reason);
+        return;
+      }
+
+      // Real RCPT accepted — advance to probe phase.
+      if (this.dualPipelined) {
+        this.dualPhase = 'rcpt_probe';
+      } else {
+        this.send(`RCPT TO:<${this.probeLocal}@${this.p.domain}>`);
+        this.dualPhase = 'rcpt_probe';
+      }
+      return;
+    }
+
+    if (this.dualPhase === 'rcpt_probe') {
+      this.probeOutcome = classifyRcpt(code);
+      if (this.dualPipelined) {
+        this.dualPhase = 'rset';
+      } else {
+        this.send('RSET');
+        this.dualPhase = 'rset';
+      }
+      return;
+    }
+
+    if (this.dualPhase === 'rset') {
+      // RSET response received. We don't care about its code — it's just the
+      // demux marker that the envelope is fully drained.
+      if (this.pendingDecision) {
+        // Pre-decided verdict from a real-RCPT reject; commit it now.
+        this.finish(this.pendingDecision.result, this.pendingDecision.reason);
+        return;
+      }
+      this.decideDualProbe();
+      return;
+    }
+  }
+
+  /** Final decision after both RCPT outcomes are known. Catch-all only when both 250. */
+  private decideDualProbe(): void {
+    if (this.realOutcome === 'accept' && this.probeOutcome === 'accept') {
+      this.isCatchAllFlag = true;
+      this.finish(true, 'valid');
+    } else if (this.realOutcome === 'accept') {
+      this.isCatchAllFlag = false;
+      this.finish(true, 'valid');
+    } else if (this.realOutcome === 'hard_reject') {
+      this.isCatchAllFlag = false;
+      this.finish(false, 'not_found');
+    } else if (this.realOutcome === 'soft_reject') {
+      this.finish(null, 'temporary_failure');
+    } else {
+      this.finish(null, 'ambiguous');
     }
   }
 
@@ -475,6 +745,19 @@ class SMTPProbeConnection {
     const drain = setTimeout(() => this.socket?.destroy(), QUIT_DRAIN_MS);
     drain.unref?.();
 
-    this.resolveFn({ result, transcript: this.transcript, commands: this.commands });
+    this.resolveFn({
+      result,
+      reason,
+      ...(this.lastEnhancedStatus !== undefined ? { enhancedStatus: this.lastEnhancedStatus } : {}),
+      ...(this.isCatchAllFlag !== undefined ? { isCatchAll: this.isCatchAllFlag } : {}),
+      transcript: this.transcript,
+      commands: this.commands,
+    });
   }
+}
+
+function classifyRcpt(code: number): RcptOutcome {
+  if (code === 250 || code === 251) return 'accept';
+  if (code >= 400 && code < 500) return 'soft_reject';
+  return 'hard_reject';
 }

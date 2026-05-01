@@ -242,6 +242,40 @@ export interface SmtpVerificationResult {
    * Present when `captureTranscript` is set.
    */
   commands?: string[];
+  /**
+   * RFC 3463 enhanced status code from the most recent SMTP reply that
+   * carried one (e.g. `"5.1.1"` for `550 5.1.1 user unknown`,
+   * `"5.7.1"` for policy/SPF blocks, `"4.7.0"` for transient policy).
+   * Undefined when no enhanced status was seen.
+   */
+  enhancedStatus?: string;
+  /**
+   * Operational metrics — present only when `captureMetrics: true` was
+   * passed in `SMTPVerifyOptions`. Captures how the probe walked MXes /
+   * ports / wall-clock so callers can populate region-health dashboards.
+   */
+  metrics?: SmtpProbeMetrics;
+}
+
+/**
+ * Operational counters for one `verifyMailboxSMTP` call. The cost of
+ * collecting these is trivial — pure bookkeeping during the existing flow.
+ */
+export interface SmtpProbeMetrics {
+  /** How many MX hostnames the outer loop attempted before stopping. */
+  mxAttempts: number;
+  /** Total connection attempts across the whole call (sum across MX×port). */
+  portAttempts: number;
+  /** MX hostnames attempted in priority order (matches `mxRecords` slice). */
+  mxHostsTried: string[];
+  /**
+   * MX hostname that produced the final answer. Undefined when every MX
+   * failed (in which case `result.isDeliverable === false` and the SMTP
+   * reason is whatever the last attempted MX returned).
+   */
+  mxHostUsed?: string;
+  /** Total wall-clock time the probe spent, in milliseconds. */
+  totalDurationMs: number;
 }
 
 /**
@@ -293,11 +327,35 @@ export interface SMTPVerifyOptions {
   debug?: boolean;
   /**
    * When true, the returned `SmtpVerificationResult` carries `transcript` and
-   * `commands` arrays prefixed with `<port>|s| …` / `<port>|c| …`. Aggregated
-   * across every port attempted.
+   * `commands` arrays prefixed with `<host>:<port>|s| …` / `<host>:<port>|c| …`.
+   * Aggregated across every MX×port attempted.
+   *
+   * Default: `false`. The strings are O(N×wire-bytes); skip when you don't
+   * need the trace.
    */
   captureTranscript?: boolean;
   sequence?: SMTPSequence;
+  /**
+   * Override the random-local-part generator used by the catch-all probe.
+   * Useful for deterministic tests; receives the real local-part and domain
+   * so callers can derive a probe-local that matches the MX's syntax rules.
+   *
+   * Default: `<16 hex chars>-noexist` — long enough to never collide,
+   * structured so it's clearly synthetic and passes common syntax filters.
+   */
+  catchAllProbeLocal?: (realLocal: string, domain: string) => string;
+  /**
+   * Use SMTP PIPELINING (RFC 2920) to batch the envelope phase
+   * (RCPT TO real + RCPT TO probe + RSET) into one `socket.write()` when
+   * the MX advertises support.
+   *
+   * - `'auto'` (default): pipeline when EHLO multi-line includes
+   *   `PIPELINING`, sequential otherwise.
+   * - `'never'`: always sequential — useful for deterministic wire-level
+   *   assertions in tests, or when investigating a flaky pipeline-buggy MX.
+   * - `'force'`: pipeline without checking — testing escape hatch.
+   */
+  pipelining?: 'auto' | 'never' | 'force';
 }
 
 export interface VerifyMailboxSMTPParams {

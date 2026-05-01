@@ -15,7 +15,16 @@ import type { VerificationStep, VerificationStepKind } from '../../src';
 import { clearDefaultCache, verifyEmail } from '../../src';
 import { fakeNet } from '../helpers/fake-net';
 
-const HAPPY_SMTP = ['220 mx.example.com ESMTP', '250 mx.example.com Hello', '250 sender ok', '250 recipient ok'];
+// Default SMTP envelope: greeting + EHLO + MAIL FROM + dual-probe (real RCPT
+// 250, probe RCPT 550 → not catch-all, RSET 250).
+const HAPPY_SMTP = [
+  '220 mx.example.com ESMTP',
+  '250 mx.example.com Hello',
+  '250 sender ok',
+  '250 recipient ok',
+  '550 5.1.1 unknown user',
+  '250 reset',
+];
 
 function step(transcript: VerificationStep[] | undefined, kind: VerificationStepKind): VerificationStep | undefined {
   return transcript?.find((s) => s.kind === kind);
@@ -138,9 +147,10 @@ describe('0009 verifyEmail transcript', () => {
     const transcript = smtp?.details.transcript as string[] | null;
     const commands = smtp?.details.commands as string[] | null;
     expect(Array.isArray(transcript)).toBe(true);
-    expect(transcript!.some((l) => /^\d+\|s\| /.test(l))).toBe(true);
+    // Lines are prefixed with `<host>:<port>|s| `.
+    expect(transcript!.some((l) => /^[\w.-]+:\d+\|s\| /.test(l))).toBe(true);
     expect(Array.isArray(commands)).toBe(true);
-    expect(commands!.some((c) => /^\d+\|c\| /.test(c))).toBe(true);
+    expect(commands!.some((c) => /^[\w.-]+:\d+\|c\| /.test(c))).toBe(true);
   });
 
   it('records smtp-probe step on cache hit (without re-probing the wire)', async () => {
