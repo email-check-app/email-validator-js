@@ -21,6 +21,7 @@
 - [API Reference](#api-reference)
 - [Configuration](#configuration-options)
 - [Examples](#examples)
+- [Command-line Tool (`email-validate`)](#-command-line-tool-email-validate)
 - [Custom Cache Injection](#-custom-cache-injection)
 - [Verification Transcript](#-verification-transcript)
 - [Performance & Caching](#-performance--caching)
@@ -1033,6 +1034,71 @@ const second = await verifyEmail({
 // Clear cache if needed
 clearAllCaches();
 ```
+
+## 💻 Command-line Tool (`email-validate`)
+
+`bun add -g @emailcheck/email-validator-js` (or the npm equivalent) installs an
+`email-validate` binary. It runs the full validation pipeline against one
+address, captures a structured transcript, prints the result to stdout, and
+saves the JSON result to `./logs/` by default.
+
+```bash
+# Quick interactive check — full pipeline, pretty colored output
+email-validate alice@example.com
+
+# Skip the SMTP probe (fast, just format / MX / lists / typos)
+email-validate alice@example.com --no-smtp
+
+# Add WHOIS age + registration for full domain reputation picture
+email-validate alice@example.com --whois-age --whois-registration
+
+# Pipe JSON through jq
+email-validate alice@example.com --format json --quiet --no-log-file | jq
+
+# Use the exit code in shell scripts (0 = ok, 1 = undeliverable / invalid)
+if email-validate "$EMAIL" --quiet --no-log-file > /dev/null; then
+  echo "good email"
+fi
+
+# Pin to a single SMTP port + custom HELO + custom log path
+email-validate alice@example.com --port 587 --hostname mta.acme.com --log-dir /var/log/email
+
+# Debug a delivery quirk — full transcript + console logs
+email-validate alice@example.com --debug --format pretty
+```
+
+### Defaults
+
+The CLI uses **interactive-friendly defaults** different from the library
+defaults (which favor speed over thoroughness for batch use):
+
+| Flag                      | CLI default | Library default |
+| ------------------------- | ----------- | --------------- |
+| `--smtp`                  | **on**      | off             |
+| `--detect-name`           | **on**      | off             |
+| `--whois-age` / `--whois-registration` | off         | off             |
+| `--captureTranscript`     | **on**      | off             |
+| `--log-dir`               | `./logs`    | n/a             |
+
+The default config writes a JSON result to `./logs/email-validate-<timestamp>-<email>.json` after every run.
+
+### Programmatic CLI
+
+The CLI parser, formatter, and runner are also exported as a module so you can
+embed `email-validate` semantics in your own tooling:
+
+```typescript
+import { parseArgs, run } from '@emailcheck/email-validator-js/cli';
+
+const parsed = parseArgs(['user@example.com', '--no-smtp', '--format', 'json']);
+if (parsed.kind === 'args') {
+  const exitCode = await run(parsed);
+  process.exit(exitCode);
+}
+```
+
+Run `email-validate --help` to see every flag, or read
+[examples/cli-usage.md](./examples/cli-usage.md) for end-to-end recipes.
 
 ## 🚀 Custom Cache Injection
 
