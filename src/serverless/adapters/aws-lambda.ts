@@ -1,11 +1,15 @@
 /**
- * AWS Lambda adapter for email validation.
+ * AWS Lambda adapter — three handler shapes for three deploy modes:
  *
- * Three handler shapes are exported for backward compatibility:
- *   - `apiGatewayHandler`: original surface — does NOT route by path, expects
- *     the body to carry `email` / `emails`.
- *   - `lambdaHandler`: direct invocation (no API Gateway envelope).
- *   - `handler`: routed handler with `/health`, `/validate`, `/validate/batch`.
+ *   - `handler`           — routed (recommended) — `/health`, `/validate`,
+ *                           `/validate/batch`. Wire to API Gateway with
+ *                           `{proxy+}` so all three paths land on one Lambda.
+ *   - `apiGatewayHandler` — single-route — accepts API Gateway proxy events
+ *                           but never inspects `event.path`. Pick this when
+ *                           you want one Lambda per URL.
+ *   - `lambdaHandler`     — direct invocation — no API Gateway envelope.
+ *                           Pick this when calling from another AWS service
+ *                           (Step Functions, EventBridge, …).
  *
  * Shared validation rules + CORS headers come from `../_shared/` so all three
  * agree on what's accepted.

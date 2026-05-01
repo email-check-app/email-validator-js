@@ -142,13 +142,13 @@ export async function verifyEmail(params: VerifyEmailParams): Promise<Verificati
   // 5. WHOIS-driven domain age + registration (skipped for disposable when configured).
   await runWhoisChecks(domain, params, result, skipWhois, log, collector);
 
-  // 6. MX + SMTP (skipped for disposable when configured).
-  if ((params.verifyMx ?? true) || (params.verifySmtp ?? false)) {
-    if (skipMx) {
-      log(`[verifyEmail] skipping MX/SMTP for disposable: ${params.emailAddress}`);
-    } else {
-      await runMxAndSmtp(local, domain, params, result, log, collector);
-    }
+  // 6. MX + SMTP — runs when either flag is on, unless we're skipping
+  //    disposable addresses (the address is already known to be junk).
+  const wantsMxOrSmtp = (params.verifyMx ?? true) || (params.verifySmtp ?? false);
+  if (wantsMxOrSmtp && skipMx) {
+    log(`[verifyEmail] skipping MX/SMTP for disposable: ${params.emailAddress}`);
+  } else if (wantsMxOrSmtp) {
+    await runMxAndSmtp(local, domain, params, result, log, collector);
   }
 
   result.metadata.verificationTime = Date.now() - startTime;

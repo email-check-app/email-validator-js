@@ -7,9 +7,11 @@ import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVer
 import type { ParsedWhoisResult } from './whois-parser';
 
 /**
- * Generic cache interface that can be implemented by any cache store
+ * Generic cache interface that can be implemented by any cache store.
+ * Default type parameter is `unknown` — callers should narrow it
+ * (`CacheStore<DisposableEmailResult>`) rather than relying on the default.
  */
-export interface CacheStore<T = any> {
+export interface CacheStore<T = unknown> {
   /**
    * Get a value from cache
    * @param key - The cache key

@@ -202,59 +202,57 @@ export enum EmailProvider {
 }
 
 /**
- * Result for SMTP verification with metadata
- * Uses camelCase for consistency with TypeScript conventions
+ * Verdict from one `verifyMailboxSMTP` call. Flat by design — every field is
+ * one boolean / scalar so callers can switch on a few keys instead of walking
+ * a tree.
  */
 export interface SmtpVerificationResult {
-  /** Whether SMTP connection was successful */
+  /** True when at least one MX×port responded with an SMTP greeting. */
   canConnectSmtp: boolean;
-  /** Whether the mailbox is full */
+  /** True when the MX returned `552` / `452` (over-quota / mailbox full). */
   hasFullInbox: boolean;
-  /** Whether the domain has catch-all enabled */
+  /**
+   * True when both the real RCPT TO and the random-local probe RCPT TO
+   * returned `250` — the MX accepts every recipient and the deliverability
+   * signal for the real address is unreliable.
+   */
   isCatchAll: boolean;
-  /** Whether the email is deliverable */
+  /** True when the real RCPT TO returned `250` / `251`. */
   isDeliverable: boolean;
-  /** Whether the email/account is disabled */
+  /** True when the real RCPT TO was definitively rejected. */
   isDisabled: boolean;
-  /** Error message if verification failed */
+  /**
+   * Short reason key when `isDeliverable === false`. Vocabulary:
+   *   `not_found` | `over_quota` | `temporary_failure` | `ambiguous` |
+   *   `connection_error` | `connection_timeout` | `tls_error` |
+   *   `ehlo_failed` | `helo_failed` | `mail_from_rejected` | `no_greeting` |
+   *   `no_mx_records` | `unrecognized_response` | `step_timeout`
+   */
   error?: string;
-  /** Which provider was detected/used */
-  providerUsed?: EmailProvider;
-  /** Additional compatibility properties */
-  success?: boolean;
-  canConnect?: boolean;
+  /** Most recent 3-digit SMTP code observed during the probe. */
   responseCode?: number;
-  /** Provider-specific error details */
-  providerSpecific?: {
-    errorCode?: string;
-    actionRequired?: string;
-    details?: string;
-  };
-  /** Timestamp when this was checked (for cache) */
+  /**
+   * RFC 3463 enhanced status code from the most recent SMTP reply that
+   * carried one — e.g. `"5.1.1"` (mailbox unknown), `"5.7.1"` (policy
+   * block), `"4.7.0"` (transient policy). Undefined when no MX reply
+   * included an enhanced status.
+   */
+  enhancedStatus?: string;
+  /** Operational counters — always populated. See `SmtpProbeMetrics`. */
+  metrics?: SmtpProbeMetrics;
+  /** Wall-clock timestamp this verdict was produced (set on every result). */
   checkedAt?: number;
   /**
-   * Server reply lines, in arrival order, prefixed `<port>|s| <line>` so
-   * multi-port probes stay readable. Present when `captureTranscript` is set.
+   * Server reply lines, in arrival order, prefixed `<host>:<port>|s| <line>`
+   * so multi-MX dialogues stay readable. Present only when
+   * `captureTranscript: true` was passed.
    */
   transcript?: string[];
   /**
-   * Client commands sent, in send order, prefixed `<port>|c| <command>`.
-   * Present when `captureTranscript` is set.
+   * Client commands sent, in send order, prefixed `<host>:<port>|c| <cmd>`.
+   * Present only when `captureTranscript: true` was passed.
    */
   commands?: string[];
-  /**
-   * RFC 3463 enhanced status code from the most recent SMTP reply that
-   * carried one (e.g. `"5.1.1"` for `550 5.1.1 user unknown`,
-   * `"5.7.1"` for policy/SPF blocks, `"4.7.0"` for transient policy).
-   * Undefined when no enhanced status was seen.
-   */
-  enhancedStatus?: string;
-  /**
-   * Operational metrics — present only when `captureMetrics: true` was
-   * passed in `SMTPVerifyOptions`. Captures how the probe walked MXes /
-   * ports / wall-clock so callers can populate region-health dashboards.
-   */
-  metrics?: SmtpProbeMetrics;
 }
 
 /**

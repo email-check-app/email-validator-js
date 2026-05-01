@@ -38,7 +38,7 @@ import type {
   SmtpVerificationResult,
   VerifyMailboxSMTPParams,
 } from './types';
-import { EmailProvider, SMTPStep } from './types';
+import { SMTPStep } from './types';
 
 const DEFAULT_PORTS = [25, 587, 465]; // plain → STARTTLS-able → implicit-TLS
 const DEFAULT_TIMEOUT_MS = 3000;
@@ -264,7 +264,6 @@ function failureResult(reason: string, metrics: SmtpProbeMetrics): SmtpVerificat
     isDeliverable: false,
     isDisabled: false,
     error: reason,
-    providerUsed: EmailProvider.everythingElse,
     checkedAt: Date.now(),
     metrics,
   };
@@ -285,7 +284,6 @@ function toSmtpVerificationResult(probe: ProbeResult, extras: ToResultExtras): S
     isDeliverable: result === true,
     isDisabled: result === false,
     error: result === true ? undefined : probe.reason,
-    providerUsed: EmailProvider.everythingElse,
     checkedAt: Date.now(),
     metrics: extras.metrics,
     ...(probe.enhancedStatus !== undefined ? { enhancedStatus: probe.enhancedStatus } : {}),

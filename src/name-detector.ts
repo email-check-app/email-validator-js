@@ -173,7 +173,6 @@ function capitalizeName(str: string) {
  * e.g., "john1" -> "john", "due2" -> "due", "test123" -> "test"
  */
 function parseCompositeNamePart(part: string): {
-  base: string;
   hasNumbers: boolean;
   cleaned: string;
   confidence: number;
@@ -257,11 +256,7 @@ function parseCompositeNamePart(part: string): {
     }
   }
 
-  // For backward compatibility, also provide the old 'base' format
-  const baseMatch = part.match(/^([a-zA-Z]+[a-zA-Z0-9]*?)\d*$/);
-  const base = baseMatch ? baseMatch[1] : part;
-
-  return { base, hasNumbers, cleaned, confidence };
+  return { hasNumbers, cleaned, confidence };
 }
 
 /**
