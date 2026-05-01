@@ -30,7 +30,6 @@ async function testPortConnectivity() {
         options: {
           ports: [port], // Test single port
           timeout: 5000,
-          maxRetries: 2,
           debug: true,
           tls: {
             rejectUnauthorized: false,
@@ -106,7 +105,6 @@ async function testTimeoutHandling() {
     mxRecords,
     options: {
       timeout: 1, // 1ms timeout
-      maxRetries: 0,
       debug: false,
     },
   });
@@ -175,7 +173,6 @@ async function testCustomSequences() {
     mxRecords,
     options: {
       timeout: 5000,
-      useVRFY: true,
       debug: false,
     },
   });
@@ -189,7 +186,6 @@ async function testCustomSequences() {
     mxRecords,
     options: {
       timeout: 5000,
-      useVRFY: false,
       debug: false,
     },
   });

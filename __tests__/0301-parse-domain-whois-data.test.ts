@@ -21,7 +21,7 @@ describe('0301: Parse Domain WHOIS Data', () => {
 
           // Verify it's a valid date
           const resultDate = new Date(result[key]);
-          expect(isNaN(resultDate.getTime())).toBe(false);
+          expect(Number.isNaN(resultDate.getTime())).toBe(false);
 
           // Ensure the date is reasonable (between 1990 and 2050)
           const year = resultDate.getFullYear();

@@ -28,7 +28,6 @@ async function customPorts(email: string, mxRecords: string[]) {
     options: {
       ports: [587, 465], // Only try secure ports
       timeout: 5000,
-      maxRetries: 2,
     },
   });
 }
@@ -69,7 +68,6 @@ async function fastBulk(emails: string[], mxMap: Map<string, string[]>) {
       options: {
         ports: [25, 587],
         timeout: 2000,
-        maxRetries: 1,
         cache: getDefaultCache(),
         debug: false,
       },
@@ -92,7 +90,6 @@ async function debugVerify(email: string, mxRecords: string[]) {
     options: {
       debug: true,
       timeout: 5000,
-      useVRFY: true,
       cache: null, // No caching
     },
   });
@@ -109,7 +106,6 @@ async function tryPortOnly(email: string, mxRecords: string[], port: number) {
     options: {
       ports: [port],
       timeout: 3000,
-      maxRetries: 3,
       debug: true,
     },
   });

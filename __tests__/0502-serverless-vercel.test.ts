@@ -2,35 +2,46 @@
  * Tests for Vercel Edge Functions adapter
  */
 
-// Mock the serverless verifier module
-jest.mock('../src/serverless/verifier', () => ({
-  validateEmailCore: jest.fn().mockImplementation(async (email: string) => ({
+import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+
+const validateEmailCore = mock(async (email: string) => ({
+  valid: email.includes('@'),
+  email,
+  local: email.split('@')[0],
+  domain: email.split('@')[1] || '',
+  validators: {
+    syntax: { valid: email.includes('@') },
+    typo: { valid: true },
+    disposable: { valid: true },
+    free: { valid: !email.includes('gmail.com') },
+  },
+}));
+
+const validateEmailBatch = mock(async (emails: string[]) =>
+  emails.map((email) => ({
     valid: email.includes('@'),
     email,
     local: email.split('@')[0],
     domain: email.split('@')[1] || '',
-    validators: {
-      syntax: { valid: email.includes('@') },
-      typo: { valid: true },
-      disposable: { valid: true },
-      free: { valid: !email.includes('gmail.com') },
-    },
-  })),
-  validateEmailBatch: jest.fn().mockImplementation(async (emails: string[]) =>
-    emails.map((email) => ({
-      valid: email.includes('@'),
-      email,
-      local: email.split('@')[0],
-      domain: email.split('@')[1] || '',
-      validators: {
-        syntax: { valid: email.includes('@') },
-      },
-    }))
-  ),
-  clearCache: jest.fn(),
+    validators: { syntax: { valid: email.includes('@') } },
+  }))
+);
+
+const clearCache = mock(() => {});
+
+const actualVerifier = await import('../src/serverless/verifier');
+mock.module('../src/serverless/verifier', () => ({
+  ...actualVerifier,
+  validateEmailCore,
+  validateEmailBatch,
+  clearCache,
 }));
 
-import { handler } from '../src/serverless/adapters/vercel';
+const { handler } = await import('../src/serverless/adapters/vercel');
+
+afterAll(() => {
+  mock.module('../src/serverless/verifier', () => actualVerifier);
+});
 
 // Mock Vercel Request and Response
 class MockRequest {

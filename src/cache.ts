@@ -72,28 +72,14 @@ export function getCacheStore<T>(cache: Cache | null | undefined, key: keyof Cac
 }
 
 /**
- * Clear the default cache instance
- * Useful for testing or when you want to reset cache state
+ * Clear all entries from every store in the default cache instance.
+ * No-op if the cache hasn't been lazily constructed yet.
  */
 export function clearDefaultCache(): void {
-  if (defaultCacheInstance) {
-    defaultCacheInstance.mx.clear();
-    defaultCacheInstance.disposable.clear();
-    defaultCacheInstance.free.clear();
-    defaultCacheInstance.domainValid.clear();
-    defaultCacheInstance.smtp.clear();
-    defaultCacheInstance.smtpPort.clear();
-    defaultCacheInstance.domainSuggestion.clear();
-    defaultCacheInstance.whois.clear();
+  if (!defaultCacheInstance) return;
+  for (const store of Object.values(defaultCacheInstance)) {
+    store.clear();
   }
 }
 
-/**
- * Reset the default cache instance to a fresh one
- */
-export function resetDefaultCache(): void {
-  defaultCacheInstance = null;
-}
-
-// Export types for external use
 export type { Cache, CacheStore } from './cache-interface';

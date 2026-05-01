@@ -84,8 +84,8 @@ describe('0402 Name Detector', () => {
       const result = detectNameForAlgorithm('john.doe.smith@example.com');
       expect(result).toBeDefined();
       if (result) {
-        expect(['John', 'Doe']).toContain(result.firstName);
-        expect(['Doe', 'Smith']).toContain(result.lastName);
+        expect(['John', 'Doe']).toContain(result.firstName ?? '');
+        expect(['Doe', 'Smith']).toContain(result.lastName ?? '');
       }
     });
 

@@ -27,15 +27,24 @@ describe('0203 Redis Adapter', () => {
         }
         return 'OK';
       },
-      del: async (key: string) => {
-        return store.delete(key) ? 1 : 0;
+      del: async (key: string | string[]) => {
+        const keys = Array.isArray(key) ? key : [key];
+        let removed = 0;
+        for (const k of keys) if (store.delete(k)) removed++;
+        return removed;
       },
       exists: async (key: string) => {
         return store.has(key) ? 1 : 0;
       },
-      flushdb: async () => {
-        store.clear();
-        return 'OK';
+      scan: async (cursor: string | number, ..._args: Array<string | number>) => {
+        // The adapter calls scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', N).
+        // For the mock, we return all keys matching the prefix in one pass.
+        const args = _args.map(String);
+        const matchIdx = args.indexOf('MATCH');
+        const pattern = matchIdx >= 0 ? (args[matchIdx + 1] ?? '') : '';
+        const prefix = pattern.endsWith('*') ? pattern.slice(0, -1) : pattern;
+        const keys = [...store.keys()].filter((k) => k.startsWith(prefix));
+        return ['0', keys] as [string, string[]];
       },
     };
   };
@@ -233,7 +242,7 @@ describe('0203 Redis Adapter', () => {
         set: async () => 'OK',
         del: async () => 0,
         exists: async () => 0,
-        flushdb: async () => 'OK',
+        scan: async (_cursor: string | number) => ['0', []] as [string, string[]],
       };
 
       const adapter = new RedisAdapter(mockRedis);
@@ -250,13 +259,14 @@ describe('0203 Redis Adapter', () => {
         },
         del: async () => 0,
         exists: async () => 0,
-        flushdb: async () => 'OK',
+        scan: async (_cursor: string | number) => ['0', []] as [string, string[]],
       };
 
       const adapter = new RedisAdapter(mockRedis);
 
-      // Set errors are caught and handled without throwing
-      await expect(adapter.set('key', 'value')).resolves.not.toThrow();
+      // Set errors are caught and handled without throwing — the adapter
+      // logs and swallows; the promise resolves cleanly.
+      await expect(adapter.set('key', 'value')).resolves.toBeUndefined();
     });
 
     it('should return false when Redis delete operation fails', async () => {
@@ -267,7 +277,7 @@ describe('0203 Redis Adapter', () => {
           throw new Error('Redis delete error');
         },
         exists: async () => 0,
-        flushdb: async () => 'OK',
+        scan: async (_cursor: string | number) => ['0', []] as [string, string[]],
       };
 
       const adapter = new RedisAdapter(mockRedis);
@@ -284,7 +294,7 @@ describe('0203 Redis Adapter', () => {
         exists: async () => {
           throw new Error('Redis exists error');
         },
-        flushdb: async () => 'OK',
+        scan: async (_cursor: string | number) => ['0', []] as [string, string[]],
       };
 
       const adapter = new RedisAdapter(mockRedis);

@@ -1,26 +1,23 @@
 /**
- * Cloudflare Workers adapter for email validation
- * Supports Workers, Pages Functions, and Durable Objects
+ * Cloudflare Workers adapter for email validation.
+ * Supports Workers, Pages Functions, and Durable Objects.
+ *
+ * Shared validation/CORS logic comes from `../_shared/`.
  */
-
-import type { EmailValidationResult, ValidateEmailOptions } from '../../types';
+import type { EmailValidationResult } from '../../types';
+import { corsHeaders, jsonHeaders } from '../_shared/cors';
+import { executeValidation } from '../_shared/dispatch';
+import { classifyRequest, type ValidationRequestBody } from '../_shared/validation';
 import { EdgeCache, validateEmailBatch, validateEmailCore } from '../verifier';
 
-// Cloudflare Workers types
-
-// KVNamespace interface for TypeScript
 interface KVNamespace {
   get<T = unknown>(key: string, type?: 'text' | 'json' | 'arrayBuffer' | 'stream'): Promise<T | null>;
-
   put(key: string, value: string | ArrayBuffer | ReadableStream, options?: { expirationTtl?: number }): Promise<void>;
-
   delete(key: string): Promise<void>;
 }
 
-// DurableObject interfaces
 interface DurableObjectNamespace {
   idFromName(name: string): DurableObjectId;
-
   get(id: DurableObjectId): DurableObjectStub;
 }
 
@@ -38,9 +35,7 @@ interface DurableObjectState {
 
 interface DurableObjectStorage {
   get<T = unknown>(key: string): Promise<T | undefined>;
-
   put<T = unknown>(key: string, value: T): Promise<void>;
-
   delete(key: string): Promise<void>;
 }
 
@@ -53,29 +48,16 @@ export interface CloudflareRequest extends Request {
 }
 
 export interface CloudflareEnv {
-  // KV namespace for caching
   EMAIL_CACHE?: KVNamespace;
-  // Durable Object namespace
   EMAIL_VALIDATOR?: DurableObjectNamespace;
-
-  // Environment variables
   [key: string]: unknown;
 }
 
 export interface CloudflareContext {
   waitUntil(promise: Promise<unknown>): void;
-
   passThroughOnException(): void;
 }
 
-// Request types
-interface ValidateRequest {
-  email?: string;
-  emails?: string[];
-  options?: ValidateEmailOptions;
-}
-
-// KV-based cache implementation
 class KVCache<T> {
   constructor(
     private kv: KVNamespace,
@@ -88,9 +70,7 @@ class KVCache<T> {
   }
 
   async set(key: string, value: T): Promise<void> {
-    await this.kv.put(key, JSON.stringify(value), {
-      expirationTtl: this.ttl,
-    });
+    await this.kv.put(key, JSON.stringify(value), { expirationTtl: this.ttl });
   }
 
   async delete(key: string): Promise<void> {
@@ -98,149 +78,99 @@ class KVCache<T> {
   }
 }
 
-// Cloudflare Workers handler
+const POST_HEADERS = jsonHeaders(corsHeaders('POST, GET, OPTIONS'));
+
+function jsonResponse(status: number, body: unknown, headers: Record<string, string> = POST_HEADERS): Response {
+  return new Response(JSON.stringify(body), { status, headers });
+}
+
+function parseGetParams(url: URL): ValidationRequestBody {
+  const email = url.searchParams.get('email');
+  const emails = url.searchParams.get('emails');
+  return {
+    email: email || undefined,
+    emails: emails ? emails.split(',') : undefined,
+    options: {
+      validateMx: url.searchParams.get('validateMx') === 'true',
+      validateSMTP: url.searchParams.get('validateSMTP') === 'true',
+      validateTypo: url.searchParams.get('validateTypo') !== 'false',
+      validateDisposable: url.searchParams.get('validateDisposable') !== 'false',
+      validateFree: url.searchParams.get('validateFree') !== 'false',
+    },
+  };
+}
+
 async function workerHandler(
   request: CloudflareRequest,
   env: CloudflareEnv,
   ctx: CloudflareContext
 ): Promise<Response> {
-  // Set up KV cache if available
-  let kvCache: KVCache<EmailValidationResult> | undefined;
-  if (env.EMAIL_CACHE) {
-    kvCache = new KVCache(env.EMAIL_CACHE);
-  }
+  const kvCache = env.EMAIL_CACHE ? new KVCache<EmailValidationResult>(env.EMAIL_CACHE) : undefined;
 
-  // Handle CORS
   if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    });
+    return new Response(null, { status: 200, headers: corsHeaders('POST, GET, OPTIONS') });
   }
 
   try {
-    let requestData: ValidateRequest;
-
-    // Parse request based on method
+    let body: ValidationRequestBody;
     if (request.method === 'GET') {
-      const url = new URL(request.url);
-      const email = url.searchParams.get('email');
-      const emails = url.searchParams.get('emails');
-
-      requestData = {
-        email: email || undefined,
-        emails: emails ? emails.split(',') : undefined,
-        options: {
-          validateMx: url.searchParams.get('validateMx') === 'true',
-          validateSMTP: url.searchParams.get('validateSMTP') === 'true',
-          validateTypo: url.searchParams.get('validateTypo') !== 'false',
-          validateDisposable: url.searchParams.get('validateDisposable') !== 'false',
-          validateFree: url.searchParams.get('validateFree') !== 'false',
-        },
-      };
+      body = parseGetParams(new URL(request.url));
     } else if (request.method === 'POST') {
-      requestData = await request.json();
+      body = await request.json();
     } else {
-      return new Response(JSON.stringify({ success: false, error: 'Method not allowed' }), {
-        status: 405,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonResponse(405, { success: false, error: 'Method not allowed' });
     }
 
-    // Validate request
-    if (!requestData.email && !requestData.emails) {
-      return new Response(JSON.stringify({ success: false, error: 'Email or emails array is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    const classified = classifyRequest(body);
+    if (classified.kind === 'invalid') {
+      return jsonResponse(classified.status, { success: false, error: classified.message });
     }
 
-    // Check KV cache for single email
-    if (requestData.email && kvCache && !requestData.options?.skipCache) {
-      const cached = await kvCache.get(`email:${requestData.email}`);
+    // Per-email KV cache short-circuit (single-email path only).
+    if (classified.kind === 'single' && kvCache && !classified.options?.skipCache) {
+      const cached = await kvCache.get(`email:${classified.email}`);
       if (cached) {
         return new Response(JSON.stringify({ success: true, data: cached, cached: true }), {
           status: 200,
-          headers: {
-            'Content-Type': 'application/json',
+          headers: jsonHeaders({
+            ...corsHeaders('POST, GET, OPTIONS'),
             'Cache-Control': 'public, max-age=3600',
             'CF-Cache-Status': 'HIT',
-          },
+          }),
         });
       }
     }
 
-    // Single email validation
-    if (requestData.email) {
-      const result = await validateEmailCore(requestData.email, requestData.options);
+    const data = await executeValidation(classified);
 
-      // Store in KV cache
-      if (kvCache && !requestData.options?.skipCache) {
-        ctx.waitUntil(kvCache.set(`email:${requestData.email}`, result));
+    // Write-through to KV when the request didn't ask to skip the cache.
+    if (kvCache && !classified.options?.skipCache) {
+      if (classified.kind === 'single') {
+        ctx.waitUntil(kvCache.set(`email:${classified.email}`, data as EmailValidationResult));
+      } else {
+        const writes = (data as EmailValidationResult[]).map((result, i) =>
+          kvCache.set(`email:${classified.emails[i]}`, result)
+        );
+        ctx.waitUntil(Promise.all(writes));
       }
-
-      return new Response(JSON.stringify({ success: true, data: result }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=3600',
-          'CF-Cache-Status': 'MISS',
-        },
-      });
     }
 
-    // Batch email validation
-    if (requestData.emails) {
-      const results = await validateEmailBatch(requestData.emails, requestData.options);
-
-      // Store each result in KV cache
-      if (kvCache && !requestData.options?.skipCache) {
-        const cachePromises = results.map((result, index) => {
-          if (requestData.emails && requestData.emails[index]) {
-            return kvCache.set(`email:${requestData.emails[index]}`, result);
-          }
-          return Promise.resolve();
-        });
-        ctx.waitUntil(Promise.all(cachePromises));
-      }
-
-      return new Response(JSON.stringify({ success: true, data: results }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=3600',
-        },
-      });
-    }
-
-    return new Response(JSON.stringify({ success: false, error: 'Invalid request' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
+    const headers = jsonHeaders({
+      ...corsHeaders('POST, GET, OPTIONS'),
+      'Cache-Control': 'public, max-age=3600',
+      ...(classified.kind === 'single' ? { 'CF-Cache-Status': 'MISS' } : {}),
     });
+    return new Response(JSON.stringify({ success: true, data }), { status: 200, headers });
   } catch (error) {
     console.error('Cloudflare Workers error:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return jsonResponse(500, { success: false, error: message });
   }
 }
 
-// Durable Object for stateful validation
+// Durable Object for stateful validation.
 export class EmailValidatorDO {
-  private state: DurableObjectState;
-  private env: CloudflareEnv;
-  private cache: EdgeCache<any>;
+  private cache: EdgeCache<EmailValidationResult>;
 
   constructor(state: DurableObjectState, env: CloudflareEnv) {
     this.state = state;
@@ -250,9 +180,7 @@ export class EmailValidatorDO {
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    const path = url.pathname;
-
-    switch (path) {
+    switch (url.pathname) {
       case '/validate':
         return this.handleValidation(request);
       case '/cache/clear':
@@ -266,34 +194,27 @@ export class EmailValidatorDO {
 
   private async handleValidation(request: Request): Promise<Response> {
     try {
-      const requestData: ValidateRequest = await request.json();
-
-      if (requestData.email) {
-        const result = await validateEmailCore(requestData.email, requestData.options);
-        return new Response(JSON.stringify({ success: true, data: result }), {
+      const requestData: ValidationRequestBody = await request.json();
+      const classified = classifyRequest(requestData);
+      if (classified.kind === 'invalid') {
+        return new Response(JSON.stringify({ success: false, error: classified.message }), {
+          status: classified.status,
           headers: { 'Content-Type': 'application/json' },
         });
       }
-
-      if (requestData.emails) {
-        const results = await validateEmailBatch(requestData.emails, requestData.options);
-        return new Response(JSON.stringify({ success: true, data: results }), {
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      return new Response(JSON.stringify({ success: false, error: 'Invalid request' }), {
-        status: 400,
+      const data =
+        classified.kind === 'single'
+          ? await validateEmailCore(classified.email, classified.options)
+          : await validateEmailBatch(classified.emails, classified.options);
+      return new Response(JSON.stringify({ success: true, data }), {
         headers: { 'Content-Type': 'application/json' },
       });
     } catch (error) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: error instanceof Error ? error.message : 'Internal server error',
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+      const message = error instanceof Error ? error.message : 'Internal server error';
+      return new Response(JSON.stringify({ success: false, error: message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
   }
 
@@ -305,19 +226,12 @@ export class EmailValidatorDO {
   }
 
   private async handleCacheStats(): Promise<Response> {
-    return new Response(
-      JSON.stringify({
-        success: true,
-        stats: {
-          size: this.cache.size(),
-        },
-      }),
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: true, stats: { size: this.cache.size() } }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
 
-// Export handlers and Durable Object
 export default {
   fetch: workerHandler,
   workerHandler,

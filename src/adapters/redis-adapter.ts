@@ -1,18 +1,20 @@
 import type { CacheStore } from '../cache-interface';
 
 /**
- * Redis client interface to avoid direct dependency on redis package
+ * Subset of the redis client surface we depend on. Kept minimal so consumers
+ * can plug in `ioredis`, `node-redis`, or any compatible library without
+ * pulling that package as a direct dependency.
+ *
+ * `scan` is used by clear() to walk and delete keys matching our prefix —
+ * the previous implementation called `flushdb()`, which wipes the whole
+ * database and is unsafe in shared deployments.
  */
 export interface RedisClient {
   get(key: string): Promise<string | null>;
-
   set(key: string, value: string, mode?: string, duration?: number): Promise<string | null>;
-
-  del(key: string): Promise<number>;
-
+  del(key: string | string[]): Promise<number>;
   exists(key: string): Promise<number>;
-
-  flushdb(): Promise<string>;
+  scan(cursor: string | number, ...args: Array<string | number>): Promise<[string, string[]]>;
 }
 
 /**
@@ -135,11 +137,18 @@ export class RedisAdapter<T> implements CacheStore<T> {
     }
   }
 
+  /**
+   * Delete every key written by this adapter (scoped by `keyPrefix`).
+   * Walks the keyspace with SCAN + MATCH so we never touch unrelated keys.
+   */
   async clear(): Promise<void> {
     try {
-      // Note: This clears the entire database. Use with caution!
-      // In production, you might want to delete only keys with the prefix
-      await this.redis.flushdb();
+      let cursor: string = '0';
+      do {
+        const [next, keys] = await this.redis.scan(cursor, 'MATCH', `${this.keyPrefix}*`, 'COUNT', 500);
+        if (keys.length > 0) await this.redis.del(keys);
+        cursor = next;
+      } while (cursor !== '0');
     } catch (error) {
       console.error('Redis clear error:', error);
     }
@@ -148,16 +157,5 @@ export class RedisAdapter<T> implements CacheStore<T> {
   // size() is not applicable for Redis as it's a distributed store
   size(): number | undefined {
     return undefined;
-  }
-
-  /**
-   * Helper method to delete only keys with the configured prefix
-   * Requires Redis SCAN command which might not be available in all Redis clients
-   */
-  async clearPrefixed(): Promise<void> {
-    // This is a placeholder implementation
-    // In a real implementation, you would use SCAN or KEYS to find and delete prefixed keys
-    // For simplicity, we're using flushdb() above
-    console.warn('clearPrefixed not implemented. Use clear() to flush the entire database.');
   }
 }

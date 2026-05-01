@@ -2,7 +2,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "declaration": false,
-    "declarationDir": null
+    "declarationDir": null,
+    "types": ["node", "bun"]
   },
   "include": [
     "__tests__/**/*",

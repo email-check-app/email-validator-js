@@ -1,14 +1,16 @@
 import { parse } from 'psl';
 import { getCacheStore } from './cache';
+import disposableProviders from './disposable-email-providers.json';
 import { suggestEmailDomain } from './domain-suggester';
 import { isValidEmail, isValidEmailDomain } from './email-validator';
+import freeProviders from './free-email-providers.json';
 import { resolveMxRecords } from './mx-resolver';
 import { detectNameFromEmail } from './name-detector';
 import { verifyMailboxSMTP } from './smtp-verifier';
 import {
   type DisposableEmailCheckParams,
   type DisposableEmailResult,
-  type EmailProvider,
+  type DomainSuggestion,
   type FreeEmailCheckParams,
   type FreeEmailResult,
   type SmtpVerificationResult,
@@ -32,7 +34,7 @@ export {
   suggestEmailDomain,
 } from './domain-suggester';
 export { isValidEmail, isValidEmailDomain } from './email-validator';
-export { isSpamEmail, isSpamEmailLocalPart } from './is-spam-email';
+export { isSpamEmail } from './is-spam-email';
 export { isSpamName } from './is-spam-name';
 export {
   cleanNameForAlgorithm,
@@ -45,8 +47,12 @@ export {
 export * from './types';
 export { getDomainAge, getDomainRegistrationStatus } from './whois';
 
-let disposableEmailProviders: Set<string>;
-let freeEmailProviders: Set<string>;
+// Provider lists are JSON-imported at module load. ~10k entries each, parsed
+// once into a Set for O(1) lookups. Avoids the lazy `require()` shim that the
+// previous code used to delay this work — the cost is small and the code is
+// simpler without the lazy load.
+const disposableEmailProviders: Set<string> = new Set(disposableProviders as string[]);
+const freeEmailProviders: Set<string> = new Set(freeProviders as string[]);
 
 export async function isDisposableEmail(params: DisposableEmailCheckParams): Promise<boolean> {
   const { emailOrDomain, cache, logger } = params;
@@ -70,10 +76,6 @@ export async function isDisposableEmail(params: DisposableEmailCheckParams): Pro
   if (cached !== null && cached !== undefined) {
     log(`[isDisposableEmail] Cache hit for ${emailDomain}: ${cached.isDisposable}`);
     return cached.isDisposable;
-  }
-
-  if (!disposableEmailProviders) {
-    disposableEmailProviders = new Set(require('./disposable-email-providers.json'));
   }
 
   const isDisposable = disposableEmailProviders.has(emailDomain);
@@ -121,10 +123,6 @@ export async function isFreeEmail(params: FreeEmailCheckParams): Promise<boolean
     return cached.isFree;
   }
 
-  if (!freeEmailProviders) {
-    freeEmailProviders = new Set(require('./free-email-providers.json'));
-  }
-
   const isFree = freeEmailProviders.has(emailDomain);
 
   // Store rich result in cache
@@ -152,267 +150,229 @@ export const domainPorts: Record<string, number> = {
 };
 
 /**
- * Verify email address
+ * Copy SMTP verification fields onto the flat result + derive validSmtp.
+ * `validSmtp` is null when we couldn't connect (so the caller knows verification
+ * was inconclusive, not negative), otherwise tracks `isDeliverable`.
+ */
+function applySmtpResult(result: VerificationResult, smtp: SmtpVerificationResult): void {
+  result.canConnectSmtp = smtp.canConnectSmtp;
+  result.hasFullInbox = smtp.hasFullInbox;
+  result.isCatchAll = smtp.isCatchAll;
+  result.isDeliverable = smtp.isDeliverable;
+  result.isDisabled = smtp.isDisabled;
+  result.validSmtp = smtp.canConnectSmtp ? smtp.isDeliverable : null;
+}
+
+/** Pick a port override from explicit param > known per-MX-domain map > library default. */
+function resolveSmtpPorts(explicitPort: number | undefined, primaryMx: string | undefined): number[] | undefined {
+  if (explicitPort) return [explicitPort];
+  if (!primaryMx) return undefined;
+  const mxDomain = parse(primaryMx);
+  if (!('domain' in mxDomain) || !mxDomain.domain) return undefined;
+  const known = domainPorts[mxDomain.domain];
+  return known ? [known] : undefined;
+}
+
+type Logger = (...args: unknown[]) => void;
+
+/**
+ * Verify an email address — orchestrates format / disposable / free / MX / SMTP /
+ * WHOIS / name-detection / domain-suggestion checks. Each helper below owns one
+ * step and runs only when its flag is enabled. Early returns short-circuit on
+ * format/domain failures.
  */
 export async function verifyEmail(params: VerifyEmailParams): Promise<VerificationResult> {
-  const {
-    emailAddress,
-    timeout = 4000,
-    verifyMx = true,
-    verifySmtp = false,
-    debug = false,
-    checkDisposable = true,
-    checkFree = true,
-    detectName = false,
-    nameDetectionMethod,
-    suggestDomain = true,
-    domainSuggestionMethod,
-    commonDomains,
-    checkDomainAge = false,
-    checkDomainRegistration = false,
-    whoisTimeout = 5000,
-    skipMxForDisposable = false,
-    skipDomainWhoisForDisposable = false,
-  } = params;
-
   const startTime = Date.now();
-  const log = debug ? console.debug : (..._args: unknown[]) => {};
+  const debug = params.debug ?? false;
+  const log: Logger = debug ? console.debug : () => {};
+  const result = blankResult(params.emailAddress);
 
-  // Initialize result with flat structure
-  const result: VerificationResult = {
-    email: emailAddress,
+  // 1. Format check — bail fast.
+  if (!isValidEmail(params.emailAddress)) {
+    return finalize(result, VerificationErrorCode.invalidFormat, startTime);
+  }
+  result.validFormat = true;
+
+  // 2. Name detection (cheap, runs on local part only).
+  if (params.detectName) {
+    result.detectedName = detectNameFromEmail({
+      email: params.emailAddress,
+      customMethod: params.nameDetectionMethod,
+    });
+  }
+
+  // 3. Domain suggestion (cheap, runs on domain only).
+  if (params.suggestDomain ?? true) {
+    result.domainSuggestion = await runSuggestDomain(params);
+  }
+
+  const [local, domain] = params.emailAddress.split('@');
+  if (!domain || !local) {
+    return finalize(result, VerificationErrorCode.invalidFormat, startTime);
+  }
+  if (!(await isValidEmailDomain(domain, params.cache))) {
+    return finalize(result, VerificationErrorCode.invalidDomain, startTime);
+  }
+
+  // 4. Disposable + free provider checks.
+  if (params.checkDisposable ?? true) {
+    result.isDisposable = await isDisposableEmail({
+      emailOrDomain: params.emailAddress,
+      cache: params.cache,
+      logger: log,
+    });
+    log(`[verifyEmail] disposable: ${result.isDisposable}`);
+    if (result.isDisposable) result.metadata!.error = VerificationErrorCode.disposableEmail;
+  }
+  if (params.checkFree ?? true) {
+    result.isFree = await isFreeEmail({ emailOrDomain: params.emailAddress, cache: params.cache, logger: log });
+    log(`[verifyEmail] free: ${result.isFree}`);
+  }
+
+  const skipMx = (params.skipMxForDisposable ?? false) && result.isDisposable;
+  const skipWhois = (params.skipDomainWhoisForDisposable ?? false) && result.isDisposable;
+
+  // 5. WHOIS-driven domain age + registration (skipped for disposable when configured).
+  await runWhoisChecks(domain, params, result, skipWhois, log);
+
+  // 6. MX + SMTP (skipped for disposable when configured).
+  if ((params.verifyMx ?? true) || (params.verifySmtp ?? false)) {
+    if (skipMx) {
+      log(`[verifyEmail] skipping MX/SMTP for disposable: ${params.emailAddress}`);
+    } else {
+      await runMxAndSmtp(local, domain, params, result, log);
+    }
+  }
+
+  result.metadata!.verificationTime = Date.now() - startTime;
+  return result;
+}
+
+function blankResult(email: string): VerificationResult {
+  return {
+    email,
     validFormat: false,
     validMx: null,
     validSmtp: null,
     isDisposable: false,
     isFree: false,
-    metadata: {
-      verificationTime: 0,
-      cached: false,
-    },
+    metadata: { verificationTime: 0, cached: false },
   };
+}
 
-  // Format validation
-  if (!isValidEmail(emailAddress)) {
-    if (result.metadata) {
-      result.metadata.verificationTime = Date.now() - startTime;
-      result.metadata.error = VerificationErrorCode.invalidFormat;
-    }
-    return result;
+function finalize(result: VerificationResult, error: VerificationErrorCode, startTime: number): VerificationResult {
+  result.metadata!.error = error;
+  result.metadata!.verificationTime = Date.now() - startTime;
+  return result;
+}
+
+async function runSuggestDomain(params: VerifyEmailParams): Promise<DomainSuggestion | null> {
+  const [, emailDomain] = params.emailAddress.split('@');
+  if (!emailDomain) return null;
+  if (params.domainSuggestionMethod) return params.domainSuggestionMethod(emailDomain);
+  return suggestEmailDomain(params.emailAddress, params.commonDomains);
+}
+
+async function runWhoisChecks(
+  domain: string,
+  params: VerifyEmailParams,
+  result: VerificationResult,
+  skipWhois: boolean,
+  log: Logger
+): Promise<void> {
+  if (!params.checkDomainAge && !params.checkDomainRegistration) return;
+  if (skipWhois) {
+    log(`[verifyEmail] WHOIS checks skipped for disposable: ${domain}`);
+    return;
   }
-  result.validFormat = true;
+  const whoisTimeout = params.whoisTimeout ?? 5000;
+  const debug = params.debug ?? false;
 
-  // Detect name if requested
-  if (detectName) {
-    result.detectedName = detectNameFromEmail({
-      email: emailAddress,
-      customMethod: nameDetectionMethod,
-    });
-  }
-
-  // Suggest domain if requested
-  if (suggestDomain) {
-    const [, emailDomain] = emailAddress.split('@');
-    if (emailDomain) {
-      const suggestion = domainSuggestionMethod
-        ? domainSuggestionMethod(emailDomain)
-        : await suggestEmailDomain(emailAddress, commonDomains);
-      if (suggestion) {
-        result.domainSuggestion = suggestion;
-      } else {
-        result.domainSuggestion = null;
-      }
-    }
-  }
-
-  const [local, domain] = emailAddress.split('@');
-  if (!domain || !local) {
-    if (result.metadata) {
-      result.metadata.verificationTime = Date.now() - startTime;
-      result.metadata.error = VerificationErrorCode.invalidFormat;
-    }
-    return result;
-  }
-
-  // Domain validation
-  if (!(await isValidEmailDomain(domain, params.cache))) {
-    if (result.metadata) {
-      result.metadata.verificationTime = Date.now() - startTime;
-      result.metadata.error = VerificationErrorCode.invalidDomain;
-    }
-    return result;
-  }
-
-  // Check disposable first (to potentially skip expensive operations)
-  if (checkDisposable) {
-    log(`[verifyEmail] Checking if ${emailAddress} is disposable email`);
-    result.isDisposable = await isDisposableEmail({ emailOrDomain: emailAddress, cache: params.cache, logger: log });
-    log(`[verifyEmail] Disposable check result: ${result.isDisposable}`);
-    if (result.isDisposable && result.metadata) {
-      result.metadata.error = VerificationErrorCode.disposableEmail;
-    }
-  }
-
-  // Check free provider
-  if (checkFree) {
-    log(`[verifyEmail] Checking if ${emailAddress} is free email provider`);
-    result.isFree = await isFreeEmail({ emailOrDomain: emailAddress, cache: params.cache, logger: log });
-    log(`[verifyEmail] Free email check result: ${result.isFree}`);
-  }
-
-  // Skip MX and WHOIS checks if disposable and skip options are enabled
-  const shouldSkipMx = skipMxForDisposable && result.isDisposable;
-  const shouldSkipDomainWhois = skipDomainWhoisForDisposable && result.isDisposable;
-
-  if (shouldSkipMx) {
-    log(`[verifyEmail] Skipping MX record check for disposable email: ${emailAddress}`);
-  }
-  if (shouldSkipDomainWhois) {
-    log(`[verifyEmail] Skipping domain WHOIS checks for disposable email: ${emailAddress}`);
-  }
-
-  // Check domain age if requested (skip if disposable email and option is enabled)
-  if (checkDomainAge && !shouldSkipDomainWhois) {
-    log(`[verifyEmail] Checking domain age for ${domain}`);
+  if (params.checkDomainAge) {
     try {
       result.domainAge = await getDomainAge(domain, whoisTimeout, debug, params.cache);
-      log(`[verifyEmail] Domain age result:`, result.domainAge ? `${result.domainAge.ageInDays} days` : 'null');
+      log(`[verifyEmail] domain age:`, result.domainAge ? `${result.domainAge.ageInDays} days` : 'null');
     } catch (error) {
-      log('[verifyEmail] Failed to get domain age', error);
+      log('[verifyEmail] domain age lookup failed', error);
       result.domainAge = null;
     }
-  } else if (checkDomainAge && shouldSkipDomainWhois) {
-    log(`[verifyEmail] Domain age check skipped due to disposable email and skipDomainWhoisForDisposable=true`);
   }
 
-  // Check domain registration if requested (skip if disposable email and option is enabled)
-  if (checkDomainRegistration && !shouldSkipDomainWhois) {
-    log(`[verifyEmail] Checking domain registration status for ${domain}`);
+  if (params.checkDomainRegistration) {
     try {
       result.domainRegistration = await getDomainRegistrationStatus(domain, whoisTimeout, debug, params.cache);
-      log(
-        `[verifyEmail] Domain registration result:`,
-        result.domainRegistration?.isRegistered ? 'registered' : 'not registered'
-      );
+      log(`[verifyEmail] registered:`, result.domainRegistration?.isRegistered ?? false);
     } catch (error) {
-      log('[verifyEmail] Failed to get domain registration status', error);
+      log('[verifyEmail] domain registration lookup failed', error);
       result.domainRegistration = null;
     }
-  } else if (checkDomainRegistration && shouldSkipDomainWhois) {
-    log(
-      `[verifyEmail] Domain registration check skipped due to disposable email and skipDomainWhoisForDisposable=true`
-    );
+  }
+}
+
+async function runMxAndSmtp(
+  local: string,
+  domain: string,
+  params: VerifyEmailParams,
+  result: VerificationResult,
+  log: Logger
+): Promise<void> {
+  let mxRecords: string[];
+  try {
+    mxRecords = await resolveMxRecords({ domain, cache: params.cache, logger: log });
+  } catch (error) {
+    log('[verifyEmail] MX lookup failed', error);
+    result.validMx = false;
+    result.mxRecords = null;
+    result.metadata!.error = VerificationErrorCode.noMxRecords;
+    return;
   }
 
-  // MX Records verification (skip if disposable email and option is enabled)
-  if ((verifyMx || verifySmtp) && !shouldSkipMx) {
-    log(`[verifyEmail] Checking MX records for ${domain}`);
-    try {
-      const mxRecords = await resolveMxRecords({ domain, cache: params.cache, logger: log });
-      result.validMx = mxRecords.length > 0;
-      result.mxRecords = mxRecords;
-      log(`[verifyEmail] MX records found: ${mxRecords.length}, valid: ${result.validMx}`);
-
-      if (!result.validMx && result.metadata) {
-        result.metadata.error = VerificationErrorCode.noMxRecords;
-      }
-
-      // SMTP verification
-      if (verifySmtp && mxRecords.length > 0) {
-        const cacheKey = `${emailAddress}:smtp`;
-        const smtpCacheInstance = getCacheStore<SmtpVerificationResult>(params.cache, 'smtp');
-        const cachedSmtp = await smtpCacheInstance.get(cacheKey);
-
-        if (cachedSmtp !== null && cachedSmtp !== undefined) {
-          // Flatten all SMTP fields to the root level of the result
-          result.canConnectSmtp = cachedSmtp.canConnectSmtp;
-          result.hasFullInbox = cachedSmtp.hasFullInbox;
-          result.isCatchAll = cachedSmtp.isCatchAll;
-          result.isDeliverable = cachedSmtp.isDeliverable;
-          result.isDisabled = cachedSmtp.isDisabled;
-
-          // Extract isDeliverable from rich cache result for backwards compatibility
-          result.validSmtp = cachedSmtp.isDeliverable ?? null;
-          log(`[verifyEmail] SMTP result from cache: ${result.validSmtp} for ${emailAddress}`);
-          if (result.metadata) {
-            result.metadata.cached = true;
-          }
-          // Still need to detect name if requested and not done yet
-          if (detectName && !result.detectedName) {
-            result.detectedName = detectNameFromEmail({
-              email: emailAddress,
-              customMethod: nameDetectionMethod,
-            });
-          }
-        } else {
-          log(`[verifyEmail] Performing SMTP verification for ${emailAddress}`);
-          let domainPort = params.smtpPort;
-          if (!domainPort) {
-            const mxDomain = parse(mxRecords[0]);
-            if ('domain' in mxDomain && mxDomain.domain) {
-              domainPort = domainPorts[mxDomain.domain];
-            }
-          }
-
-          const { smtpResult, cached, port } = await verifyMailboxSMTP({
-            local,
-            domain,
-            mxRecords,
-            options: {
-              cache: params.cache,
-              ports: domainPort ? [domainPort] : undefined,
-              timeout,
-              debug,
-              maxRetries: params.retryAttempts,
-            },
-          });
-
-          // Cache the rich SmtpVerificationResult
-          await smtpCacheInstance.set(cacheKey, smtpResult);
-
-          // Flatten all SMTP fields to the root level of the result
-          result.canConnectSmtp = smtpResult?.canConnectSmtp;
-          result.hasFullInbox = smtpResult?.hasFullInbox;
-          result.isCatchAll = smtpResult?.isCatchAll;
-          result.isDeliverable = smtpResult?.isDeliverable;
-          result.isDisabled = smtpResult?.isDisabled;
-
-          // If we couldn't connect to SMTP, return null (unable to verify)
-          // If we connected but verification failed, return false (verified as invalid)
-          if (!smtpResult.canConnectSmtp) {
-            result.validSmtp = null;
-          } else {
-            result.validSmtp = smtpResult.isDeliverable;
-          }
-
-          if (result.metadata) result.metadata.cached = cached;
-
-          log(
-            `[verifyEmail] SMTP verification result: ${result.validSmtp} for ${emailAddress} (cached for future use)`
-          );
-        }
-
-        if (result.validSmtp === false && result.metadata) {
-          result.metadata.error = VerificationErrorCode.mailboxNotFound;
-        } else if (result.validSmtp === null && result.metadata) {
-          result.metadata.error = VerificationErrorCode.smtpConnectionFailed;
-        }
-      }
-    } catch (error) {
-      log('[verifyEmail] Failed to resolve MX records', error);
-      result.validMx = false;
-      result.mxRecords = null;
-      if (result.metadata) {
-        result.metadata.error = VerificationErrorCode.noMxRecords;
-      }
-    }
-  } else if ((verifyMx || verifySmtp) && shouldSkipMx) {
-    log(`[verifyEmail] MX/SMTP checks skipped due to disposable email and skipMxForDisposable=true`);
+  result.mxRecords = mxRecords;
+  result.validMx = mxRecords.length > 0;
+  if (!result.validMx) {
+    result.metadata!.error = VerificationErrorCode.noMxRecords;
+    return;
   }
 
-  if (result.metadata) {
-    result.metadata.verificationTime = Date.now() - startTime;
+  if (!(params.verifySmtp ?? false)) return;
+
+  await runSmtp(local, domain, mxRecords, params, result, log);
+}
+
+async function runSmtp(
+  local: string,
+  domain: string,
+  mxRecords: string[],
+  params: VerifyEmailParams,
+  result: VerificationResult,
+  log: Logger
+): Promise<void> {
+  const cacheKey = `${params.emailAddress}:smtp`;
+  const smtpCache = getCacheStore<SmtpVerificationResult>(params.cache, 'smtp');
+  const cached = await smtpCache.get(cacheKey);
+
+  if (cached) {
+    applySmtpResult(result, cached);
+    result.metadata!.cached = true;
+    log(`[verifyEmail] SMTP cache hit: ${result.validSmtp} for ${params.emailAddress}`);
+  } else {
+    const { smtpResult, cached: probedFromCache } = await verifyMailboxSMTP({
+      local,
+      domain,
+      mxRecords,
+      options: {
+        cache: params.cache,
+        ports: resolveSmtpPorts(params.smtpPort, mxRecords[0]),
+        timeout: params.timeout ?? 4000,
+        debug: params.debug ?? false,
+      },
+    });
+    await smtpCache.set(cacheKey, smtpResult);
+    applySmtpResult(result, smtpResult);
+    result.metadata!.cached = probedFromCache;
+    log(`[verifyEmail] SMTP probed: ${result.validSmtp} for ${params.emailAddress}`);
   }
 
-  return result;
+  if (result.validSmtp === false) result.metadata!.error = VerificationErrorCode.mailboxNotFound;
+  else if (result.validSmtp === null) result.metadata!.error = VerificationErrorCode.smtpConnectionFailed;
 }

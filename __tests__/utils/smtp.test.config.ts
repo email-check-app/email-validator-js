@@ -88,17 +88,14 @@ export const TEST_CONFIGS = {
   // Timeout configurations
   FAST: {
     timeout: 2000,
-    maxRetries: 0,
   },
 
   SLOW: {
     timeout: 10000,
-    maxRetries: 3,
   },
 
   VERY_SLOW: {
     timeout: 30000,
-    maxRetries: 5,
   },
 } as const;
 
@@ -112,26 +109,6 @@ export const TEST_SEQUENCES: { [key: string]: { steps: SMTPStep[]; name: string 
   DEFAULT: {
     steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
     name: 'default',
-  },
-
-  WITH_STARTTLS: {
-    steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo],
-    name: 'with-starttls',
-  },
-
-  WITH_VRFY: {
-    steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
-    name: 'with-vrfy',
-  },
-
-  FULL: {
-    steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo, SMTPStep.vrfy],
-    name: 'full',
-  },
-
-  VRFY_ONLY: {
-    steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.vrfy],
-    name: 'vrfy-only',
   },
 
   NO_GREETING: {

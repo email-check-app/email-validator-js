@@ -113,14 +113,3 @@ export function isSpamEmail(email: string): boolean {
 
   return true;
 }
-
-/**
- * Checks if an email address local part appears to be spam/generated.
- * This is an alias for isSpamEmail with a more descriptive name.
- *
- * @param email - The email address to validate
- * @returns true if the email local part appears to be spam, false otherwise
- */
-export function isSpamEmailLocalPart(email: string): boolean {
-  return isSpamEmail(email);
-}

@@ -4,48 +4,33 @@
  */
 
 import { verifyEmail } from '../src';
+// Mock Redis client for demonstration. In production, plug in `ioredis` or
+// the official `redis` package — both implement this surface.
+import type { RedisClient } from '../src/adapters/redis-adapter';
 import { RedisAdapter } from '../src/adapters/redis-adapter';
 import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
 import type { Cache } from '../src/cache-interface';
 
-// Example Redis client (you would use your actual Redis client here)
-// This example assumes you have a Redis client that implements the IRedisClient interface
-interface SimpleRedisClient {
-  get(key: string): Promise<string | null>;
-
-  set(key: string, value: string, mode?: string, duration?: number): Promise<string | null>;
-
-  del(key: string): Promise<number>;
-
-  exists(key: string): Promise<number>;
-
-  flushdb(): Promise<string>;
-}
-
-// Create a mock Redis client for demonstration
-// In production, you would use a real Redis client like 'redis' or 'ioredis'
-const mockRedisClient: SimpleRedisClient = {
+const mockRedisClient: RedisClient = {
   async get(key: string): Promise<string | null> {
     console.log(`[Redis] GET ${key}`);
-    // In real implementation, this would fetch from Redis
     return null;
   },
   async set(key: string, value: string, mode?: string, duration?: number): Promise<string | null> {
-    console.log(`[Redis] SET ${key} ${mode ? mode + ' ' : ''}${duration ? duration + 's ' : ''}`);
-    // In real implementation, this would store in Redis
+    console.log(`[Redis] SET ${key} ${mode ? `${mode} ` : ''}${duration ? `${duration}s ` : ''}`);
     return 'OK';
   },
-  async del(key: string): Promise<number> {
-    console.log(`[Redis] DEL ${key}`);
-    return 1;
+  async del(key: string | string[]): Promise<number> {
+    console.log(`[Redis] DEL ${Array.isArray(key) ? key.join(' ') : key}`);
+    return Array.isArray(key) ? key.length : 1;
   },
   async exists(key: string): Promise<number> {
     console.log(`[Redis] EXISTS ${key}`);
     return 0;
   },
-  async flushdb(): Promise<string> {
-    console.log('[Redis] FLUSHDB');
-    return 'OK';
+  async scan(cursor: string | number, ..._args: Array<string | number>): Promise<[string, string[]]> {
+    console.log(`[Redis] SCAN ${cursor} ${_args.join(' ')}`);
+    return ['0', []];
   },
 };
 

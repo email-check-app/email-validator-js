@@ -1,4 +1,4 @@
-import { isSpamEmail, isSpamEmailLocalPart, isSpamName } from '../src';
+import { isSpamEmail, isSpamName } from '../src';
 
 describe('Spam Detection', () => {
   describe('isSpamName', () => {
@@ -238,21 +238,6 @@ describe('Spam Detection', () => {
       it('requires minimum local part length of 16 characters', () => {
         expect(isSpamEmail('short@example.com')).toBe(false);
       });
-    });
-  });
-
-  describe('isSpamEmailLocalPart', () => {
-    it('is an alias for isSpamEmail', () => {
-      const testEmail = 'FalDxivcRyvFRbMUOedpn@example.com';
-      expect(isSpamEmailLocalPart(testEmail)).toBe(isSpamEmail(testEmail));
-    });
-
-    it('detects spam in local part regardless of domain', () => {
-      expect(isSpamEmailLocalPart('FalDxivcRyvFRbMUOedpn@any-domain.com')).toBe(true);
-    });
-
-    it('does not flag legitimate emails', () => {
-      expect(isSpamEmailLocalPart('john.doe@example.com')).toBe(false);
     });
   });
 });

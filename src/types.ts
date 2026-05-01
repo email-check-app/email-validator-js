@@ -64,7 +64,6 @@ export interface VerifyEmailParams {
   smtpPort?: number;
   checkDisposable?: boolean;
   checkFree?: boolean;
-  retryAttempts?: number;
   detectName?: boolean;
   nameDetectionMethod?: NameDetectionMethod;
   suggestDomain?: boolean;
@@ -348,87 +347,47 @@ export function parseSmtpError(errorMessage: string): {
   };
 }
 
-/**
- * Port configuration for SMTP verification
- */
-export interface SMTPPortConfig {
-  ports: number[];
-  timeout: number;
-  maxRetries: number;
-}
-
-/**
- * TLS configuration options
- */
+/** TLS configuration options for the SMTP probe. */
 export interface SMTPTLSConfig {
   rejectUnauthorized?: boolean;
   minVersion?: 'TLSv1.2' | 'TLSv1.3';
 }
 
 /**
- * SMTP protocol steps enum
+ * SMTP protocol steps. Only the steps the verifier actually walks are listed —
+ * STARTTLS upgrade, VRFY, and QUIT used to be separate enum members but were
+ * never reachable from production callers.
  */
 export enum SMTPStep {
   greeting = 'GREETING',
   ehlo = 'EHLO',
   helo = 'HELO',
-  startTls = 'STARTTLS',
   mailFrom = 'MAIL_FROM',
   rcptTo = 'RCPT_TO',
-  vrfy = 'VRFY',
-  quit = 'QUIT',
 }
 
-/**
- * Custom SMTP sequence configuration
- */
+/** Custom SMTP step sequence for advanced callers. */
 export interface SMTPSequence {
   steps: SMTPStep[];
+  /** Override MAIL FROM payload — supply with angle brackets or `<>` for null sender. */
   from?: string;
-  vrfyTarget?: string;
 }
 
-/**
- * SMTP verification options
- */
 export interface SMTPVerifyOptions {
   ports?: number[];
   timeout?: number;
-  maxRetries?: number;
   tls?: boolean | SMTPTLSConfig;
   hostname?: string;
-  useVRFY?: boolean;
-  cache?: Cache | null; // Cache instance or null/undefined for no caching
+  cache?: Cache | null;
   debug?: boolean;
-  sequence?: SMTPSequence; // Custom step sequence
+  sequence?: SMTPSequence;
 }
 
-/**
- * SMTP verification parameters
- */
 export interface VerifyMailboxSMTPParams {
   local: string;
   domain: string;
   mxRecords: string[];
   options?: SMTPVerifyOptions;
-}
-
-/**
- * Connection pool configuration
- */
-export interface ConnectionPoolConfig {
-  maxConnections?: number;
-  maxIdleTime?: number;
-  connectionTimeout?: number;
-}
-
-/**
- * Email suggestion for typo correction (deprecated - use DomainSuggestion)
- */
-export interface EmailSuggestion {
-  original: string;
-  suggested: string;
-  confidence: number;
 }
 
 /**

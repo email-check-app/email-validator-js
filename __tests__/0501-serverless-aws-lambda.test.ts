@@ -2,36 +2,54 @@
  * Tests for AWS Lambda serverless adapter
  */
 
+import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import { handler } from '../src/serverless/adapters/aws-lambda';
 
-// Mock the serverless verifier module
-jest.mock('../src/serverless/verifier', () => ({
-  validateEmailCore: jest.fn().mockImplementation(async (email: string) => ({
+// Mock the serverless verifier module BEFORE importing the handler that
+// pulls it in. `mock.module` is not hoisted (unlike jest.mock), so order
+// matters here. `mock(fn)` returns a spy with `.mockRejectedValueOnce` etc.
+const validateEmailCore = mock(async (email: string) => ({
+  valid: email.includes('@'),
+  email,
+  local: email.split('@')[0],
+  domain: email.split('@')[1] || '',
+  validators: {
+    syntax: { valid: email.includes('@') },
+    typo: { valid: true },
+    disposable: { valid: true },
+    free: { valid: !email.includes('gmail.com') },
+  },
+}));
+
+const validateEmailBatch = mock(async (emails: string[]) =>
+  emails.map((email) => ({
     valid: email.includes('@'),
     email,
     local: email.split('@')[0],
     domain: email.split('@')[1] || '',
-    validators: {
-      syntax: { valid: email.includes('@') },
-      typo: { valid: true },
-      disposable: { valid: true },
-      free: { valid: !email.includes('gmail.com') },
-    },
-  })),
-  validateEmailBatch: jest.fn().mockImplementation(async (emails: string[]) =>
-    emails.map((email) => ({
-      valid: email.includes('@'),
-      email,
-      local: email.split('@')[0],
-      domain: email.split('@')[1] || '',
-      validators: {
-        syntax: { valid: email.includes('@') },
-      },
-    }))
-  ),
-  clearCache: jest.fn(),
+    validators: { syntax: { valid: email.includes('@') } },
+  }))
+);
+
+const clearCache = mock(() => {});
+
+// Spread the real module so re-exports through ../src/serverless/index.ts
+// (e.g. EdgeCache) keep working for sibling test files that share this process.
+const actualVerifier = await import('../src/serverless/verifier');
+mock.module('../src/serverless/verifier', () => ({
+  ...actualVerifier,
+  validateEmailCore,
+  validateEmailBatch,
+  clearCache,
 }));
+
+const { handler } = await import('../src/serverless/adapters/aws-lambda');
+
+// Restore the real verifier module after this suite runs so subsequent
+// test files (e.g. 0500-serverless-core) see the unmocked exports.
+afterAll(() => {
+  mock.module('../src/serverless/verifier', () => actualVerifier);
+});
 
 describe('0501 Serverless AWS Lambda', () => {
   const mockContext: Context = {

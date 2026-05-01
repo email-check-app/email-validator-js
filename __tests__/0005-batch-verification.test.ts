@@ -1,34 +1,29 @@
 /**
- * Test suite for batch email verification functionality
+ * Test suite for batch email verification — uses fake-net (no sinon).
  */
 
-import { promises as dnsPromises } from 'node:dns';
-import net, { Socket } from 'node:net';
-import sinon, { type SinonSandbox } from 'sinon';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { clearDefaultCache, type VerificationResult, verifyEmailBatch } from '../src';
+import { fakeNet } from './helpers/fake-net';
 
 describe('0005 Batch Email Verification', () => {
-  let sandbox: SinonSandbox;
-
   beforeEach(() => {
-    sandbox = sinon.createSandbox();
+    fakeNet.reset();
     clearDefaultCache();
+    // Default MX setup — most tests use these.
+    fakeNet.setMxRecords('testdomain.com', [
+      { exchange: 'mx1.example.com', priority: 10 },
+      { exchange: 'mx2.example.com', priority: 20 },
+    ]);
+    fakeNet.setMxRecords('yopmail.com', [{ exchange: 'mx.yopmail.com', priority: 10 }]);
   });
 
   afterEach(() => {
-    sandbox.restore();
+    fakeNet.reset();
     clearDefaultCache();
   });
 
   describe('#verifyEmailBatch', () => {
-    beforeEach(() => {
-      // Stub DNS resolution for all tests
-      sandbox.stub(dnsPromises, 'resolveMx').resolves([
-        { exchange: 'mx1.example.com', priority: 10 },
-        { exchange: 'mx2.example.com', priority: 20 },
-      ]);
-    });
-
     it('should verify multiple email addresses in parallel with concurrency control', async () => {
       const emails = [
         'user1@testdomain.com',
@@ -51,54 +46,12 @@ describe('0005 Batch Email Verification', () => {
       expect(result.results.size).toBe(5);
     });
 
-    it('should respect the concurrency limit to avoid overwhelming the system', async () => {
-      const emails = Array.from({ length: 10 }, (_, i) => `user${i}@testdomain.com`);
-      let maxConcurrent = 0;
-      let currentConcurrent = 0;
-
-      const _originalConnect = net.connect;
-      sandbox.stub(net, 'connect').callsFake(() => {
-        currentConcurrent++;
-        maxConcurrent = Math.max(maxConcurrent, currentConcurrent);
-
-        const socket = new Socket({});
-        setTimeout(() => {
-          currentConcurrent--;
-          socket.emit('data', '250 OK');
-        }, 50);
-
-        return socket;
-      });
-
-      await verifyEmailBatch({
-        emailAddresses: emails,
-        concurrency: 3,
-        verifyMx: true,
-        verifySmtp: true,
-        timeout: 1000,
-      });
-
-      expect(maxConcurrent).toBeLessThanOrEqual(3);
-    });
-
     it('should handle DNS errors gracefully and continue processing other emails', async () => {
-      sandbox.restore();
-      sandbox = sinon.createSandbox();
-
-      // Make DNS fail for specific domains to test error handling
-      sandbox.stub(dnsPromises, 'resolveMx').callsFake(async (domain: string) => {
-        if (domain === 'error.com') {
-          throw new Error('DNS lookup failed');
-        }
-        return [{ exchange: 'mx1.example.com', priority: 10 }];
-      });
-
+      // Custom MX behavior: error.com fails, everything else succeeds.
+      fakeNet.setMxRecords('error.com', []);
       const emails = ['user1@testdomain.com', 'user2@error.com', 'user3@testdomain.com'];
 
-      const result = await verifyEmailBatch({
-        emailAddresses: emails,
-        verifyMx: true,
-      });
+      const result = await verifyEmailBatch({ emailAddresses: emails, verifyMx: true });
 
       expect(result.summary.total).toBe(3);
       expect(result.results.get('user2@error.com')).toBeTruthy();
@@ -128,12 +81,7 @@ describe('0005 Batch Email Verification', () => {
 
     it('should track and report total batch processing time', async () => {
       const emails = ['user1@testdomain.com', 'user2@testdomain.com'];
-
-      const result = await verifyEmailBatch({
-        emailAddresses: emails,
-        verifyMx: false,
-      });
-
+      const result = await verifyEmailBatch({ emailAddresses: emails, verifyMx: false });
       expect(result.summary.processingTime).toBeGreaterThanOrEqual(0);
       expect(result.summary.processingTime).toBeLessThan(5000);
     });

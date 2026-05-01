@@ -74,14 +74,17 @@
     "lint": "biome check",
     "lint:fix": "biome check --write",
     "prepare": "husky",
-    "prepublishOnly": "yarn build",
+    "prepublishOnly": "bun run build",
     "release": "semantic-release",
     "release:dry": "semantic-release --dry-run",
-    "test": "jest --config jest.config.js",
-    "test:unit": "jest --config jest.config.js",
-    "test:integration": "jest --config jest.integration.config.js",
-    "test:all": "yarn test:unit && yarn test:integration",
-    "test-ci": "jest --config jest.config.js",
+    "test": "bun run test:core && bun run test:adapters",
+    "test:unit": "bun run test",
+    "test:core": "bun test __tests__/0005-batch-verification.test.ts __tests__/0006-detailed-verification.test.ts __tests__/0008-utils.test.ts __tests__/0107-socket-mock.test.ts __tests__/0110-smtp-verifier.unit.test.ts __tests__/0111-smtp-dsn.test.ts __tests__/0200-cache.test.ts __tests__/0203-redis-adapter.test.ts __tests__/0204-redis-scan-clear.test.ts __tests__/0205-lru-adapter.test.ts __tests__/0300-domain-suggester.test.ts __tests__/0301-parse-domain-whois-data.test.ts __tests__/0303-whois-unit.test.ts __tests__/0304-integrated-domain-suggestion.test.ts __tests__/0305-integrated-name-detection-legacy.test.ts __tests__/0306-whois-parser-tld-dispatch.test.ts __tests__/0402-name-detector.test.ts __tests__/0403-integrated-name-detection.test.ts __tests__/0500-serverless-core.test.ts __tests__/0503-is-spam-name.test.ts __tests__/0510-shared-validation.test.ts __tests__/0511-shared-cors.test.ts __tests__/0530-edge-cache.test.ts __tests__/0600-spam-detection.test.ts --concurrency=1",
+    "test:adapters": "bun test __tests__/0501-serverless-aws-lambda.test.ts __tests__/0502-serverless-vercel.test.ts __tests__/0512-shared-dispatch.test.ts --concurrency=1",
+    "test:extras": "bun test extras/check-if-email-exists/__tests__ --concurrency=1",
+    "test:integration": "INTEGRATION=1 bun test __tests__/integration --concurrency=1",
+    "test:all": "bun run test && bun run test:integration",
+    "test-ci": "bun run test",
     "typecheck": "tsc --pretty --skipLibCheck --noEmit && tsc --project tsconfig.test.json --pretty --skipLibCheck --noEmit"
   },
   "lint-staged": {
@@ -99,29 +102,26 @@
     "tiny-lru": "^13.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.10",
+    "@biomejs/biome": "^2.4.13",
     "@rollup/plugin-commonjs": "^29.0.2",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/aws-lambda": "^8.10.161",
-    "@types/jest": "^30.0.0",
-    "@types/node": "25.5.2",
-    "@types/sinon": "21.0.1",
+    "@types/bun": "^1.3.13",
+    "@types/node": "25.6.0",
     "esbuild": "^0.28.0",
     "husky": "9.1.7",
-    "jest": "^30.3.0",
     "lint-staged": "16.4.0",
-    "rollup": "^4.60.1",
+    "rollup": "^4.60.2",
     "rollup-plugin-esbuild": "^6.2.1",
-    "sinon": "21.0.3",
-    "ts-jest": "^29.4.9",
     "tslib": "^2.8.1",
-    "typescript": "6.0.2"
+    "typescript": "6.0.3"
   },
-  "packageManager": "yarn@1.22.22+sha256.c17d3797fb9a9115bf375e31bfd30058cac6bc9c3b8807a3d8cb2094794b51ca",
+  "packageManager": "bun@1.3.13",
   "engines": {
-    "node": ">= 18.0"
+    "node": ">= 18.0",
+    "bun": ">= 1.3"
   }
 }

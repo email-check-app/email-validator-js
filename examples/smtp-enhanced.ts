@@ -3,7 +3,7 @@
 // This example demonstrates the new enhanced SMTP verification capabilities
 // including TLS support, multiple port testing, and advanced configuration options.
 
-import { resolveMx } from 'dns/promises';
+import { resolveMx } from 'node:dns/promises';
 import { getDefaultCache } from '../src/cache';
 import { verifyMailboxSMTP } from '../src/smtp-verifier';
 
@@ -82,9 +82,7 @@ async function secureVerification(email: string) {
       options: {
         cache: getDefaultCache(),
         hostname: 'your-domain.com', // Use your actual domain
-        useVRFY: true, // Enable VRFY fallback
         timeout: 10000, // Longer timeout for secure connections
-        maxRetries: 3, // More retries for reliability
         debug: true,
         tls: {
           rejectUnauthorized: true, // Strict certificate validation
@@ -117,7 +115,6 @@ async function testSpecificPort(email: string, port: number) {
       mxRecords: mxHosts,
       options: {
         ports: [port],
-        maxRetries: 2,
         timeout: 3000,
         debug: true,
         tls: {
@@ -153,7 +150,6 @@ async function fastVerification(emails: string[]) {
         mxRecords: mxHosts,
         options: {
           timeout: 2000, // Short timeout
-          maxRetries: 1, // Minimal retries
           debug: false, // No debug logging for speed
           cache: getDefaultCache(), // Enable caching
           tls: {
