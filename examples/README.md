@@ -1,79 +1,88 @@
 # Email Validator JS — Examples
 
-Runnable examples for the public API. Each file is a standalone script you
-can execute with **`bun run examples/<file>`** (Bun runs TypeScript directly
-without a compile step).
-
-## 🚀 Quick Start
+Runnable examples for the public API, grouped by topic. Bun runs TypeScript
+directly, so any standalone `.ts` example below executes with:
 
 ```bash
-# Install (uses bun.lock)
-bun install
-
-# Typecheck
-bun run typecheck
-
-# Run the default test suite
-bun run test
+bun run examples/<folder>/<file>.ts
 ```
 
-## 📁 Examples by topic
+## Quick start
 
-### Core SMTP
+```bash
+bun install         # uses bun.lock
+bun run typecheck   # tsc against src + tests + examples
+bun run test        # default test suite
+```
 
-| File                                           | What it shows                                                                              |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| [`smtp-usage.ts`](./smtp-usage.ts)             | Minimal `verifyMailboxSMTP` call — pre-resolved MX records, port walk, cache               |
-| [`smtp-test.ts`](./smtp-test.ts)               | Multi-port smoke test: 25/587/465 with timeouts                                            |
-| [`smtp-enhanced.ts`](./smtp-enhanced.ts)       | TLS configuration + custom step sequence                                                   |
-| [`smtp-caching-example.ts`](./smtp-caching-example.ts) | Cache hit-rate measurement, port-cache reuse                                       |
+## Layout
 
-### Caching
+```
+examples/
+├── README.md
+├── cli-usage.md             ← `email-validate` CLI recipes
+├── smtp/                    ← Direct SMTP-probe API (verifyMailboxSMTP)
+├── cache/                   ← Custom CacheStore<T> implementations
+├── high-level/              ← verifyEmail orchestration + name / domain
+├── integrations/            ← Plugging the validator into other tools
+└── serverless/              ← Deploy-ready scaffolding per platform
+```
+
+## SMTP — direct probe API
+
+| File                                          | What it shows                                                     |
+| --------------------------------------------- | ----------------------------------------------------------------- |
+| [`smtp/usage.ts`](./smtp/usage.ts)             | Minimal `verifyMailboxSMTP` call: pre-resolved MX, port walk      |
+| [`smtp/test.ts`](./smtp/test.ts)               | Multi-port smoke test: 25/587/465 with timeouts                   |
+| [`smtp/enhanced.ts`](./smtp/enhanced.ts)       | TLS configuration + custom step sequence + caching                |
+| [`smtp/caching.ts`](./smtp/caching.ts)         | Cache hit-rate measurement, port-cache reuse                      |
+
+## Caching
 
 | File                                              | Backend                                       |
 | ------------------------------------------------- | --------------------------------------------- |
-| [`custom-cache-memory.ts`](./custom-cache-memory.ts) | Custom in-memory `CacheStore<T>` implementation |
-| [`custom-cache-redis.ts`](./custom-cache-redis.ts)   | `RedisAdapter` + `ioredis`-compatible client |
+| [`cache/custom-memory.ts`](./cache/custom-memory.ts) | Custom in-memory `CacheStore<T>` implementation |
+| [`cache/custom-redis.ts`](./cache/custom-redis.ts)   | `RedisAdapter` + `ioredis`-compatible client |
 
-### High-level API + integrations
+## High-level API
 
 | File                                                              | Topic                                                |
 | ----------------------------------------------------------------- | ---------------------------------------------------- |
-| [`advanced-usage.ts`](./advanced-usage.ts)                        | Full `verifyEmail` orchestration with every flag     |
-| [`domain-suggestion-example.ts`](./domain-suggestion-example.ts)  | Typo detection / closest-domain suggestion           |
-| [`name-detection-example.ts`](./name-detection-example.ts)        | First/last name extraction from local-part           |
-| [`algolia-integration.ts`](./algolia-integration.ts)              | Pattern for plugging the validator into a search UI  |
+| [`high-level/advanced-usage.ts`](./high-level/advanced-usage.ts)  | Full `verifyEmail` orchestration with every flag     |
+| [`high-level/domain-suggestion.ts`](./high-level/domain-suggestion.ts) | Typo detection / closest-domain suggestion       |
+| [`high-level/name-detection.ts`](./high-level/name-detection.ts)  | First/last name extraction from local-part           |
 
-### CLI
+## Integrations
+
+| File                                                  | Topic                                                |
+| ----------------------------------------------------- | ---------------------------------------------------- |
+| [`integrations/algolia.ts`](./integrations/algolia.ts) | Pattern for plugging the validator into a search UI |
+
+## CLI
 
 | File                                       | What it shows                                         |
 | ------------------------------------------ | ----------------------------------------------------- |
 | [`cli-usage.md`](./cli-usage.md)           | `email-validate` recipes, flags, JSON log file shape, programmatic embedding |
 
-### Serverless deployments
+## Serverless deployments
 
-Deploy-ready scaffolding for the serverless build (`@emailcheck/email-validator-js/serverless/*`).
-See [SERVERLESS.md](../SERVERLESS.md) for the full API surface, DNS resolver
+Deploy-ready scaffolding for the serverless build
+(`@emailcheck/email-validator-js/serverless/*`). See
+[../SERVERLESS.md](../SERVERLESS.md) for the full API surface, DNS resolver
 patterns, KV write-through, and Durable Objects.
 
 | Folder                                                                       | Platform                            |
 | ---------------------------------------------------------------------------- | ----------------------------------- |
 | [`serverless/aws-lambda/`](./serverless/aws-lambda/)                         | AWS Lambda + Serverless Framework   |
+| [`serverless/gcp/`](./serverless/gcp/)                                       | GCP Cloud Functions (2nd gen)       |
 | [`serverless/vercel-edge/`](./serverless/vercel-edge/)                       | Vercel Edge Function                |
 | [`serverless/cloudflare-worker/`](./serverless/cloudflare-worker/)           | Cloudflare Workers + Durable Object |
+| [`serverless/netlify/`](./serverless/netlify/)                               | Netlify Functions                   |
+| [`serverless/azure/`](./serverless/azure/)                                   | Azure Functions (v4 model)          |
 | [`serverless/deno-deploy/`](./serverless/deno-deploy/)                       | Deno Deploy                         |
 | [`serverless/browser/`](./serverless/browser/)                               | Browser-side (no Node APIs)         |
 
-## 🔧 Running
-
-```bash
-# Bun runs .ts directly — no transpile step
-bun run examples/smtp-usage.ts
-bun run examples/advanced-usage.ts
-bun run examples/custom-cache-memory.ts
-```
-
-## ⚙️ Common patterns
+## Common patterns
 
 ### Verify with the default cache
 
@@ -127,11 +136,14 @@ const parsed = parseSmtpError('552 5.2.2 mailbox over quota');
 // { isDisabled: false, hasFullInbox: true, isCatchAll: false, isInvalid: false }
 ```
 
-## 🤝 Contributing examples
+## Contributing examples
 
 If you add a new example:
 
-1. Keep it self-contained — one runnable script, one topic.
-2. Comment the *why*, not the *what* — readers can read the API, they want to know when to use it.
-3. Add it to the table above with a one-line description.
+1. Drop it into the topic folder that fits — `smtp/`, `cache/`, `high-level/`,
+   `integrations/`, or `serverless/<platform>/`. New topic? Add the folder
+   + one short row in this README.
+2. Keep it self-contained — one runnable script, one topic.
+3. Comment the *why*, not the *what* — readers can read the API, they want
+   to know when to use it.
 4. Run `bun run typecheck` before committing.

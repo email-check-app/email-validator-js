@@ -1,9 +1,15 @@
 // Example of using custom cache with SMTP verification
 
-import type { Cache, DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from '../src';
-import { getDefaultCache } from '../src';
-import { verifyMailboxSMTP } from '../src/smtp-verifier';
-import type { ParsedWhoisResult } from '../src/whois-parser';
+import type {
+  Cache,
+  DisposableEmailResult,
+  DomainValidResult,
+  FreeEmailResult,
+  SmtpVerificationResult,
+} from '../../src';
+import { getDefaultCache } from '../../src';
+import { verifyMailboxSMTP } from '../../src/smtp-verifier';
+import type { ParsedWhoisResult } from '../../src/whois-parser';
 
 // Example custom cache implementation
 class CustomMemoryCache implements Cache {

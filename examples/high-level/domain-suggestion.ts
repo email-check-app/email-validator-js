@@ -6,7 +6,7 @@ import {
   suggestEmailDomain,
   verifyEmail,
   verifyEmailBatch,
-} from '../src';
+} from '../../src';
 
 // Example 1: Basic domain suggestion
 console.log('Basic Domain Suggestion Examples:');

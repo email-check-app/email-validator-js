@@ -853,24 +853,22 @@ For verification across the entire pipeline (syntax / disposable / free / MX / S
 
 ### Running Examples
 
+Examples are grouped by topic under `examples/`. See [examples/README.md](./examples/README.md) for the full index.
+
 ```bash
 # Bun runs TS directly — no compilation step
-bun run examples/smtp-usage.ts
-bun run examples/smtp-test.ts
-bun run examples/smtp-enhanced.ts
-bun run examples/custom-cache-memory.ts
-bun run examples/algolia-integration.ts
+bun run examples/smtp/usage.ts
+bun run examples/smtp/enhanced.ts
+bun run examples/cache/custom-memory.ts
+bun run examples/high-level/advanced-usage.ts
+bun run examples/integrations/algolia.ts
 ```
 
-**After installation in your own project:**
+**After installation in your own project (Node 20.10+):**
+
 ```bash
-bun run build
-node --experimental-strip-types examples/smtp-usage.ts
-
-# Requires Node.js 20.10+ or Node.js 21.0+ for --experimental-strip-types support
+node --experimental-strip-types examples/smtp/usage.ts
 ```
-
-**For current development, use `npx ts-node` which imports directly from source files with full type checking.**
 
 ### Name Detection (ENHANCED)
 ```typescript
@@ -1607,25 +1605,42 @@ email-validator-js/
 │       │   ├── cors.ts
 │       │   ├── dispatch.ts
 │       │   └── validation.ts
-│       └── adapters/            # AWS Lambda, Vercel, Cloudflare
+│       └── adapters/            # AWS, GCP, Vercel, Cloudflare, Netlify, Azure
 ├── __tests__/
-│   ├── helpers/                 # Shared fake-net + setup
+│   ├── unit/                    # Default suite — pure unit + mocked-IO
+│   ├── isolated/                # Tests using mock.module (own bun-test process)
 │   ├── integration/             # Real-network suite (INTEGRATION=1)
-│   └── *.test.ts                # Unit + mocked-IO suites
+│   ├── helpers/                 # Shared fake-net + setup
+│   └── utils/                   # Shared test fixtures
 ├── extras/check-if-email-exists/  # Out-of-scope module + its tests
+├── examples/
+│   ├── smtp/                    # Direct SMTP-probe API usage
+│   ├── cache/                   # Custom CacheStore implementations
+│   ├── high-level/              # verifyEmail orchestration / names / domains
+│   ├── integrations/            # Patterns for plugging into other tools
+│   └── serverless/              # One folder per platform (AWS, GCP, ...)
 └── dist/                        # Rollup output (CJS + ESM)
 ```
 
 ### Scripts
 ```bash
-bun run build           # Rollup CJS + ESM bundles
-bun run test            # Default: unit + mocked-IO (~730 tests)
-bun run test:integration  # Real-network suite (INTEGRATION=1)
-bun run test:extras     # check-if-email-exists module (opt-in, ~200 tests)
-bun run test:all        # test + test:integration
-bun run lint            # Biome check
-bun run lint:fix        # Biome check --write
-bun run typecheck       # tsc against src + tests
+bun run build              # Rollup CJS + ESM bundles
+bun run test               # Default: unit + isolated (~770 tests)
+bun run test:unit          # Just the unit suite
+bun run test:isolated      # Tests needing mock.module isolation
+bun run test:integration   # Real-network suite (INTEGRATION=1)
+bun run test:extras        # check-if-email-exists module (opt-in, ~200 tests)
+bun run test:all           # test + test:integration
+# Domain-specific filters (glob over __tests__/unit/):
+bun run test:smtp          # 01xx
+bun run test:cache         # 02xx
+bun run test:whois         # 03xx
+bun run test:names         # 04xx
+bun run test:serverless    # 05xx + isolated/
+bun run test:cli           # 07xx
+bun run lint               # Biome check
+bun run lint:fix           # Biome check --write
+bun run typecheck          # tsc against src + tests + examples
 ```
 
 ## Contributing

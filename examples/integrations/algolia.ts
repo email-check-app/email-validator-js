@@ -5,8 +5,8 @@
  * in a typical application where you need to clean user names from emails.
  */
 
-import { cleanNameForAlgorithm, detectNameForAlgorithm, verifyEmail } from '../src/index';
-import type { VerificationResult } from '../src/types';
+import { cleanNameForAlgorithm, detectNameForAlgorithm, verifyEmail } from '../../src/index';
+import type { VerificationResult } from '../../src/types';
 
 // Example 1: Email verification with Algorithm name detection
 async function processUserRegistration(email: string): Promise<void> {

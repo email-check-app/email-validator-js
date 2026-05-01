@@ -3,13 +3,13 @@
  * This demonstrates how to configure the email validator with Redis cache
  */
 
-import { verifyEmail } from '../src';
+import { verifyEmail } from '../../src';
 // Mock Redis client for demonstration. In production, plug in `ioredis` or
 // the official `redis` package — both implement this surface.
-import type { RedisClient } from '../src/adapters/redis-adapter';
-import { RedisAdapter } from '../src/adapters/redis-adapter';
-import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
-import type { Cache } from '../src/cache-interface';
+import type { RedisClient } from '../../src/adapters/redis-adapter';
+import { RedisAdapter } from '../../src/adapters/redis-adapter';
+import { DEFAULT_CACHE_OPTIONS } from '../../src/cache';
+import type { Cache } from '../../src/cache-interface';
 
 const mockRedisClient: RedisClient = {
   async get(key: string): Promise<string | null> {

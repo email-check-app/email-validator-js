@@ -3,10 +3,15 @@
  * This demonstrates how to create a custom cache store with advanced features
  */
 
-import { getDefaultCache, verifyEmail } from '../src';
-import { DEFAULT_CACHE_OPTIONS } from '../src/cache';
-import type { Cache, CacheStore } from '../src/cache-interface';
-import type { DisposableEmailResult, DomainValidResult, FreeEmailResult, SmtpVerificationResult } from '../src/types';
+import { getDefaultCache, verifyEmail } from '../../src';
+import { DEFAULT_CACHE_OPTIONS } from '../../src/cache';
+import type { Cache, CacheStore } from '../../src/cache-interface';
+import type {
+  DisposableEmailResult,
+  DomainValidResult,
+  FreeEmailResult,
+  SmtpVerificationResult,
+} from '../../src/types';
 
 /**
  * Custom in-memory cache with time-based expiration and statistics

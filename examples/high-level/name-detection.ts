@@ -1,4 +1,4 @@
-import { detectName, detectNameFromEmail, type NameDetectionMethod, verifyEmail, verifyEmailBatch } from '../src';
+import { detectName, detectNameFromEmail, type NameDetectionMethod, verifyEmail, verifyEmailBatch } from '../../src';
 
 // Example 1: Basic name detection
 console.log('Basic Name Detection Examples:');

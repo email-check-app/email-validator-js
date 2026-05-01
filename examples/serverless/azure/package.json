@@ -1,0 +1,19 @@
+{
+  "name": "email-validator-azure-example",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/functions/validateEmail.js",
+  "scripts": {
+    "start": "func start",
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.7.0",
+    "@emailcheck/email-validator-js": "^3.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

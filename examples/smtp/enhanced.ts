@@ -4,8 +4,8 @@
 // including TLS support, multiple port testing, and advanced configuration options.
 
 import { resolveMx } from 'node:dns/promises';
-import { getDefaultCache } from '../src/cache';
-import { verifyMailboxSMTP } from '../src/smtp-verifier';
+import { getDefaultCache } from '../../src/cache';
+import { verifyMailboxSMTP } from '../../src/smtp-verifier';
 
 // Example 1: Basic usage with default settings (tests ports 25, 587, 465)
 async function basicVerification(email: string) {

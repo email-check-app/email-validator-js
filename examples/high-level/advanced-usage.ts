@@ -5,7 +5,7 @@ import {
   VerificationErrorCode,
   verifyEmail,
   verifyEmailBatch,
-} from '../src';
+} from '../../src';
 
 async function basicUsage() {
   console.log('=== Basic Email Verification ===');
