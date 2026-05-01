@@ -1,10 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "strict": false,
-    "noImplicitThis": false,
-    "strictNullChecks": false,
-    "strictPropertyInitialization": false,
+    "declaration": false,
+    "declarationDir": null,
+    "types": ["node", "bun"]
   },
   "include": [
     "__tests__/**/*",

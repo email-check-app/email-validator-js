@@ -1,27 +1,29 @@
 /**
- * Core serverless email validator
- * Platform-agnostic implementation without Node.js dependencies
+ * Edge-runtime / serverless email validator.
+ *
+ * No Node.js APIs (no `node:net`, no `node:dns`) — DNS is delegated to a
+ * caller-supplied `DNSResolver`, so the same code runs on Cloudflare Workers,
+ * Vercel Edge, Lambda@Edge, and Deno Deploy.
+ *
+ * Shares data with the main validator: `commonEmailDomains` and the typo map
+ * are imported from `src/data/`, so we never drift between the two surfaces.
  */
 
-// Import utility functions
 import { stringSimilarity } from 'string-similarity-js';
-
-// Import full data files for comprehensive validation
-// These are the complete, unminified JSON files
+import commonEmailDomainsJson from '../data/common-email-domains.json';
+import typoPatternsJson from '../data/typo-patterns.json';
 import disposableProviders from '../disposable-email-providers.json';
 import freeProviders from '../free-email-providers.json';
 import type { DomainSuggesterOptions, EmailValidationResult, ValidateEmailOptions } from '../types';
 
-// Platform-agnostic cache implementation
+/** Compact LRU/TTL cache. One Map, expiry stamp per entry, batched eviction. */
 export class EdgeCache<T> {
-  private cache = new Map<string, { value: T; expires: number }>();
-  private maxSize: number;
-  private ttl: number;
+  private readonly cache = new Map<string, { value: T; expires: number }>();
 
-  constructor(maxSize = 1000, ttl = 3600000) {
-    this.maxSize = maxSize;
-    this.ttl = ttl;
-  }
+  constructor(
+    private readonly maxSize = 1000,
+    private readonly ttl = 3_600_000
+  ) {}
 
   get(key: string): T | undefined {
     const item = this.cache.get(key);
@@ -34,16 +36,8 @@ export class EdgeCache<T> {
   }
 
   set(key: string, value: T): void {
-    if (this.cache.size >= this.maxSize) {
-      // Remove oldest entries
-      const entriesToRemove = Math.max(1, Math.floor(this.maxSize * 0.1));
-      const keys = Array.from(this.cache.keys()).slice(0, entriesToRemove);
-      keys.forEach((key) => this.cache.delete(key));
-    }
-    this.cache.set(key, {
-      value,
-      expires: Date.now() + this.ttl,
-    });
+    if (this.cache.size >= this.maxSize) this.evict();
+    this.cache.set(key, { value, expires: Date.now() + this.ttl });
   }
 
   clear(): void {
@@ -53,233 +47,227 @@ export class EdgeCache<T> {
   size(): number {
     return this.cache.size;
   }
+
+  private evict(): void {
+    // Drop the oldest 10% in one pass — Map preserves insertion order so
+    // `keys()` walks oldest-first.
+    const drop = Math.max(1, Math.floor(this.maxSize * 0.1));
+    let n = 0;
+    for (const key of this.cache.keys()) {
+      if (n++ >= drop) break;
+      this.cache.delete(key);
+    }
+  }
 }
 
-// Global cache instances
+// Module-level per-isolate caches. Edge runtimes get cold-start fresh; warm
+// invocations benefit from the in-memory hits.
 export const validationCache = new EdgeCache<EmailValidationResult>(1000);
 export const mxCache = new EdgeCache<string[]>(500);
 
-// Email validation regex patterns
+/** Same regex the main validator uses — kept inline because edge runtimes don't auto-resolve psl. */
 const VALID_EMAIL_REGEX =
-  /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  /^(([a-zA-Z0-9_+'-]+(\.[a-zA-Z0-9_+'-]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}))$/;
 
-// Common email provider domains for typo detection
-export const COMMON_DOMAINS = [
-  'gmail.com',
-  'yahoo.com',
-  'hotmail.com',
-  'outlook.com',
-  'icloud.com',
-  'aol.com',
-  'msn.com',
-  'live.com',
-  'ymail.com',
-  'protonmail.com',
-  'zoho.com',
-  'mail.com',
-  'gmx.com',
-  'fastmail.com',
-  'tutanota.com',
-  'qq.com',
-  '163.com',
-  '126.com',
-  'sina.com',
-  'foxmail.com',
-  'yandex.com',
-  'mail.ru',
-  'rambler.ru',
-  'gmx.de',
-  'web.de',
-  't-online.de',
-  'orange.fr',
-  'wanadoo.fr',
-  'free.fr',
-  'sfr.fr',
-  'laposte.net',
-  'libero.it',
-  'virgilio.it',
-  'alice.it',
-  'tin.it',
-  'bt.com',
-  'btinternet.com',
-  'virginmedia.com',
-  'sky.com',
-  'talktalk.net',
-  'rogers.com',
-  'shaw.ca',
-  'sympatico.ca',
-  'bellsouth.net',
-  'comcast.net',
-  'cox.net',
-  'earthlink.net',
-  'charter.net',
-  'optonline.net',
-  'verizon.net',
-  'att.net',
-  'sbcglobal.net',
-  'me.com',
-  'mac.com',
-  'rocketmail.com',
-];
+/**
+ * Common email domains — re-exported so callers (Vercel Edge, etc.) can pass a
+ * custom subset via `DomainSuggesterOptions.customDomains`.
+ */
+export const COMMON_DOMAINS: readonly string[] = commonEmailDomainsJson as string[];
 
-// Common typo patterns
-const TYPO_PATTERNS = [
-  // Gmail typos
-  { pattern: /gmial\.com$/i, replacement: 'gmail.com' },
-  { pattern: /gmai\.com$/i, replacement: 'gmail.com' },
-  { pattern: /gmil\.com$/i, replacement: 'gmail.com' },
-  { pattern: /gmail\.co$/i, replacement: 'gmail.com' },
-  { pattern: /gmail\.con$/i, replacement: 'gmail.com' },
-  { pattern: /gmail\.cm$/i, replacement: 'gmail.com' },
-  { pattern: /gmal\.com$/i, replacement: 'gmail.com' },
-  { pattern: /gnail\.com$/i, replacement: 'gmail.com' },
+const TYPO_PATTERNS = typoPatternsJson as Record<string, string[]>;
+/** Reverse index for O(1) typo → canonical lookup. */
+const TYPO_LOOKUP = new Map<string, string>();
+for (const [canonical, typos] of Object.entries(TYPO_PATTERNS)) {
+  for (const typo of typos) TYPO_LOOKUP.set(typo, canonical);
+}
 
-  // Yahoo typos
-  { pattern: /yahooo\.com$/i, replacement: 'yahoo.com' },
-  { pattern: /yaho\.com$/i, replacement: 'yahoo.com' },
-  { pattern: /yahoo\.co$/i, replacement: 'yahoo.com' },
-  { pattern: /yaoo\.com$/i, replacement: 'yahoo.com' },
-  { pattern: /yaboo\.com$/i, replacement: 'yahoo.com' },
-
-  // Hotmail typos
-  { pattern: /hotmial\.com$/i, replacement: 'hotmail.com' },
-  { pattern: /hotmai\.com$/i, replacement: 'hotmail.com' },
-  { pattern: /hotmil\.com$/i, replacement: 'hotmail.com' },
-  { pattern: /hotmail\.co$/i, replacement: 'hotmail.com' },
-  { pattern: /hormail\.com$/i, replacement: 'hotmail.com' },
-
-  // Outlook typos
-  { pattern: /outlok\.com$/i, replacement: 'outlook.com' },
-  { pattern: /outloo\.com$/i, replacement: 'outlook.com' },
-  { pattern: /outlook\.co$/i, replacement: 'outlook.com' },
-  { pattern: /putlook\.com$/i, replacement: 'outlook.com' },
-
-  // iCloud typos
-  { pattern: /iclud\.com$/i, replacement: 'icloud.com' },
-  { pattern: /icloud\.co$/i, replacement: 'icloud.com' },
-  { pattern: /icoud\.com$/i, replacement: 'icloud.com' },
-];
-
-// Platform-agnostic DNS resolution interface
+/** DNS resolver contract — caller-supplied so we don't import `node:dns`. */
 export interface DNSResolver {
   resolveMx(domain: string): Promise<Array<{ exchange: string; priority: number }>>;
-
   resolveTxt(domain: string): Promise<string[]>;
 }
 
-// Stub DNS resolver for environments without DNS capabilities
+/** No-op resolver for environments where DNS isn't available. */
 export class StubDNSResolver implements DNSResolver {
-  async resolveMx(_domain: string): Promise<Array<{ exchange: string; priority: number }>> {
-    // Return null to indicate DNS is not available
+  async resolveMx(): Promise<Array<{ exchange: string; priority: number }>> {
     return [];
   }
-
-  async resolveTxt(_domain: string): Promise<string[]> {
+  async resolveTxt(): Promise<string[]> {
     return [];
   }
 }
 
-// Domain suggestion function
-export function suggestDomain(domain: string, options?: DomainSuggesterOptions): string | null {
-  const threshold = options?.threshold || 2;
-  const domains = options?.customDomains || COMMON_DOMAINS;
+/**
+ * DNS-over-HTTPS resolver — works in any runtime with `fetch` (Cloudflare
+ * Workers, Vercel Edge, Deno, browsers, Node 18+). Defaults to Cloudflare's
+ * 1.1.1.1 endpoint; pass `endpoint` to use Google (8.8.8.8), NextDNS, or
+ * a self-hosted resolver.
+ *
+ * Compatible with [`cf-doh`](https://www.npmjs.com/package/cf-doh) — if you
+ * already use that, drop it in directly. This built-in keeps the package
+ * zero-dep so the same code works on every edge runtime without an extra
+ * install step.
+ */
+export interface DoHResolverOptions {
+  /** DoH endpoint URL. Default: https://cloudflare-dns.com/dns-query */
+  endpoint?: string;
+  /** Per-query request timeout, ms. Default: 5000 */
+  timeoutMs?: number;
+  /** Custom fetch (e.g. to add headers / proxy). Default: globalThis.fetch */
+  fetch?: typeof fetch;
+}
 
-  // Check common typos first
-  for (const { pattern, replacement } of TYPO_PATTERNS) {
-    if (pattern.test(domain)) {
-      return replacement;
+interface DoHAnswer {
+  name: string;
+  type: number;
+  TTL: number;
+  data: string;
+}
+
+interface DoHResponse {
+  Status: number;
+  Answer?: DoHAnswer[];
+}
+
+const DOH_RECORD_TYPE = { MX: 15, TXT: 16 } as const;
+
+export class DoHResolver implements DNSResolver {
+  private readonly endpoint: string;
+  private readonly timeoutMs: number;
+  private readonly fetchFn: typeof fetch;
+
+  constructor(options: DoHResolverOptions = {}) {
+    this.endpoint = options.endpoint ?? 'https://cloudflare-dns.com/dns-query';
+    this.timeoutMs = options.timeoutMs ?? 5000;
+    this.fetchFn = options.fetch ?? globalThis.fetch;
+  }
+
+  async resolveMx(domain: string): Promise<Array<{ exchange: string; priority: number }>> {
+    const records = await this.query(domain, DOH_RECORD_TYPE.MX);
+    if (!records) return [];
+    return records
+      .map((answer) => {
+        // MX answer data: "<priority> <exchange>" (with optional trailing dot).
+        const match = answer.data.match(/^(\d+)\s+(.+?)\.?$/);
+        if (!match) return null;
+        return { priority: Number(match[1]), exchange: match[2] as string };
+      })
+      .filter((r): r is { exchange: string; priority: number } => r !== null)
+      .sort((a, b) => a.priority - b.priority);
+  }
+
+  async resolveTxt(domain: string): Promise<string[]> {
+    const records = await this.query(domain, DOH_RECORD_TYPE.TXT);
+    if (!records) return [];
+    // TXT answers come back as quoted strings — strip the surrounding quotes.
+    return records.map((answer) => answer.data.replace(/^"(.*)"$/, '$1'));
+  }
+
+  private async query(domain: string, type: number): Promise<DoHAnswer[] | null> {
+    const url = `${this.endpoint}?name=${encodeURIComponent(domain)}&type=${type}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await this.fetchFn(url, {
+        headers: { Accept: 'application/dns-json' },
+        signal: controller.signal,
+      });
+      if (!response.ok) return null;
+      const json = (await response.json()) as DoHResponse;
+      // Status 0 = NOERROR. Anything else (NXDOMAIN, SERVFAIL, etc.) → no answers.
+      if (json.Status !== 0) return [];
+      return json.Answer ?? [];
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
     }
   }
+}
 
-  // If domain is already in the list of common domains, it's correct
-  if (domains.includes(domain)) {
-    return null;
-  }
+/**
+ * Suggest a corrected domain. Returns the canonical for a known typo,
+ * otherwise the closest match within the threshold, otherwise null.
+ */
+export function suggestDomain(domain: string, options?: DomainSuggesterOptions): string | null {
+  const lower = domain.toLowerCase();
 
-  // Find closest domain using Levenshtein distance
+  // Hand-curated typo map first — beats similarity for common cases.
+  const known = TYPO_LOOKUP.get(lower);
+  if (known) return known;
+
+  const domains = options?.customDomains ?? COMMON_DOMAINS;
+  if (domains.includes(lower)) return null;
+
+  const threshold = options?.threshold ?? 2;
   let minDistance = Infinity;
   let suggestion: string | null = null;
 
-  for (const commonDomain of domains) {
-    // Skip if it's the same domain (case-insensitive)
-    if (domain.toLowerCase() === commonDomain.toLowerCase()) {
-      return null;
-    }
-
-    // Use string similarity to calculate distance
-    const similarity = stringSimilarity(domain.toLowerCase(), commonDomain.toLowerCase());
-    const distance = Math.round((1 - similarity) * Math.max(domain.length, commonDomain.length));
+  for (const candidate of domains) {
+    const candidateLower = candidate.toLowerCase();
+    if (lower === candidateLower) return null;
+    const similarity = stringSimilarity(lower, candidateLower);
+    const distance = Math.round((1 - similarity) * Math.max(domain.length, candidate.length));
     if (distance > 0 && distance <= threshold && distance < minDistance) {
       minDistance = distance;
-      suggestion = commonDomain;
+      suggestion = candidate;
     }
   }
-
   return suggestion;
 }
 
-// Core validation function
+/**
+ * Validate one email — syntax / typo / disposable / free / MX (if a resolver
+ * is supplied). Each step is independently flag-gated so callers pay only for
+ * what they use.
+ */
 export async function validateEmailCore(
   email: string,
   options?: ValidateEmailOptions & { dnsResolver?: DNSResolver }
 ): Promise<EmailValidationResult> {
-  const normalizedEmail = email.toLowerCase().trim();
+  const normalized = email.toLowerCase().trim();
 
-  // Check cache
   if (!options?.skipCache) {
-    const cached = validationCache.get(normalizedEmail);
+    const cached = validationCache.get(normalized);
     if (cached) return cached;
   }
 
-  const result: EmailValidationResult = {
-    valid: false,
-    email: normalizedEmail,
-    validators: {},
-  };
+  const result: EmailValidationResult = { valid: false, email: normalized, validators: {} };
 
-  // Syntax validation
   if (options?.validateSyntax !== false) {
-    const syntaxValid = VALID_EMAIL_REGEX.test(normalizedEmail);
+    const syntaxValid = VALID_EMAIL_REGEX.test(normalized);
     result.validators.syntax = { valid: syntaxValid };
     if (!syntaxValid) {
-      validationCache.set(normalizedEmail, result);
+      validationCache.set(normalized, result);
       return result;
     }
   }
 
-  const [local, domain] = normalizedEmail.split('@');
+  const [local, domain] = normalized.split('@');
   result.local = local;
   result.domain = domain;
 
-  // Typo detection and suggestion
   if (options?.validateTypo !== false) {
     const suggestion = suggestDomain(domain, options?.domainSuggesterOptions);
-    result.validators.typo = {
-      valid: !suggestion,
-      suggestion: suggestion || undefined,
-    };
+    result.validators.typo = { valid: !suggestion, suggestion: suggestion ?? undefined };
   }
 
-  // Disposable email check
   if (options?.validateDisposable !== false) {
-    const isDisposable = disposableProviders.includes(domain);
-    result.validators.disposable = { valid: !isDisposable };
+    result.validators.disposable = { valid: !disposableProviders.includes(domain) };
   }
 
-  // Free email check
   if (options?.validateFree !== false) {
-    const isFree = freeProviders.includes(domain);
-    result.validators.free = { valid: !isFree };
+    result.validators.free = { valid: !freeProviders.includes(domain) };
   }
 
-  // MX record validation (if DNS resolver is available)
   if (options?.validateMx && options.dnsResolver) {
     try {
-      const mxRecords = await options.dnsResolver.resolveMx(domain);
-      const hasMx = mxRecords && mxRecords.length > 0;
+      const records = await options.dnsResolver.resolveMx(domain);
+      const hasMx = records.length > 0;
       result.validators.mx = {
         valid: hasMx,
-        records: hasMx ? mxRecords.map((r) => r.exchange) : undefined,
+        records: hasMx ? records.map((r) => r.exchange) : undefined,
       };
     } catch (error) {
       result.validators.mx = {
@@ -289,49 +277,33 @@ export async function validateEmailCore(
     }
   }
 
-  // Overall valid status - only syntax, typo, disposable, and MX matter for validity
-  // Free provider detection is informational only
-  const criticalValidators = ['syntax', 'typo', 'disposable', 'mx'];
-  result.valid = criticalValidators.every((key) => {
-    const validator = result.validators[key as keyof typeof result.validators];
+  // Free-provider detection is informational; only the hard validators gate validity.
+  result.valid = (['syntax', 'typo', 'disposable', 'mx'] as const).every((key) => {
+    const validator = result.validators[key];
     return !validator || validator.valid !== false;
   });
 
-  // Cache result
-  if (!options?.skipCache) {
-    validationCache.set(normalizedEmail, result);
-  }
-
+  if (!options?.skipCache) validationCache.set(normalized, result);
   return result;
 }
 
-// Batch validation
 export async function validateEmailBatch(
   emails: string[],
   options?: ValidateEmailOptions & { dnsResolver?: DNSResolver }
 ): Promise<EmailValidationResult[]> {
-  // Process in chunks to avoid overwhelming the system
-  const chunkSize = options?.batchSize || 10;
+  const chunkSize = options?.batchSize ?? 10;
   const results: EmailValidationResult[] = [];
-
   for (let i = 0; i < emails.length; i += chunkSize) {
     const chunk = emails.slice(i, i + chunkSize);
     const chunkResults = await Promise.all(chunk.map((email) => validateEmailCore(email, options)));
     results.push(...chunkResults);
   }
-
   return results;
 }
 
-// Export cache control functions
 export function clearCache(): void {
   validationCache.clear();
   mxCache.clear();
 }
 
-// Export types
-export type {
-  DomainSuggesterOptions,
-  EmailValidationResult,
-  ValidateEmailOptions,
-} from '../types';
+export type { DomainSuggesterOptions, EmailValidationResult, ValidateEmailOptions } from '../types';

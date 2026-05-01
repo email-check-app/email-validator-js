@@ -17,19 +17,16 @@ export class LRUAdapter<T> implements CacheStore<T> {
     return value === undefined ? null : value;
   }
 
-  async set(key: string, value: T, ttlMs?: number): Promise<void> {
-    if (ttlMs !== undefined) {
-      // Create a new LRU with the custom TTL for this specific entry
-      // Note: tiny-lru doesn't support per-entry TTL, so we use the instance TTL
-      this.lru.set(key, value);
-    } else {
-      this.lru.set(key, value);
-    }
+  // Per-entry ttlMs is intentionally ignored: tiny-lru only supports a single
+  // TTL set at construction. Callers that need per-entry expiry should pick a
+  // backend that honours it (e.g. RedisAdapter).
+  async set(key: string, value: T, _ttlMs?: number): Promise<void> {
+    this.lru.set(key, value);
   }
 
   async delete(key: string): Promise<boolean> {
     this.lru.delete(key);
-    return true; // tiny-lru delete returns void, but our interface expects boolean
+    return true;
   }
 
   async has(key: string): Promise<boolean> {

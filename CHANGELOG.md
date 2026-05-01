@@ -1,5 +1,222 @@
 # Change Log
 
+## v4.0.0 - 2026-05-01
+
+### 🚀 Major refactor: Bun-first toolchain, CLI, transcripts, full serverless coverage
+
+This release rebuilds the project around three goals: a faster runtime
+toolchain (Bun + Biome instead of yarn + jest + eslint), a structured
+verification transcript across the entire pipeline, and a properly-shipped
+serverless surface covering the big six platforms. Plus a new
+`email-validate` CLI for one-off checks and shell scripting.
+
+### ⚠️ Breaking changes
+
+#### 1. Stricter email format validator
+
+The local-part allow-list is now **positive**: `[a-zA-Z0-9._+'-]`. Characters
+that are RFC-5322-valid but virtually never seen in real mailboxes are now
+rejected as likely typos:
+
+| Was accepted in v3 | Now rejected |
+| ------------------ | :----------: |
+| `hey=mo@gmail.com` | ✓ rejected |
+| `foo?bar@gmail.com` | ✓ rejected |
+| `foo^bar@gmail.com`, `foo!bar@…`, `foo$bar@…`, `foo&bar@…`, `foo|bar@…` | ✓ all rejected |
+
+Standard sub-addressing with `+`, dots, underscores, hyphens, and
+apostrophes (`o'brien@…`) is unchanged. If you need full RFC-5322
+permissiveness, validate elsewhere; this library now mirrors what mainstream
+validators (HTML5 `type="email"`, npm `email-validator`) accept in practice.
+
+#### 2. Out-of-scope module moved to `extras/`
+
+`check-if-email-exists.ts` and its companion fixtures are no longer part of
+the published `src/` tree. Imports change:
+
+```diff
+- import { ... } from '@emailcheck/email-validator-js/check-if-email-exists';
++ import { ... } from '@emailcheck/email-validator-js/extras/check-if-email-exists';
+```
+
+The module is still tested via the opt-in `bun run test:extras` runner
+(~200 tests).
+
+#### 3. `validateBatchEmailsField` now returns a discriminated union
+
+The internal helper used by serverless adapters now returns either
+`{ ok: true; emails: string[] }` or `{ ok: false; status; message }`,
+eliminating a non-null assertion at every call site. Adapter authors
+re-implementing this layer should mirror the new shape.
+
+#### 4. Test layout reorganized
+
+Tests now live under `__tests__/unit/` (default suite) and
+`__tests__/isolated/` (tests using `mock.module` that need a separate
+process). External tooling that targeted specific paths needs to update.
+
+#### 5. Examples reorganized by topic
+
+Files like `examples/smtp-usage.ts` have moved to
+`examples/smtp/usage.ts`, `examples/cache/custom-redis.ts`, etc. See the
+new [examples/README.md](./examples/README.md) for the full layout.
+
+### ✨ Added
+
+#### `email-validate` CLI
+
+```bash
+bun add -g @emailcheck/email-validator-js
+email-validate alice@example.com
+```
+
+- Full pipeline by default (format / MX / SMTP probe / disposable / free / typo)
+- Transcript captured automatically
+- JSON log written to `./logs/` (configurable, opt-out)
+- Exit codes: `0` deliverable / format-MX OK; `1` undeliverable / no MX / indeterminate; `2` bad CLI arguments
+- Output formats: `pretty` (default), `text`, `json`
+- Programmatic surface: `parseArgs`, `run`, `exitCodeFor`, `logFileNameFor` exported from `@emailcheck/email-validator-js/cli`
+
+See [examples/cli-usage.md](./examples/cli-usage.md) for recipes.
+
+#### Structured verification transcript
+
+Pass `captureTranscript: true` to `verifyEmail` (or
+`verifyMailboxSMTP`/`isDisposableEmail`/etc.) and get a per-step trace:
+
+```typescript
+const result = await verifyEmail({
+  emailAddress: 'alice@example.com',
+  verifyMx: true,
+  verifySmtp: true,
+  captureTranscript: true,
+});
+for (const step of result.transcript ?? []) {
+  console.log(`[${step.kind}] ${step.durationMs}ms ok=${step.ok}`, step.details);
+}
+```
+
+Step kinds: `syntax`, `domain-validation`, `mx-lookup`, `smtp-probe`,
+`disposable`, `free`, `domain-suggestion`, `name-detection`,
+`whois-age`, `whois-registration`. The SMTP step includes the wire-level
+transcript with `<port>|s|` server lines and `<port>|c|` client commands.
+
+#### Three new serverless platform adapters
+
+| Subpath                                            | Platform                            |
+| -------------------------------------------------- | ----------------------------------- |
+| `@emailcheck/email-validator-js/serverless/gcp`    | GCP Cloud Functions (2nd gen)       |
+| `@emailcheck/email-validator-js/serverless/netlify` | Netlify Functions                   |
+| `@emailcheck/email-validator-js/serverless/azure`  | Azure Functions (v4 model)          |
+
+Each ships two handler shapes — a routed handler (`/health`, `/validate`,
+`/validate/batch`) and a single-route convenience that infers single vs.
+batch from the body. Combined with the existing AWS / Vercel / Cloudflare
+adapters, this covers the six biggest serverless platforms.
+
+#### Built-in `DoHResolver` for edge MX support
+
+```typescript
+import { validateEmailCore, DoHResolver } from '@emailcheck/email-validator-js/serverless/verifier';
+
+const result = await validateEmailCore('alice@example.com', {
+  validateMx: true,
+  dnsResolver: new DoHResolver(),  // Cloudflare 1.1.1.1 by default
+});
+```
+
+Works in any runtime with `fetch` — Cloudflare Workers, Vercel Edge, Deno,
+browsers, Node 18+. Configurable endpoint (Google / NextDNS / self-hosted),
+per-query timeout, custom fetch. Compatible with the
+[`cf-doh`](https://www.npmjs.com/package/cf-doh) package — same
+`DNSResolver` interface, drop-in interchangeable. The built-in keeps the
+package zero-dep so the same code works everywhere without an extra
+install step.
+
+#### `parseSmtpError` standalone module
+
+```typescript
+import { parseSmtpError } from '@emailcheck/email-validator-js';
+
+parseSmtpError('552 5.2.2 mailbox over quota');
+// { isDisabled: false, hasFullInbox: true, isCatchAll: false, isInvalid: false }
+```
+
+Four orthogonal flags, 49 unit tests covering false-positive guards.
+
+### 🔧 Changed
+
+- **Bun is now the canonical toolchain.** `yarn` + `jest` + `ts-jest` + `eslint`
+  all removed; replaced with `bun install` / `bun:test` / `biome`. CI and
+  release workflows updated. `bun.lock` committed.
+- **Zero `!` non-null assertions in `src/`.** Each was replaced with a proper
+  guard (extracted local + check, or a `BatchValidation`-style discriminated
+  union). Per `AGENTS.md`, this is now a project rule.
+- **SMTP probe hardened** at the function boundary:
+  - `null` `mxRecords` no longer crashes (`?? []` guard)
+  - Invalid ports (-1, 0, 65536, non-integer) are filtered before
+    `net.connect` (which throws `ERR_SOCKET_BAD_PORT` synchronously)
+  - `try/catch` around `connect()` inside the Promise executor as a
+    belt-and-braces guard for any other synchronous net/tls.connect throws
+- **Class-based SMTP state machine** (`SMTPProbeConnection`) replacing the
+  closure-with-mutation implementation. One instance per port attempt,
+  clearly-owned variables.
+- **Lookup tables replace `if`/`else if` chains** in WHOIS parsing
+  (`TLD_REGEX`) and typo suggestion (`TYPO_LOOKUP`).
+- **Data extracted to `src/data/*.json`**: common first/last names, common
+  email domains, typo patterns, WHOIS server table.
+- **Stricter port walk semantics:** the probe now walks ports sequentially
+  with no per-port retry. Total runtime is bounded by `timeout` per port.
+  Tests asserting old retry/exponential-backoff behavior were removed.
+- **Test count: ~770 default suite** (was ~600) — gained from new adapter
+  tests (44), CLI tests (44), DSN parsing (35), transcript (10),
+  parseSmtpError (49), and previously-orphaned cache tests (12).
+
+### 🐛 Fixed
+
+- `verifyMailboxSMTP` no longer rejects with `RangeError` when the caller
+  passes invalid ports — the probe returns a structured failure result
+  instead.
+- `verifyMailboxSMTP` no longer crashes with `TypeError` when the caller
+  passes `null` for `mxRecords` (the destructuring default only fires on
+  `undefined`).
+- `parseDate` in `src/whois-parser.ts` no longer throws on invalid date
+  strings — returns `null` for unparseable input.
+- Mock-module pollution between adapter tests and unit tests (the `0501`
+  / `0502` / `0512` tests use `mock.module` which mutates the registry).
+  Solved by splitting into `__tests__/isolated/` with its own bun-test
+  process.
+
+### 📚 Documentation
+
+- **[SERVERLESS.md](./SERVERLESS.md) rewritten end-to-end** against the
+  actual API surface — the previous version described an aspirational
+  shape that didn't exist (`/serverless/core`, fictional handler names,
+  wrong result shape). New file documents all six platforms, the
+  DNSResolver injection pattern, KV write-through, Durable Object routes,
+  bundle-size table, and a Node-vs-edge migration diff.
+- **[examples/cli-usage.md](./examples/cli-usage.md)** — recipes for the
+  new CLI (interactive check, JSON for `jq`, shell scripting with exit
+  codes, full WHOIS reputation, custom port walk, debug mode).
+- **[AGENTS.md](./AGENTS.md)** — single source of truth for code style,
+  architecture, and toolchain rules. `CLAUDE.md` and
+  `.github/copilot-instructions.md` are thin pointers to it.
+- **README.md** — tightened, deduplicated; now points to the topic-specific
+  docs (`SERVERLESS.md`, `examples/cli-usage.md`, `AGENTS.md`) instead of
+  inlining everything.
+
+### 🛠️ Internal
+
+- Rollup configs unified — one for the main package, one for the
+  serverless build (now 6 adapters + verifier + umbrella).
+- TypeScript strict mode in both `tsconfig.json` (src) and
+  `tsconfig.test.json` (src + tests + examples).
+- New `__tests__/helpers/fake-net.ts` shared mock for `node:net` /
+  `node:tls` / `node:dns` — no more per-file `FakeSocket` collisions.
+- Six new domain-specific test scripts (`test:smtp`, `test:cache`,
+  `test:whois`, `test:names`, `test:serverless`, `test:cli`) for fast
+  inner-loop runs during development.
+
 ## v3.2.0 - 2025-12-29
 
 ### 🔧 Maintenance

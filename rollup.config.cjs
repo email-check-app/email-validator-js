@@ -68,4 +68,17 @@ module.exports = [
     external,
     plugins: [...plugins, declarationPlugin],
   },
+  // CLI bundle — single CJS file with a Node shebang. Wired into package.json
+  // as `bin: { "email-validate": "./dist/cli/index.js" }`.
+  {
+    input: 'src/cli/index.ts',
+    output: {
+      file: 'dist/cli/index.js',
+      format: 'cjs',
+      sourcemap: true,
+      banner: '#!/usr/bin/env node',
+    },
+    external,
+    plugins,
+  },
 ];

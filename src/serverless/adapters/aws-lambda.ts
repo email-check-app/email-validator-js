@@ -1,19 +1,34 @@
 /**
- * AWS Lambda adapter for email validation
- * Supports API Gateway and direct Lambda invocation
+ * AWS Lambda adapter for email validation.
+ *
+ * Three handler shapes are exported for backward compatibility:
+ *   - `apiGatewayHandler`: original surface — does NOT route by path, expects
+ *     the body to carry `email` / `emails`.
+ *   - `lambdaHandler`: direct invocation (no API Gateway envelope).
+ *   - `handler`: routed handler with `/health`, `/validate`, `/validate/batch`.
+ *
+ * Shared validation rules + CORS headers come from `../_shared/` so all three
+ * agree on what's accepted.
  */
+import type { ValidateEmailOptions } from '../../types';
+import { corsHeaders, jsonHeaders } from '../_shared/cors';
+import { executeValidation } from '../_shared/dispatch';
+import { classifyRequest, type ValidationRequestBody, validateBatchEmailsField } from '../_shared/validation';
+import { clearCache, validateEmailCore } from '../verifier';
 
-import type { EmailValidationResult, ValidateEmailOptions } from '../../types';
-import { clearCache, validateEmailBatch, validateEmailCore } from '../verifier';
-
-// AWS Lambda handler types
+/**
+ * Loose API-Gateway event/result/context shapes — `headers` and similar maps
+ * intentionally widen to `string | undefined` so they line up with the
+ * official `@types/aws-lambda` definitions used by callers/tests.
+ */
 export interface APIGatewayProxyEvent {
   body: string | null;
-  headers: { [key: string]: string };
+  headers: { [key: string]: string | undefined };
   httpMethod: string;
   path: string;
-  queryStringParameters: { [key: string]: string } | null;
-  pathParameters: { [key: string]: string } | null;
+  queryStringParameters: { [key: string]: string | undefined } | null;
+  pathParameters: { [key: string]: string | undefined } | null;
+  isBase64Encoded?: boolean;
 }
 
 export interface APIGatewayProxyResult {
@@ -29,146 +44,58 @@ export interface LambdaContext {
   remainingTimeInMillis: number;
 }
 
-// Request/Response types
-interface ValidateRequest {
-  email?: string;
-  emails?: string[];
-  options?: ValidateEmailOptions;
-}
-
 interface ValidateResponse {
   success: boolean;
-  data?: EmailValidationResult | EmailValidationResult[];
+  data?: unknown;
   error?: string;
 }
 
-// API Gateway handler
+const POST_HEADERS = jsonHeaders(corsHeaders('POST, OPTIONS'));
+const ROUTED_HEADERS = jsonHeaders(corsHeaders());
+
+function jsonResponse(statusCode: number, body: unknown, headers: Record<string, string>): APIGatewayProxyResult {
+  return { statusCode, headers, body: JSON.stringify(body) };
+}
+
+// API Gateway handler (legacy surface — no path routing).
 export async function apiGatewayHandler(
   event: APIGatewayProxyEvent,
   _context: LambdaContext
 ): Promise<APIGatewayProxyResult> {
-  const headers = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-
-  // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: '',
-    };
+    return { statusCode: 200, headers: corsHeaders('POST, OPTIONS'), body: '' };
   }
 
   try {
-    // Parse request body
-    const request: ValidateRequest = event.body ? JSON.parse(event.body) : {};
-
-    // Validate request
-    if (!request.email && !request.emails) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: 'Email or emails array is required',
-        }),
-      };
+    const request: ValidationRequestBody = event.body ? JSON.parse(event.body) : {};
+    const classified = classifyRequest(request);
+    if (classified.kind === 'invalid') {
+      return jsonResponse(classified.status, { success: false, error: classified.message }, POST_HEADERS);
     }
-
-    // Single email validation
-    if (request.email) {
-      const result = await validateEmailCore(request.email, request.options);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          data: result,
-        }),
-      };
-    }
-
-    // Batch email validation
-    if (request.emails) {
-      const results = await validateEmailBatch(request.emails, request.options);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          data: results,
-        }),
-      };
-    }
-
-    return {
-      statusCode: 400,
-      headers,
-      body: JSON.stringify({
-        success: false,
-        error: 'Invalid request',
-      }),
-    };
+    const data = await executeValidation(classified);
+    return jsonResponse(200, { success: true, data }, POST_HEADERS);
   } catch (error) {
     console.error('Lambda error:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-      }),
-    };
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return jsonResponse(500, { success: false, error: message }, POST_HEADERS);
   }
 }
 
-// Direct Lambda handler
-export async function lambdaHandler(event: ValidateRequest, _context: LambdaContext): Promise<ValidateResponse> {
+// Direct Lambda handler (no API Gateway envelope).
+export async function lambdaHandler(event: ValidationRequestBody, _context: LambdaContext): Promise<ValidateResponse> {
   try {
-    // Validate request
-    if (!event.email && !event.emails) {
-      return {
-        success: false,
-        error: 'Email or emails array is required',
-      };
+    const classified = classifyRequest(event);
+    if (classified.kind === 'invalid') {
+      return { success: false, error: classified.message };
     }
-
-    // Single email validation
-    if (event.email) {
-      const result = await validateEmailCore(event.email, event.options);
-      return {
-        success: true,
-        data: result,
-      };
-    }
-
-    // Batch email validation
-    if (event.emails) {
-      const results = await validateEmailBatch(event.emails, event.options);
-      return {
-        success: true,
-        data: results,
-      };
-    }
-
-    return {
-      success: false,
-      error: 'Invalid request',
-    };
+    return { success: true, data: await executeValidation(classified) };
   } catch (error) {
     console.error('Lambda error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Internal server error',
-    };
+    return { success: false, error: error instanceof Error ? error.message : 'Internal server error' };
   }
 }
 
-// Cache management handler
+// Cache management handler.
 export async function cacheHandler(
   event: { action: 'clear' | 'stats' },
   _context: LambdaContext
@@ -178,175 +105,77 @@ export async function cacheHandler(
       clearCache();
       return { success: true, message: 'Cache cleared' };
     case 'stats':
-      // Return cache statistics if needed
       return { success: true, message: 'Cache stats not implemented' };
     default:
       return { success: false, message: 'Invalid action' };
   }
 }
 
-// Main handler matching test expectations
-export async function handler(event: any, _context: any): Promise<any> {
-  const headers = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  };
-
-  // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 204,
-      headers,
-      body: '',
-    };
-  }
-
-  // Handle health check
-  if (event.path === '/health' && event.httpMethod === 'GET') {
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-      }),
-    };
-  }
-
-  // Handle single email validation
-  if (event.path === '/validate' && event.httpMethod === 'POST') {
-    try {
-      let body: any = {};
-
-      // Handle base64 encoded body
-      if (event.isBase64Encoded) {
-        const decoded = Buffer.from(event.body || '', 'base64').toString('utf-8');
-        body = JSON.parse(decoded);
-      } else {
-        body = event.body ? JSON.parse(event.body) : {};
-      }
-
-      // Check for email
-      if (!body.email) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Email is required' }),
-        };
-      }
-
-      // Parse options from query params
-      const options: Record<string, any> = {};
-      if (event.queryStringParameters) {
-        if (event.queryStringParameters.skipCache === 'true') {
-          options.skipCache = true;
-        }
-        if (event.queryStringParameters.validateTypo === 'false') {
-          options.validateTypo = false;
-        }
-      }
-
-      const result = await validateEmailCore(body.email, options);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify(result),
-      };
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Invalid request body' }),
-        };
-      }
-      console.error('Validation error:', error);
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: 'Internal server error' }),
-      };
-    }
-  }
-
-  // Handle batch validation
-  if (event.path === '/validate/batch' && event.httpMethod === 'POST') {
-    try {
-      let body: any = {};
-
-      // Handle base64 encoded body
-      if (event.isBase64Encoded) {
-        const decoded = Buffer.from(event.body || '', 'base64').toString('utf-8');
-        body = JSON.parse(decoded);
-      } else {
-        body = event.body ? JSON.parse(event.body) : {};
-      }
-
-      // Check for emails array
-      if (!body.emails || !Array.isArray(body.emails)) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Emails array is required' }),
-        };
-      }
-
-      if (body.emails.length === 0) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Emails array is required' }),
-        };
-      }
-
-      if (body.emails.length > 100) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Maximum 100 emails allowed per batch' }),
-        };
-      }
-
-      const results = await validateEmailBatch(body.emails);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ results }),
-      };
-    } catch (error) {
-      console.error('Batch validation error:', error);
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: 'Internal server error' }),
-      };
-    }
-  }
-
-  // Handle unsupported methods
-  if (
-    (event.path === '/validate' || event.path === '/validate/batch') &&
-    event.httpMethod !== 'POST' &&
-    event.httpMethod !== 'OPTIONS'
-  ) {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
-
-  // Handle unknown routes
-  return {
-    statusCode: 404,
-    headers,
-    body: JSON.stringify({ error: 'Not found' }),
-  };
+/** Decode the API Gateway body, supporting base64-encoded payloads. */
+function decodeBody(event: APIGatewayProxyEvent): unknown {
+  if (!event.body) return {};
+  const raw = event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf-8') : event.body;
+  return JSON.parse(raw);
 }
 
-// Export handlers
+// Routed handler — supports /health, /validate, /validate/batch. The context
+// argument is intentionally `unknown` so callers can pass either our minimal
+// LambdaContext or the official `aws-lambda#Context` without a cast.
+export async function handler(event: APIGatewayProxyEvent, _context?: unknown): Promise<APIGatewayProxyResult> {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: corsHeaders(), body: '' };
+  }
+
+  if (event.path === '/health' && event.httpMethod === 'GET') {
+    return jsonResponse(200, { status: 'healthy', timestamp: new Date().toISOString() }, ROUTED_HEADERS);
+  }
+
+  const isValidatePath = event.path === '/validate' || event.path === '/validate/batch';
+  if (isValidatePath && event.httpMethod !== 'POST') {
+    return jsonResponse(405, { error: 'Method not allowed' }, ROUTED_HEADERS);
+  }
+
+  if (event.path === '/validate' && event.httpMethod === 'POST') {
+    try {
+      const body = decodeBody(event) as { email?: string };
+      if (!body.email) return jsonResponse(400, { error: 'Email is required' }, ROUTED_HEADERS);
+
+      const options = parseValidateOptions(event.queryStringParameters);
+      const result = await validateEmailCore(body.email, options);
+      return jsonResponse(200, result, ROUTED_HEADERS);
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return jsonResponse(400, { error: 'Invalid request body' }, ROUTED_HEADERS);
+      }
+      console.error('Validation error:', error);
+      return jsonResponse(500, { error: 'Internal server error' }, ROUTED_HEADERS);
+    }
+  }
+
+  if (event.path === '/validate/batch' && event.httpMethod === 'POST') {
+    try {
+      const body = decodeBody(event) as ValidationRequestBody;
+      const validated = validateBatchEmailsField(body.emails);
+      if (!validated.ok) return jsonResponse(validated.status, { error: validated.message }, ROUTED_HEADERS);
+      const results = await executeValidation({ kind: 'batch', emails: validated.emails });
+      return jsonResponse(200, { results }, ROUTED_HEADERS);
+    } catch (error) {
+      console.error('Batch validation error:', error);
+      return jsonResponse(500, { error: 'Internal server error' }, ROUTED_HEADERS);
+    }
+  }
+
+  return jsonResponse(404, { error: 'Not found' }, ROUTED_HEADERS);
+}
+
+function parseValidateOptions(query: { [key: string]: string | undefined } | null): Partial<ValidateEmailOptions> {
+  if (!query) return {};
+  const options: Partial<ValidateEmailOptions> = {};
+  if (query.skipCache === 'true') options.skipCache = true;
+  if (query.validateTypo === 'false') options.validateTypo = false;
+  return options;
+}
+
 export default {
   apiGatewayHandler,
   lambdaHandler,

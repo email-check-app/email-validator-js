@@ -1,0 +1,13 @@
+[build]
+  functions = "netlify/functions"
+
+# Optional: clean URLs via redirect — the adapter strips the prefix automatically.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/validate/:splat"
+  status = 200
+  force = true
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = []
