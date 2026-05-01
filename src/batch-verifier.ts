@@ -1,6 +1,6 @@
-import { verifyEmail } from './index';
 import type { BatchVerificationResult, BatchVerifyParams, VerificationResult } from './types';
 import { VerificationErrorCode } from './types';
+import { verifyEmail } from './verify-email';
 
 /**
  * Verify multiple email addresses in parallel with concurrency control
