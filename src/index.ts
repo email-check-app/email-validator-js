@@ -46,7 +46,7 @@ export {
   detectNameForAlgorithm,
   detectNameFromEmail,
 } from './name-detector';
-// Pure utilities (no I/O) for parsing / classifying SMTP error strings.
+export { refineReasonByEnhancedStatus } from './refine-reason';
 export { type ParsedSmtpError, parseSmtpError } from './smtp-error-parser';
 export { type ParsedDsn, parseDsn, verifyMailboxSMTP } from './smtp-verifier';
 // Transcript collector primitives — opt-in pipeline tracing.

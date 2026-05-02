@@ -1,11 +1,13 @@
 /**
- * Vercel Edge Function adapter for email validation.
+ * Vercel adapter — three handler shapes for three runtime / routing combos:
  *
- * Three handler shapes are exported for backward compatibility:
- *   - `edgeHandler`: Web-API style, no path routing.
- *   - `nodeHandler`: Express-style req/res for the Node.js runtime.
- *   - `handler`: routed Web-API handler with `/api/health`, `/api/validate`,
- *     `/api/validate/batch`.
+ *   - `handler`     — routed Web handler — `/api/health`, `/api/validate`,
+ *                     `/api/validate/batch`. Wire as `app/api/[...path]/route.ts`.
+ *   - `edgeHandler` — single-route Edge handler. Pick this when each URL
+ *                     maps to its own Edge Function (no internal routing).
+ *   - `nodeHandler` — Express-style `(req, res)` for the Node.js runtime.
+ *                     Pick this when you're on the Node runtime and your
+ *                     framework hands you `VercelRequest` / `VercelResponse`.
  *
  * Shared validation/CORS logic comes from `../_shared/`.
  */

@@ -7,12 +7,18 @@ import { clearDefaultCache, getDefaultCache, SMTPStep } from '../../src';
 import { verifyMailboxSMTP } from '../../src/smtp-verifier';
 import { fakeNet } from '../helpers/fake-net';
 
+// Default SMTP envelope: greeting + EHLO multi-line + MAIL FROM + dual-probe
+// (real RCPT 250, probe RCPT 550, RSET 250). The probe gets 550 so the test
+// asserts isCatchAll === false; tests that need catch-all detection use the
+// 6-line script with probe RCPT 250 instead.
 const HAPPY_PATH_587 = [
   '220 mx.example.com ESMTP',
   '250-mx.example.com Hello',
   '250 OK',
   '250 sender ok',
-  '250 recipient ok',
+  '250 recipient ok', // real RCPT
+  '550 5.1.1 unknown user', // probe RCPT (rejected — not catch-all)
+  '250 reset', // RSET
 ];
 
 describe('0110 SMTP Verifier Unit', () => {
@@ -27,7 +33,14 @@ describe('0110 SMTP Verifier Unit', () => {
   });
 
   it('returns deliverable for successful default SMTP dialogue', async () => {
-    fakeNet.script(['220 mx.example.com ESMTP', '250 mx.example.com Hello', '250 sender ok', '250 recipient ok']);
+    fakeNet.script([
+      '220 mx.example.com ESMTP',
+      '250 mx.example.com Hello',
+      '250 sender ok',
+      '250 recipient ok', // real RCPT
+      '550 5.1.1 unknown user', // probe RCPT (rejected — not catch-all)
+      '250 reset', // RSET
+    ]);
 
     const { smtpResult, port } = await verifyMailboxSMTP({
       local: 'john',
@@ -51,7 +64,7 @@ describe('0110 SMTP Verifier Unit', () => {
 
     expect(port).toBe(0);
     expect(smtpResult.isDeliverable).toBe(false);
-    expect(smtpResult.error).toContain('No MX records found');
+    expect(smtpResult.error).toBe('no_mx_records');
   });
 
   it('returns not deliverable when RCPT reports mailbox not found', async () => {
@@ -128,7 +141,14 @@ describe('0110 SMTP Verifier Unit', () => {
   });
 
   it('switches EHLO to HELO for port 25 without mutating caller sequence', async () => {
-    fakeNet.script(['220 mx.example.com ESMTP', '250 Hello', '250 sender ok', '250 recipient ok']);
+    fakeNet.script([
+      '220 mx.example.com ESMTP',
+      '250 Hello',
+      '250 sender ok',
+      '250 recipient ok', // real RCPT
+      '550 5.1.1 unknown user', // probe RCPT
+      '250 reset', // RSET
+    ]);
 
     const sequence = {
       steps: [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo],
@@ -158,6 +178,7 @@ describe('0110 SMTP Verifier Unit', () => {
 
     expect(port).toBe(0);
     expect(smtpResult.isDeliverable).toBe(false);
-    expect(smtpResult.error).toContain('All SMTP connection attempts failed');
+    // Last attempt's reason is surfaced — not a generic "all attempts failed".
+    expect(smtpResult.error).toBe('connection_error');
   });
 });

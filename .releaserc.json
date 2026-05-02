@@ -25,6 +25,10 @@
         "preset": "angular",
         "releaseRules": [
           {
+            "breaking": true,
+            "release": "major"
+          },
+          {
             "type": "breaking",
             "release": "major"
           },
@@ -41,16 +45,75 @@
             "release": "patch"
           },
           {
-            "subject": "*",
+            "type": "refactor",
             "release": "patch"
+          },
+          {
+            "type": "revert",
+            "release": "patch"
+          },
+          {
+            "type": "docs",
+            "release": false
+          },
+          {
+            "type": "style",
+            "release": false
+          },
+          {
+            "type": "test",
+            "release": false
+          },
+          {
+            "type": "build",
+            "release": false
+          },
+          {
+            "type": "ci",
+            "release": false
+          },
+          {
+            "type": "chore",
+            "release": false
           }
-        ]
+        ],
+        "parserOpts": {
+          "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES", "BREAKING"]
+        }
       }
     ],
-    "@semantic-release/release-notes-generator",
-    "@semantic-release/npm",
-    "@semantic-release/github"
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "angular",
+        "parserOpts": {
+          "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES", "BREAKING"]
+        },
+        "writerOpts": {
+          "commitsSort": ["subject", "scope"]
+        }
+      }
+    ],
+    [
+      "@semantic-release/npm",
+      {
+        "npmPublish": true,
+        "tarballDir": "dist-tarball"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "dist-tarball/*.tgz",
+            "label": "npm tarball"
+          }
+        ],
+        "successCommentCondition": "<% return !!issue.pull_request; %>",
+        "failCommentCondition": "<% return !!issue.pull_request; %>"
+      }
+    ]
   ],
-  "dryRun": false,
   "ci": true
 }

@@ -593,7 +593,7 @@ Deno.serve(async (req) => {
 
 Edge runtimes don't ship `node:dns`. The package now ships a built-in
 **`DoHResolver`** (DNS-over-HTTPS) that works in any environment with a
-`fetch` (Cloudflare Workers, Vercel Edge, Deno, browsers, Node 18+):
+`fetch` (Cloudflare Workers, Vercel Edge, Deno, browsers, Node 22+):
 
 ```typescript
 import {

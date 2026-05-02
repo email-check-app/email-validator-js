@@ -89,7 +89,14 @@ describe('0006 Detailed Email Verification', () => {
 
     it('should indicate when verification results are retrieved from cache', async () => {
       fakeNet.setMxRecords('example.com', [{ exchange: 'mx1.example.com', priority: 10 }]);
-      fakeNet.script(['220 Welcome', '250 OK', '250 sender ok', '250 recipient ok']);
+      fakeNet.script([
+        '220 Welcome',
+        '250 OK',
+        '250 sender ok',
+        '250 recipient ok', // real RCPT
+        '550 5.1.1 unknown user', // probe RCPT (not catch-all)
+        '250 reset', // RSET
+      ]);
 
       const sharedCache = getDefaultCache();
 
