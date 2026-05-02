@@ -157,6 +157,7 @@ export async function verifyMailboxSMTP(
     log,
     catchAllProbeLocal: options.catchAllProbeLocal,
     pipelining: options.pipelining ?? 'auto',
+    startTls: options.startTls ?? 'auto',
   };
 
   // Cache short-circuits — keyed on the primary MX so the cache key matches
@@ -330,6 +331,7 @@ interface ProbeOptions {
   log: (...args: unknown[]) => void;
   catchAllProbeLocal?: SMTPVerifyOptions['catchAllProbeLocal'];
   pipelining: 'auto' | 'never' | 'force';
+  startTls: 'auto' | 'never' | 'force';
 }
 
 interface ProbeParams extends ProbeOptions {
@@ -380,7 +382,18 @@ class SMTPProbeConnection {
   private buffer = '';
   private resolved = false;
   private currentStepIndex = 0;
-  private readonly isTLS: boolean;
+  /** True for implicit-TLS ports (465) from the start, or after STARTTLS upgrade. */
+  private isTLS: boolean;
+  /** True between sending STARTTLS and the TLS handshake completing. */
+  private tlsUpgrading = false;
+  /**
+   * True when we sent the second EHLO after a successful STARTTLS upgrade.
+   * The EHLO response arrives while `currentStepIndex` is still on `startTls`
+   * — this flag tells the dispatcher to advance past startTls when the
+   * post-upgrade EHLO returns 250, instead of treating it as a STARTTLS
+   * acknowledgement.
+   */
+  private postUpgradeReEhlo = false;
   private connectionTimer?: NodeJS.Timeout;
   private stepTimer?: NodeJS.Timeout;
   private resolveFn!: (value: ProbeResult) => void;
@@ -397,6 +410,7 @@ class SMTPProbeConnection {
 
   // ── EHLO capability advertisement ────────────────────────────────────────
   private supportsPipelining = false;
+  private supportsStartTls = false;
 
   // ── Dual-probe (catch-all detection) ─────────────────────────────────────
   private readonly probeLocal: string;
@@ -414,7 +428,11 @@ class SMTPProbeConnection {
 
   constructor(private readonly p: ProbeParams) {
     // Default sequence — every modern MX speaks ESMTP, so EHLO works on port 25 too.
-    const defaultSteps = [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.mailFrom, SMTPStep.rcptTo];
+    // STARTTLS is conditional: the executeStep handler skips it when the port is
+    // already TLS, when the MX didn't advertise STARTTLS in 'auto' mode, or when
+    // `startTls === 'never'`. Without it in the sequence, port 587 submission
+    // MXes reject `MAIL FROM` with `530 Must issue STARTTLS first`.
+    const defaultSteps = [SMTPStep.greeting, SMTPStep.ehlo, SMTPStep.startTls, SMTPStep.mailFrom, SMTPStep.rcptTo];
     this.steps = [...(p.sequence?.steps ?? defaultSteps)];
     this.isTLS = PORT_TLS[p.port] === true;
     const servername = isIPAddress(p.mxHost) ? undefined : p.mxHost;
@@ -435,7 +453,11 @@ class SMTPProbeConnection {
         this.connect();
         this.armConnectionTimer();
       } catch (error) {
-        this.finish(null, `connect_throw:${error instanceof Error ? error.message : 'unknown'}`);
+        // Synchronous net/tls.connect throws (RangeError on bad port, etc.)
+        // collapse to the same `connection_error` reason as async errors so
+        // callers can branch on a single key. The diagnostic detail is logged.
+        this.p.log(`connect threw: ${error instanceof Error ? error.message : 'unknown'}`);
+        this.finish(null, 'connection_error');
       }
     });
   }
@@ -504,6 +526,9 @@ class SMTPProbeConnection {
       case SMTPStep.helo:
         this.send(`HELO ${this.p.hostname}`);
         return;
+      case SMTPStep.startTls:
+        this.executeStartTls();
+        return;
       case SMTPStep.mailFrom: {
         const from = this.p.sequence?.from ?? `<${this.p.local}@${this.p.domain}>`;
         this.send(`MAIL FROM:${from}`);
@@ -513,6 +538,91 @@ class SMTPProbeConnection {
         this.executeEnvelope();
         return;
     }
+  }
+
+  /**
+   * Conditional STARTTLS upgrade. Skipped (advances to next step) when:
+   *   - already TLS (implicit-TLS port like 465 or already-upgraded)
+   *   - `startTls === 'never'`
+   *   - `startTls === 'auto'` AND the MX didn't advertise STARTTLS in EHLO
+   *
+   * Sends `STARTTLS` and waits for 220 when:
+   *   - `startTls === 'force'` (regardless of advertisement)
+   *   - `startTls === 'auto'` AND the MX advertised it
+   *
+   * On 220, `tls.connect()` wraps the existing socket. After the handshake
+   * we re-EHLO (mandatory per RFC 3207 §4.2 — pre-TLS state must be
+   * discarded) before continuing to MAIL FROM.
+   */
+  private executeStartTls(): void {
+    const mode = this.p.startTls;
+    const wantsUpgrade =
+      !this.isTLS && mode !== 'never' && (mode === 'force' || (mode === 'auto' && this.supportsStartTls));
+
+    if (!wantsUpgrade) {
+      this.nextStep(); // advance to mailFrom
+      return;
+    }
+    this.send('STARTTLS');
+  }
+
+  /**
+   * Wrap the plaintext socket with TLS in place. Called after the server
+   * answers our STARTTLS with 220. Detaches the plaintext-socket listeners
+   * (TLS owns the underlying transport now), re-installs them on the wrapped
+   * socket, resets EHLO-derived capabilities, and re-issues EHLO once the
+   * handshake completes (RFC 3207 §4.2 mandates re-EHLO after upgrade —
+   * pre-TLS state must be discarded).
+   */
+  private upgradeToTls(): void {
+    const plainSocket = this.socket;
+    if (!plainSocket) {
+      this.finish(null, 'tls_upgrade_failed');
+      return;
+    }
+
+    // Detach OUR listeners so the plaintext socket's events (which TLS now
+    // drives internally) don't reach our handlers and prematurely call
+    // finish(). TLS will install its own listeners on the wrapped socket.
+    // Guarded: test mocks may not implement EventEmitter fully.
+    const detach = (plainSocket as { removeAllListeners?: (ev: string) => void }).removeAllListeners;
+    if (typeof detach === 'function') {
+      detach.call(plainSocket, 'data');
+      detach.call(plainSocket, 'error');
+      detach.call(plainSocket, 'close');
+      detach.call(plainSocket, 'timeout');
+    }
+    try {
+      plainSocket.setTimeout(0);
+    } catch {
+      // Fake / already-destroyed sockets may not accept setTimeout — fine.
+    }
+
+    this.tlsUpgrading = true;
+    const servername = isIPAddress(this.p.mxHost) ? undefined : this.p.mxHost;
+
+    const tlsSocket = tls.connect({ ...this.tlsOptions, socket: plainSocket, servername }, () => {
+      this.tlsUpgrading = false;
+      this.isTLS = true;
+      // RFC 3207 §4.2 — discard any pre-TLS server state. Capabilities
+      // re-read from the second EHLO; the first set may have been a
+      // downgrade attack (or legitimately different).
+      this.buffer = '';
+      this.supportsStartTls = false;
+      this.supportsPipelining = false;
+      this.postUpgradeReEhlo = true;
+      this.send(`EHLO ${this.p.hostname}`);
+    });
+
+    this.socket = tlsSocket;
+    this.socket.on('data', this.onData);
+    // Distinguish handshake errors (the wrapped TLS layer) from later
+    // post-upgrade socket errors so callers can tell what failed.
+    this.socket.on('error', () => {
+      this.finish(null, this.tlsUpgrading ? 'tls_handshake_failed' : 'connection_error');
+    });
+    this.socket.on('close', () => this.finish(null, 'connection_closed'));
+    this.socket.setTimeout(this.p.timeout, () => this.finish(null, 'socket_timeout'));
   }
 
   /**
@@ -585,9 +695,16 @@ class SMTPProbeConnection {
     // whether to use PIPELINING when the envelope phase fires.
     if (MULTILINE_RE.test(line)) {
       const step = this.steps[this.currentStepIndex];
-      if ((step === SMTPStep.ehlo || step === SMTPStep.helo) && line.startsWith('250-')) {
+      // Capability detection on EHLO multi-line. Also fires on the
+      // post-STARTTLS re-EHLO (currentStep is `startTls` until we receive
+      // the 250 below) so capabilities are re-read after the upgrade —
+      // some MXes advertise different capabilities pre/post-TLS.
+      const isEhloLike =
+        step === SMTPStep.ehlo || step === SMTPStep.helo || (step === SMTPStep.startTls && this.postUpgradeReEhlo);
+      if (isEhloLike && line.startsWith('250-')) {
         const upper = line.toUpperCase();
         if (upper.includes('PIPELINING')) this.supportsPipelining = true;
+        if (upper.includes('STARTTLS')) this.supportsStartTls = true;
       }
       return;
     }
@@ -621,6 +738,24 @@ class SMTPProbeConnection {
       case SMTPStep.helo:
         if (code === 250) this.nextStep();
         else this.finish(null, 'helo_failed');
+        return;
+      case SMTPStep.startTls:
+        // Two replies map to this step:
+        //   1. The server's 220 response to our `STARTTLS` command —
+        //      handshake the wrapper socket and re-EHLO.
+        //   2. The 250 response to that post-upgrade re-EHLO — advance to
+        //      MAIL FROM (skip startTls now that we've done the dance).
+        if (this.postUpgradeReEhlo) {
+          this.postUpgradeReEhlo = false;
+          if (code === 250) this.nextStep();
+          else this.finish(null, 'ehlo_failed');
+          return;
+        }
+        if (code === 220) {
+          this.upgradeToTls();
+        } else {
+          this.finish(null, 'tls_upgrade_failed');
+        }
         return;
       case SMTPStep.mailFrom:
         if (code === 250) this.nextStep();

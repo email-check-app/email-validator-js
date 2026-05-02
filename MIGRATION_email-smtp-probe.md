@@ -159,28 +159,33 @@ ship in `@emailcheck/email-validator-js@4` directly. Time to delete the fork.
 > 6. **Reason vocabulary changes.** The library's vocabulary is slightly
 >    different from the fork's. Audit `src/schema.ts`'s `reason` examples
 >    and the consumer's downstream consumers (API contract, dashboards,
->    log-search queries). Map any reasons your fork emitted that the
->    library doesn't:
+>    log-search queries):
 >
->    - `connect_throw:<message>` was a fork-only fallback; library now
->      catches synchronous throws and resolves with `connection_error`.
->      Treat both as the same bucket.
+>    - `connect_throw:<message>` is gone — synchronous net/tls.connect
+>      throws now resolve with `connection_error`, same key as async
+>      failures. If your dashboards filtered on the `connect_throw:`
+>      prefix, those filters become no-ops; consolidate them into
+>      `connection_error`.
 >    - `mailbox_does_not_exist`, `mailbox_disabled`, `mailbox_full`,
->      `delivery_not_authorized` etc. were the fork's
->      `refineReasonByEnhancedStatus` output. The library does NOT
->      auto-refine — instead, callers can derive these from
->      `r.enhancedStatus` themselves. If you want to keep that behavior
->      consumer-side, copy `refineReasonByEnhancedStatus` from the fork's
->      `vendor/smtp.ts` into a small helper next to `providers.ts`.
+>      `delivery_not_authorized` etc. (the fork's
+>      `refineReasonByEnhancedStatus` output) **now ship in the library**:
+>      ```ts
+>      import { refineReasonByEnhancedStatus } from '@emailcheck/email-validator-js';
+>      const refined = refineReasonByEnhancedStatus(r.error, r.enhancedStatus);
+>      ```
+>      Pipe `r.error` and `r.enhancedStatus` through it instead of
+>      copying the helper from the fork. Mappings cover the same RFC
+>      3463 codes the fork used; codes not in the table return the
+>      original reason unchanged.
 >
-> 7. **Sequence handling: simpler now.** The library's default sequence
->    walks `greeting → EHLO → MAIL FROM → RCPT TO` and the dual-probe is
->    automatic. Your fork explicitly built
->    `[greeting, ehlo, startTls, mailFrom, rcptTo]` — the library does
->    NOT include STARTTLS in its default sequence (port 465 implicit-TLS
->    is auto-detected; STARTTLS upgrade on 587 is something the fork
->    explicitly added). If you need STARTTLS upgrade, build your own
->    sequence with `SMTPStep.startTls`.
+> 7. **STARTTLS handling — already in the default sequence.** The library
+>    walks `greeting → EHLO → STARTTLS → MAIL FROM → RCPT TO` by default.
+>    STARTTLS auto-upgrades when the MX advertises support and is a
+>    no-op on implicit-TLS port 465. Pass `startTls: 'never'` to skip,
+>    `'force'` for testing, or leave the default `'auto'`. No need to
+>    build a custom sequence for the upgrade — the consumer's
+>    `defaultSteps = [greeting, ehlo, startTls, mailFrom, rcptTo]` line
+>    can go away entirely.
 >
 >    For the simple case (just override MAIL FROM), pass `sequence.from`:
 >
@@ -263,6 +268,12 @@ ship in `@emailcheck/email-validator-js@4` directly. Time to delete the fork.
 | Feature                          | Where to keep it                                       |
 | -------------------------------- | ------------------------------------------------------ |
 | Provider detection / config      | `src/vendor/providers.ts`                              |
-| Reason refinement via DSN        | Optional helper in `src/vendor/` (copy from fork)      |
-| STARTTLS upgrade in default flow | Build a custom `sequence.steps` if needed              |
 | Cache wrapping                   | `TinyLRU` in `src/cache.ts` (request-level cache)      |
+
+## Things the library now ships (delete the fork's copy)
+
+| Feature                          | Library export                                          |
+| -------------------------------- | ------------------------------------------------------- |
+| STARTTLS upgrade in default flow | Always-on; control via `options.startTls: 'auto' / 'never' / 'force'` |
+| Reason refinement via DSN        | `refineReasonByEnhancedStatus(reason, enhancedStatus)`  |
+| Synchronous-throw normalization  | All connect-time throws resolve as `connection_error`   |

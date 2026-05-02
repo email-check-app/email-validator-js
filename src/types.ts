@@ -224,9 +224,14 @@ export interface SmtpVerificationResult {
   /**
    * Short reason key when `isDeliverable === false`. Vocabulary:
    *   `not_found` | `over_quota` | `temporary_failure` | `ambiguous` |
-   *   `connection_error` | `connection_timeout` | `tls_error` |
-   *   `ehlo_failed` | `helo_failed` | `mail_from_rejected` | `no_greeting` |
-   *   `no_mx_records` | `unrecognized_response` | `step_timeout`
+   *   `connection_error` | `connection_timeout` | `connection_closed` |
+   *   `tls_upgrade_failed` | `tls_handshake_failed` |
+   *   `ehlo_failed` | `helo_failed` | `mail_from_rejected` |
+   *   `no_greeting` | `no_mx_records` | `unrecognized_response` |
+   *   `step_timeout` | `socket_timeout`
+   *
+   * Pass to `refineReasonByEnhancedStatus(error, enhancedStatus)` for a
+   * richer (mailbox-status-aware) reason when the MX returned a DSN.
    */
   error?: string;
   /** Most recent 3-digit SMTP code observed during the probe. */
@@ -297,14 +302,16 @@ export interface SMTPTLSConfig {
 }
 
 /**
- * SMTP protocol steps. Only the steps the verifier actually walks are listed —
- * STARTTLS upgrade, VRFY, and QUIT used to be separate enum members but were
- * never reachable from production callers.
+ * SMTP protocol steps walked by the verifier in order. `startTls` is a
+ * conditional step — it sends the STARTTLS command and upgrades the socket
+ * to TLS when the MX advertised support (controlled by
+ * `SMTPVerifyOptions.startTls`). On implicit-TLS ports (465) it's a no-op.
  */
 export enum SMTPStep {
   greeting = 'GREETING',
   ehlo = 'EHLO',
   helo = 'HELO',
+  startTls = 'STARTTLS',
   mailFrom = 'MAIL_FROM',
   rcptTo = 'RCPT_TO',
 }
@@ -354,6 +361,18 @@ export interface SMTPVerifyOptions {
    * - `'force'`: pipeline without checking — testing escape hatch.
    */
   pipelining?: 'auto' | 'never' | 'force';
+  /**
+   * Controls STARTTLS upgrade on plaintext ports (25, 587). Implicit-TLS
+   * ports (465) ignore this option — they're already TLS from the start.
+   *
+   * - `'auto'` (default): upgrade if the MX advertises STARTTLS in EHLO.
+   *   Submission-port (587) MXes typically require this — without it,
+   *   `MAIL FROM` is rejected with `530 Must issue STARTTLS first`.
+   * - `'never'`: never upgrade — send `MAIL FROM` / `RCPT TO` in plaintext.
+   * - `'force'`: send `STARTTLS` unconditionally. Fails with
+   *   `tls_upgrade_failed` when the MX doesn't support it. Testing only.
+   */
+  startTls?: 'auto' | 'never' | 'force';
 }
 
 export interface VerifyMailboxSMTPParams {

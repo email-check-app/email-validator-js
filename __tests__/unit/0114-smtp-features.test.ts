@@ -102,6 +102,22 @@ describe('0114 SMTP — multi-MX iteration', () => {
     expect(smtpResult.isDeliverable).toBe(false);
     expect(smtpResult.error).toBe('connection_error');
   });
+
+  it('error vocabulary never includes the legacy `connect_throw:<msg>` form', async () => {
+    // v4: synchronous net/tls.connect throws are normalized to the same
+    // `connection_error` key as async failures so callers can branch on a
+    // single stable value. Verify with all-invalid ports (filtered → no
+    // probe ever runs → falls into the all-attempts-failed path).
+    const { smtpResult } = await verifyMailboxSMTP({
+      local: 'alice',
+      domain: 'example.com',
+      mxRecords: ['mx.example.com'],
+      options: { ports: [-1, 65536], timeout: 50 },
+    });
+
+    expect(smtpResult.isDeliverable).toBe(false);
+    expect(smtpResult.error).not.toMatch(/^connect_throw:/);
+  });
 });
 
 describe('0114 SMTP — catch-all detection (always-on dual-probe)', () => {
