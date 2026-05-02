@@ -11,7 +11,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { verifyMailboxSMTP } from '../../src/smtp-verifier';
 import { fakeNet } from '../helpers/fake-net';
 
-const HAPPY_FLOW = ['220 mx.example.com ESMTP', '250 mx.example.com Hello', '250 sender ok', '250 recipient ok'];
+// Default SMTP envelope: greeting + EHLO + MAIL FROM + dual-probe (real RCPT
+// 250, probe RCPT 550 → not catch-all, RSET 250).
+const HAPPY_FLOW = [
+  '220 mx.example.com ESMTP',
+  '250 mx.example.com Hello',
+  '250 sender ok',
+  '250 recipient ok', // real RCPT
+  '550 5.1.1 unknown user', // probe RCPT (not catch-all)
+  '250 reset', // RSET
+];
 
 describe('0113 SMTP transcript capture', () => {
   beforeEach(() => fakeNet.reset());
@@ -43,7 +52,7 @@ describe('0113 SMTP transcript capture', () => {
     expect(smtpResult.commands!.length).toBeGreaterThan(0);
   });
 
-  it('transcript lines are port-prefixed `<port>|s| <line>`', async () => {
+  it('transcript lines are host-port-prefixed `<host>:<port>|s| <line>`', async () => {
     fakeNet.script(HAPPY_FLOW);
     const { smtpResult } = await verifyMailboxSMTP({
       local: 'alice',
@@ -52,11 +61,11 @@ describe('0113 SMTP transcript capture', () => {
       options: { ports: [25], timeout: 200, captureTranscript: true },
     });
     for (const line of smtpResult.transcript ?? []) {
-      expect(line.startsWith('25|s| ')).toBe(true);
+      expect(line.startsWith('mx.example.com:25|s| ')).toBe(true);
     }
   });
 
-  it('commands are port-prefixed `<port>|c| <command>`', async () => {
+  it('commands are host-port-prefixed `<host>:<port>|c| <command>`', async () => {
     fakeNet.script(HAPPY_FLOW);
     const { smtpResult } = await verifyMailboxSMTP({
       local: 'alice',
@@ -65,7 +74,7 @@ describe('0113 SMTP transcript capture', () => {
       options: { ports: [25], timeout: 200, captureTranscript: true },
     });
     for (const cmd of smtpResult.commands ?? []) {
-      expect(cmd.startsWith('25|c| ')).toBe(true);
+      expect(cmd.startsWith('mx.example.com:25|c| ')).toBe(true);
     }
   });
 
@@ -119,8 +128,8 @@ describe('0113 SMTP transcript capture', () => {
     const commands = smtpResult.commands ?? [];
     // Port 25 produced no server lines (silent) but we still see transcript
     // entries from port 587. Commands list includes attempts to both ports.
-    expect(transcript.some((l) => l.startsWith('587|s|'))).toBe(true);
-    expect(commands.some((c) => c.startsWith('587|c|'))).toBe(true);
+    expect(transcript.some((l) => l.startsWith('mx.example.com:587|s|'))).toBe(true);
+    expect(commands.some((c) => c.startsWith('mx.example.com:587|c|'))).toBe(true);
   });
 
   it('preserves transcript even when probe ends in not_found', async () => {
@@ -165,7 +174,8 @@ describe('0113 SMTP transcript capture', () => {
       mxRecords: ['mx.example.com'],
       options: { ports: [25, 587], timeout: 100, captureTranscript: true },
     });
-    expect(smtpResult.error).toBe('All SMTP connection attempts failed');
+    // Error mirrors the LAST attempt's reason, not a generic message.
+    expect(smtpResult.error).toBe('connection_error');
     // Both arrays exist (may be empty since connection errored before any data).
     expect(Array.isArray(smtpResult.transcript)).toBe(true);
     expect(Array.isArray(smtpResult.commands)).toBe(true);

@@ -91,7 +91,7 @@ pnpm add @emailcheck/email-validator-js
 ```
 
 ### Requirements (consumers)
-- Node.js >= 18 (runtime target — the published bundle is plain Node.js + ESM/CJS)
+- Node.js >= 22 (currently-supported LTS lines: 22 Maintenance, 24 Active)
 - TypeScript >= 4.0 (for TypeScript users)
 
 ### Requirements (contributing)
@@ -864,7 +864,7 @@ bun run examples/high-level/advanced-usage.ts
 bun run examples/integrations/algolia.ts
 ```
 
-**After installation in your own project (Node 20.10+):**
+**After installation in your own project (Node 22+):**
 
 ```bash
 node --experimental-strip-types examples/smtp/usage.ts
@@ -1386,7 +1386,7 @@ app.http('validateEmail', {
 
 ### Edge MX support via the built-in DoH resolver
 
-A built-in `DoHResolver` ships with the package — works in any runtime with `fetch` (Cloudflare Workers, Vercel Edge, Deno, browsers, Node 18+):
+A built-in `DoHResolver` ships with the package — works in any runtime with `fetch` (Cloudflare Workers, Vercel Edge, Deno, browsers, Node 22+):
 
 ```typescript
 import {
@@ -1484,6 +1484,41 @@ const parsed = parseSmtpError('552 5.2.2 mailbox over quota');
 ```
 
 The four flags are orthogonal — a single message can fire multiple. See `__tests__/0112-smtp-error-parser.test.ts` for the full classification matrix.
+
+### Refining a coarse reason via the RFC 3463 enhanced status
+
+`verifyMailboxSMTP` returns a coarse `error` reason (`not_found` / `over_quota` / `temporary_failure` / `ambiguous` / …) that's stable across MX implementations. When the MX includes an enhanced status code (RFC 3463) — e.g. `5.1.1` for "user unknown" vs. `5.7.1` for "policy block" — pipe both through `refineReasonByEnhancedStatus` to get a more specific reason:
+
+```typescript
+import { refineReasonByEnhancedStatus, verifyMailboxSMTP } from '@emailcheck/email-validator-js';
+
+const { smtpResult } = await verifyMailboxSMTP({
+  local: 'alice', domain: 'example.com', mxRecords: ['mx.example.com'],
+});
+const refined = refineReasonByEnhancedStatus(smtpResult.error, smtpResult.enhancedStatus);
+// e.g. 'mailbox_does_not_exist' instead of 'not_found' when the MX returned 550 5.1.1
+```
+
+Mapping (codes not in the table return the original reason unchanged):
+
+| DSN code  | Refined reason                       |
+| --------- | ------------------------------------ |
+| `5.1.1`   | `mailbox_does_not_exist`             |
+| `5.1.2`   | `bad_destination_system`             |
+| `5.1.3`   | `bad_destination_address`            |
+| `5.1.6`   | `mailbox_moved`                      |
+| `5.1.10`  | `recipient_address_has_null_mx`      |
+| `5.2.0`   | `mailbox_status_other`               |
+| `5.2.1`   | `mailbox_disabled`                   |
+| `5.2.2`   | `mailbox_full`                       |
+| `5.2.3`   | `message_too_long`                   |
+| `5.2.4`   | `mailing_list_expansion_problem`     |
+| `4.4.1`   | `no_answer_from_host`                |
+| `4.4.2`   | `bad_connection`                     |
+| `5.7.0`   | `security_other`                     |
+| `5.7.1`   | `delivery_not_authorized`            |
+| `5.7.25`  | `no_reverse_dns`                     |
+| `5.7.26`  | `multiple_authentication_failures`   |
 
 ## 📊 Performance & Caching
 

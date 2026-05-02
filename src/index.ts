@@ -32,6 +32,7 @@ export {
   detectNameForAlgorithm,
   detectNameFromEmail,
 } from './name-detector';
+export { refineReasonByEnhancedStatus } from './refine-reason';
 export { type ParsedSmtpError, parseSmtpError } from './smtp-error-parser';
 export {
   ArrayTranscriptCollector,

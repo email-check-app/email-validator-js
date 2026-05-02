@@ -1,8 +1,6 @@
 import type { Cache } from './cache-interface';
 
-/**
- * Error codes for email verification failures
- */
+/** Error codes set on `VerificationResult.metadata.error` when `verifyEmail` cannot deliver a definitive verdict. */
 export enum VerificationErrorCode {
   invalidFormat = 'INVALID_FORMAT',
   invalidDomain = 'INVALID_DOMAIN',
@@ -10,15 +8,10 @@ export enum VerificationErrorCode {
   smtpConnectionFailed = 'SMTP_CONNECTION_FAILED',
   smtpTimeout = 'SMTP_TIMEOUT',
   mailboxNotFound = 'MAILBOX_NOT_FOUND',
-  mailboxFull = 'MAILBOX_FULL',
   networkError = 'NETWORK_ERROR',
   disposableEmail = 'DISPOSABLE_EMAIL',
-  freeEmailProvider = 'FREE_EMAIL_PROVIDER',
 }
 
-/**
- * Main verification result interface (flat structure)
- */
 /** Discriminator for `VerificationStep.kind`. */
 export type VerificationStepKind =
   | 'syntax'
@@ -72,10 +65,7 @@ export interface VerificationResult {
   /** Whether the email/account is disabled */
   isDisabled?: boolean;
 
-  /**
-   * Always populated by `verifyEmail`. Optional in older shapes is gone —
-   * callers can read it directly without optional chaining.
-   */
+  /** Always populated by `verifyEmail` — read directly without optional chaining. */
   metadata: {
     verificationTime: number;
     cached: boolean;
@@ -202,46 +192,83 @@ export enum EmailProvider {
 }
 
 /**
- * Result for SMTP verification with metadata
- * Uses camelCase for consistency with TypeScript conventions
+ * Verdict from one `verifyMailboxSMTP` call. Flat by design — every field is
+ * one boolean / scalar so callers can switch on a few keys instead of walking
+ * a tree.
  */
 export interface SmtpVerificationResult {
-  /** Whether SMTP connection was successful */
+  /** True when at least one MX×port responded with an SMTP greeting. */
   canConnectSmtp: boolean;
-  /** Whether the mailbox is full */
+  /** True when the MX returned `552` / `452` (over-quota / mailbox full). */
   hasFullInbox: boolean;
-  /** Whether the domain has catch-all enabled */
+  /**
+   * True when both the real RCPT TO and the random-local probe RCPT TO
+   * returned `250` — the MX accepts every recipient and the deliverability
+   * signal for the real address is unreliable.
+   */
   isCatchAll: boolean;
-  /** Whether the email is deliverable */
+  /** True when the real RCPT TO returned `250` / `251`. */
   isDeliverable: boolean;
-  /** Whether the email/account is disabled */
+  /** True when the real RCPT TO was definitively rejected. */
   isDisabled: boolean;
-  /** Error message if verification failed */
+  /**
+   * Short reason key when `isDeliverable === false`. Vocabulary:
+   *   `not_found` | `over_quota` | `temporary_failure` | `ambiguous` |
+   *   `connection_error` | `connection_timeout` | `connection_closed` |
+   *   `tls_upgrade_failed` | `tls_handshake_failed` |
+   *   `ehlo_failed` | `helo_failed` | `mail_from_rejected` |
+   *   `no_greeting` | `no_mx_records` | `unrecognized_response` |
+   *   `step_timeout` | `socket_timeout`
+   *
+   * Pass to `refineReasonByEnhancedStatus(error, enhancedStatus)` for a
+   * richer (mailbox-status-aware) reason when the MX returned a DSN.
+   */
   error?: string;
-  /** Which provider was detected/used */
-  providerUsed?: EmailProvider;
-  /** Additional compatibility properties */
-  success?: boolean;
-  canConnect?: boolean;
+  /** Most recent 3-digit SMTP code observed during the probe. */
   responseCode?: number;
-  /** Provider-specific error details */
-  providerSpecific?: {
-    errorCode?: string;
-    actionRequired?: string;
-    details?: string;
-  };
-  /** Timestamp when this was checked (for cache) */
+  /**
+   * RFC 3463 enhanced status code from the most recent SMTP reply that
+   * carried one — e.g. `"5.1.1"` (mailbox unknown), `"5.7.1"` (policy
+   * block), `"4.7.0"` (transient policy). Undefined when no MX reply
+   * included an enhanced status.
+   */
+  enhancedStatus?: string;
+  /** Operational counters — always populated. See `SmtpProbeMetrics`. */
+  metrics?: SmtpProbeMetrics;
+  /** Wall-clock timestamp this verdict was produced (set on every result). */
   checkedAt?: number;
   /**
-   * Server reply lines, in arrival order, prefixed `<port>|s| <line>` so
-   * multi-port probes stay readable. Present when `captureTranscript` is set.
+   * Server reply lines, in arrival order, prefixed `<host>:<port>|s| <line>`
+   * so multi-MX dialogues stay readable. Present only when
+   * `captureTranscript: true` was passed.
    */
   transcript?: string[];
   /**
-   * Client commands sent, in send order, prefixed `<port>|c| <command>`.
-   * Present when `captureTranscript` is set.
+   * Client commands sent, in send order, prefixed `<host>:<port>|c| <cmd>`.
+   * Present only when `captureTranscript: true` was passed.
    */
   commands?: string[];
+}
+
+/**
+ * Operational counters for one `verifyMailboxSMTP` call. The cost of
+ * collecting these is trivial — pure bookkeeping during the existing flow.
+ */
+export interface SmtpProbeMetrics {
+  /** How many MX hostnames the outer loop attempted before stopping. */
+  mxAttempts: number;
+  /** Total connection attempts across the whole call (sum across MX×port). */
+  portAttempts: number;
+  /** MX hostnames attempted in priority order (matches `mxRecords` slice). */
+  mxHostsTried: string[];
+  /**
+   * MX hostname that produced the final answer. Undefined when every MX
+   * failed (in which case `result.isDeliverable === false` and the SMTP
+   * reason is whatever the last attempted MX returned).
+   */
+  mxHostUsed?: string;
+  /** Total wall-clock time the probe spent, in milliseconds. */
+  totalDurationMs: number;
 }
 
 /**
@@ -265,14 +292,16 @@ export interface SMTPTLSConfig {
 }
 
 /**
- * SMTP protocol steps. Only the steps the verifier actually walks are listed —
- * STARTTLS upgrade, VRFY, and QUIT used to be separate enum members but were
- * never reachable from production callers.
+ * SMTP protocol steps walked by the verifier in order. `startTls` is a
+ * conditional step — it sends the STARTTLS command and upgrades the socket
+ * to TLS when the MX advertised support (controlled by
+ * `SMTPVerifyOptions.startTls`). On implicit-TLS ports (465) it's a no-op.
  */
 export enum SMTPStep {
   greeting = 'GREETING',
   ehlo = 'EHLO',
   helo = 'HELO',
+  startTls = 'STARTTLS',
   mailFrom = 'MAIL_FROM',
   rcptTo = 'RCPT_TO',
 }
@@ -293,11 +322,47 @@ export interface SMTPVerifyOptions {
   debug?: boolean;
   /**
    * When true, the returned `SmtpVerificationResult` carries `transcript` and
-   * `commands` arrays prefixed with `<port>|s| …` / `<port>|c| …`. Aggregated
-   * across every port attempted.
+   * `commands` arrays prefixed with `<host>:<port>|s| …` / `<host>:<port>|c| …`.
+   * Aggregated across every MX×port attempted.
+   *
+   * Default: `false`. The strings are O(N×wire-bytes); skip when you don't
+   * need the trace.
    */
   captureTranscript?: boolean;
   sequence?: SMTPSequence;
+  /**
+   * Override the random-local-part generator used by the catch-all probe.
+   * Useful for deterministic tests; receives the real local-part and domain
+   * so callers can derive a probe-local that matches the MX's syntax rules.
+   *
+   * Default: `<16 hex chars>-noexist` — long enough to never collide,
+   * structured so it's clearly synthetic and passes common syntax filters.
+   */
+  catchAllProbeLocal?: (realLocal: string, domain: string) => string;
+  /**
+   * Use SMTP PIPELINING (RFC 2920) to batch the envelope phase
+   * (RCPT TO real + RCPT TO probe + RSET) into one `socket.write()` when
+   * the MX advertises support.
+   *
+   * - `'auto'` (default): pipeline when EHLO multi-line includes
+   *   `PIPELINING`, sequential otherwise.
+   * - `'never'`: always sequential — useful for deterministic wire-level
+   *   assertions in tests, or when investigating a flaky pipeline-buggy MX.
+   * - `'force'`: pipeline without checking — testing escape hatch.
+   */
+  pipelining?: 'auto' | 'never' | 'force';
+  /**
+   * Controls STARTTLS upgrade on plaintext ports (25, 587). Implicit-TLS
+   * ports (465) ignore this option — they're already TLS from the start.
+   *
+   * - `'auto'` (default): upgrade if the MX advertises STARTTLS in EHLO.
+   *   Submission-port (587) MXes typically require this — without it,
+   *   `MAIL FROM` is rejected with `530 Must issue STARTTLS first`.
+   * - `'never'`: never upgrade — send `MAIL FROM` / `RCPT TO` in plaintext.
+   * - `'force'`: send `STARTTLS` unconditionally. Fails with
+   *   `tls_upgrade_failed` when the MX doesn't support it. Testing only.
+   */
+  startTls?: 'auto' | 'never' | 'force';
 }
 
 export interface VerifyMailboxSMTPParams {

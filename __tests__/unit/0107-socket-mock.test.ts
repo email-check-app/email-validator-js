@@ -14,13 +14,17 @@ const FOO_MX = [
   { exchange: 'mx3.foo.com', priority: 20 },
   { exchange: 'mx1.foo.com', priority: 30 },
 ];
+// Default SMTP envelope: greeting + EHLO multi-line + MAIL FROM + dual-probe
+// (real RCPT 250, probe RCPT 550, RSET 250).
 const VALID_FLOW = [
   '220 test.example.com ESMTP',
   '250-test.example.com Hello',
   '250-VRFY',
   '250 OK',
   '250 Mail OK',
-  '250 Recipient OK',
+  '250 Recipient OK', // real RCPT
+  '550 5.1.1 unknown user', // probe RCPT (rejected — not catch-all)
+  '250 reset', // RSET
 ];
 
 describe('0107 Socket Mock', () => {
@@ -155,7 +159,15 @@ describe('0107 Socket Mock', () => {
       });
 
       it('handles multiline SMTP greetings correctly', async () => {
-        fakeNet.script(['220-hohoho', '220 ho ho ho', '250 Hello', '250 Mail OK', '250 OK']);
+        fakeNet.script([
+          '220-hohoho',
+          '220 ho ho ho',
+          '250 Hello',
+          '250 Mail OK',
+          '250 OK', // real RCPT
+          '550 5.1.1 unknown user', // probe RCPT
+          '250 reset', // RSET
+        ]);
         const result = await verifyEmail({
           emailAddress: 'bar@foo.com',
           verifySmtp: true,
