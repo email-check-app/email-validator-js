@@ -818,6 +818,49 @@ console.log(`SMTP result: ${smtpResult.isDeliverable} via port ${port}`);
 console.log(`canConnectSmtp=${smtpResult.canConnectSmtp}, error=${smtpResult.error ?? 'none'}`);
 ```
 
+### Configuration presets (NEW in v5)
+
+Don't want to think about timeouts and retries? Pick a preset that matches your deployment shape:
+
+```typescript
+import { verifyEmail, VERIFY_EMAIL_PRESETS } from '@emailcheck/email-validator-js';
+
+// Lambda / Vercel / Cloudflare-Workers handler
+await verifyEmail({
+  emailAddress: 'alice@example.com',
+  verifySmtp: true,
+  ...VERIFY_EMAIL_PRESETS.serverless,
+});
+
+// Long-running worker / dyno
+await verifyEmail({ ..., ...VERIFY_EMAIL_PRESETS.dedicated });
+
+// Bulk processing
+await verifyEmail({ ..., ...VERIFY_EMAIL_PRESETS.batch });
+
+// Form-autocomplete UX (sub-3s)
+await verifyEmail({ ..., ...VERIFY_EMAIL_PRESETS.fast });
+```
+
+| Preset | Per-attempt | Total deadline | Max consecutive failures | Max MX | Retry |
+| --- | --- | --- | --- | --- | --- |
+| `serverless` | 2500 ms | **5 s** | 3 | 2 | none — fail fast |
+| `dedicated` | 5000 ms | 30 s | unbounded | unbounded | 1 retry, 500 ms exp backoff |
+| `batch` | 10 000 ms | 60 s | unbounded | unbounded | 2 retries, 1 s exp backoff |
+| `fast` | 1500 ms | **3 s** | 2 | **1** | none — fail fast |
+
+`SMTP_PRESETS` is a parallel set with the unprefixed field names for `verifyMailboxSMTP({ options })` callers — same values, same shape.
+
+You can spread + override:
+
+```typescript
+await verifyEmail({
+  emailAddress: 'alice@example.com',
+  ...VERIFY_EMAIL_PRESETS.serverless,
+  smtpTotalDeadlineMs: 3000, // tighter than the preset's 5s
+});
+```
+
 ### Time-budget controls (NEW in v5)
 
 The probe walks `mxRecords × ports` (worst-case 4 × 3 = 12 attempts at 3s each = 36s). Four orthogonal knobs let you bound that:

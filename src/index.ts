@@ -46,6 +46,13 @@ export {
   detectNameForAlgorithm,
   detectNameFromEmail,
 } from './name-detector';
+// Recommended-config presets for serverless / dedicated / batch / fast workloads.
+export {
+  SMTP_PRESETS,
+  type SmtpPresetName,
+  VERIFY_EMAIL_PRESETS,
+  type VerifyEmailPresetName,
+} from './presets';
 export { refineReasonByEnhancedStatus } from './refine-reason';
 export { type ParsedSmtpError, parseSmtpError } from './smtp-error-parser';
 export { type ParsedDsn, parseDsn, verifyMailboxSMTP } from './smtp-verifier';

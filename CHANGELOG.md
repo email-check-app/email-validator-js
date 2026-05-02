@@ -75,6 +75,35 @@ string + `hasFullInbox` boolean; free-email is a positive signal
 
 ### ✨ Added
 
+#### Configuration presets — `serverless` / `dedicated` / `batch` / `fast`
+
+Pick a sensible default for your deployment shape instead of guessing
+timeouts:
+
+```ts
+import { verifyEmail, VERIFY_EMAIL_PRESETS } from '@emailcheck/email-validator-js';
+
+await verifyEmail({
+  emailAddress: 'alice@example.com',
+  verifySmtp: true,
+  ...VERIFY_EMAIL_PRESETS.serverless,
+});
+```
+
+Four presets covering common workloads:
+
+| Preset | Per-attempt | Total | Max consecutive failures | Max MX | Retry |
+| --- | --- | --- | --- | --- | --- |
+| `serverless` | 2.5 s | **5 s** | 3 | 2 | none |
+| `dedicated` | 5 s | 30 s | unbounded | unbounded | 1 retry, 500 ms exp |
+| `batch` | 10 s | 60 s | unbounded | unbounded | 2 retries, 1 s exp |
+| `fast` | 1.5 s | **3 s** | 2 | **1** | none |
+
+Two parallel exports: `SMTP_PRESETS` (unprefixed field names for
+`verifyMailboxSMTP({ options })`) and `VERIFY_EMAIL_PRESETS` (smtp-prefixed
+field names for `verifyEmail`). Spread + override individual fields as
+needed.
+
 #### `verifyMailboxSMTP` control options
 
 All on `SMTPVerifyOptions` (and re-exported on `VerifyEmailParams`
