@@ -1,8 +1,6 @@
 import type { Cache } from './cache-interface';
 
-/**
- * Error codes for email verification failures
- */
+/** Error codes set on `VerificationResult.metadata.error` when `verifyEmail` cannot deliver a definitive verdict. */
 export enum VerificationErrorCode {
   invalidFormat = 'INVALID_FORMAT',
   invalidDomain = 'INVALID_DOMAIN',
@@ -10,15 +8,10 @@ export enum VerificationErrorCode {
   smtpConnectionFailed = 'SMTP_CONNECTION_FAILED',
   smtpTimeout = 'SMTP_TIMEOUT',
   mailboxNotFound = 'MAILBOX_NOT_FOUND',
-  mailboxFull = 'MAILBOX_FULL',
   networkError = 'NETWORK_ERROR',
   disposableEmail = 'DISPOSABLE_EMAIL',
-  freeEmailProvider = 'FREE_EMAIL_PROVIDER',
 }
 
-/**
- * Main verification result interface (flat structure)
- */
 /** Discriminator for `VerificationStep.kind`. */
 export type VerificationStepKind =
   | 'syntax'
@@ -72,10 +65,7 @@ export interface VerificationResult {
   /** Whether the email/account is disabled */
   isDisabled?: boolean;
 
-  /**
-   * Always populated by `verifyEmail`. Optional in older shapes is gone —
-   * callers can read it directly without optional chaining.
-   */
+  /** Always populated by `verifyEmail` — read directly without optional chaining. */
   metadata: {
     verificationTime: number;
     cached: boolean;

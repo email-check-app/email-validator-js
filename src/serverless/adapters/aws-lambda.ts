@@ -61,7 +61,7 @@ function jsonResponse(statusCode: number, body: unknown, headers: Record<string,
   return { statusCode, headers, body: JSON.stringify(body) };
 }
 
-// API Gateway handler (legacy surface — no path routing).
+// Single-route API Gateway handler — accepts proxy events but doesn't inspect `event.path`.
 export async function apiGatewayHandler(
   event: APIGatewayProxyEvent,
   _context: LambdaContext
