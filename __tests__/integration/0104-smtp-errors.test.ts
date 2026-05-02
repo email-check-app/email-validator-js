@@ -22,7 +22,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         mxRecords: ['invalid.nonexistent.server.test'],
         options: {
-          timeout: 2000,
+          perAttemptTimeoutMs: 2000,
         },
       });
 
@@ -34,7 +34,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         mxRecords: ['timeout.test.invalid'], // Use a hostname that will timeout
         options: {
-          timeout: 1000,
+          perAttemptTimeoutMs: 1000,
         },
       });
 
@@ -47,7 +47,7 @@ describe('0104 SMTP Errors', () => {
         mxRecords: ['localhost'],
         options: {
           ports: [25], // No SMTP server typically running on localhost
-          timeout: 2000,
+          perAttemptTimeoutMs: 2000,
         },
       });
 
@@ -60,7 +60,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         mxRecords: [''].filter(Boolean), // Results in empty array
         options: {
-          timeout: 2000,
+          perAttemptTimeoutMs: 2000,
         },
       });
 
@@ -117,7 +117,7 @@ describe('0104 SMTP Errors', () => {
         domain: longDomain,
         mxRecords: ['mx.example.com'],
         options: {
-          timeout: 5000,
+          perAttemptTimeoutMs: 5000,
         },
       });
 
@@ -153,7 +153,7 @@ describe('0104 SMTP Errors', () => {
     it('should handle very short timeout', async () => {
       const params = createTestParams({
         options: {
-          timeout: 1, // 1ms timeout
+          perAttemptTimeoutMs: 1, // 1ms timeout
         },
       });
 
@@ -165,7 +165,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         mxRecords: ['timeout2.test.invalid'], // Use hostname that will timeout
         options: {
-          timeout: 2000,
+          perAttemptTimeoutMs: 2000,
         },
       });
 
@@ -180,7 +180,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         mxRecords: ['timeout3.test.invalid'],
         options: {
-          timeout: 1000,
+          perAttemptTimeoutMs: 1000,
         },
       });
 
@@ -201,7 +201,7 @@ describe('0104 SMTP Errors', () => {
         const params = createTestParams({
           options: {
             ports: [port],
-            timeout: 1000,
+            perAttemptTimeoutMs: 1000,
           },
         });
 
@@ -217,7 +217,7 @@ describe('0104 SMTP Errors', () => {
         const params = createTestParams({
           options: {
             ports: [port],
-            timeout: 1000, // Short timeout to avoid hanging
+            perAttemptTimeoutMs: 1000, // Short timeout to avoid hanging
           },
         });
 
@@ -244,7 +244,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         options: {
           ports: [587],
-          tls: {
+          tlsConfig: {
             rejectUnauthorized: true,
             // Use a server with invalid cert if available
           },
@@ -260,7 +260,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         options: {
           ports: [587],
-          tls: {
+          tlsConfig: {
             minVersion: 'TLSv1.3', // Not all servers support
           },
         },
@@ -282,7 +282,7 @@ describe('0104 SMTP Errors', () => {
             steps: [],
           },
           ports: [587],
-          timeout: 1500,
+          perAttemptTimeoutMs: 1500,
         },
       });
 
@@ -314,7 +314,7 @@ describe('0104 SMTP Errors', () => {
           mxRecords: ['gmail-smtp-in.l.google.com'],
           options: {
             ports: [587],
-            timeout: 5000,
+            perAttemptTimeoutMs: 5000,
             cache: getDefaultCache(),
             debug: false,
           },
@@ -333,7 +333,7 @@ describe('0104 SMTP Errors', () => {
           local: `rapid${i}`,
           options: {
             ports: [587],
-            timeout: 3000,
+            perAttemptTimeoutMs: 3000,
             cache: getDefaultCache(),
           },
         });
@@ -349,7 +349,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         options: {
           ports: [9999, 587], // First will fail, second might work
-          timeout: 2000,
+          perAttemptTimeoutMs: 2000,
         },
       });
 
@@ -364,7 +364,7 @@ describe('0104 SMTP Errors', () => {
           sequence: {
             steps: [SMTPStep.greeting, SMTPStep.ehlo],
           },
-          timeout: 3000,
+          perAttemptTimeoutMs: 3000,
         },
       });
 
@@ -377,7 +377,7 @@ describe('0104 SMTP Errors', () => {
         mxRecords: ['localhost'], // Might close connection
         options: {
           ports: [25],
-          timeout: 2000,
+          perAttemptTimeoutMs: 2000,
         },
       });
 
@@ -391,7 +391,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         mxRecords: ['invalid.test'],
         options: {
-          timeout: 100,
+          perAttemptTimeoutMs: 100,
         },
       });
 
@@ -409,7 +409,7 @@ describe('0104 SMTP Errors', () => {
       const params = createTestParams({
         options: {
           ports: [587],
-          timeout: 2000,
+          perAttemptTimeoutMs: 2000,
         },
       });
 

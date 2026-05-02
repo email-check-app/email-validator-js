@@ -125,14 +125,22 @@ export async function verifyMailboxSMTP(
   // Filter out non-integer / out-of-range ports — net.connect throws RangeError
   // synchronously for those, which would crash the promise executor.
   const ports = (options.ports ?? DEFAULT_PORTS).filter((port) => Number.isInteger(port) && port > 0 && port < 65536);
-  const timeout = options.timeout ?? DEFAULT_TIMEOUT_MS;
-  const tlsConfig = options.tls ?? true;
-  const hostname = options.hostname ?? 'localhost';
+  const perAttemptTimeoutMs = options.perAttemptTimeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const tlsConfig = options.tlsConfig ?? true;
+  const heloHostname = options.heloHostname ?? 'localhost';
   const debug = options.debug ?? false;
   const captureTranscript = options.captureTranscript ?? false;
   const sequence = options.sequence;
   const cache = options.cache;
   const log = debug ? (...args: unknown[]) => console.log('[SMTP]', ...args) : () => {};
+
+  // Early-stop policy.
+  const totalDeadlineMs = options.totalDeadlineMs;
+  const maxConsecutiveFailures = options.maxConsecutiveFailures;
+  const maxMxHosts = options.maxMxHosts;
+  const retryAttempts = options.retry?.attempts ?? 0;
+  const retryDelayMs = options.retry?.delayMs ?? 200;
+  const retryBackoff = options.retry?.backoff ?? 'exponential';
 
   const startedAtMs = Date.now();
 
@@ -150,9 +158,9 @@ export async function verifyMailboxSMTP(
   const probeOptions: ProbeOptions = {
     local,
     domain,
-    timeout,
+    perAttemptTimeoutMs,
     tlsConfig,
-    hostname,
+    heloHostname,
     sequence,
     log,
     catchAllProbeLocal: options.catchAllProbeLocal,
@@ -178,11 +186,42 @@ export async function verifyMailboxSMTP(
   const mxHostsTried: string[] = [];
   let mxAttempts = 0;
   let portAttempts = 0;
+  let consecutiveFailures = 0;
   let lastReason = 'all_attempts_failed';
   let lastEnhancedStatus: string | undefined;
   let lastResponseCode: number | undefined;
+  let stoppedEarly: 'deadline' | 'consecutive_failures' | 'max_mx_hosts' | null = null;
 
-  for (const mxHost of mxRecords) {
+  /** Connection-class outcomes count toward `maxConsecutiveFailures`; everything else resets it. */
+  const isConnectionFailure = (reason: string): boolean =>
+    reason === 'connection_error' ||
+    reason === 'connection_timeout' ||
+    reason === 'connection_closed' ||
+    reason === 'socket_timeout';
+
+  /** Compute backoff delay for the Nth retry (1-indexed). */
+  const retryDelayFor = (attemptIndex: number): number =>
+    retryBackoff === 'exponential' ? retryDelayMs * 2 ** (attemptIndex - 1) : retryDelayMs;
+
+  /** Run one probe attempt with optional retries on connection-class failures. */
+  const probeWithRetry = async (mxHost: string, port: number): Promise<ProbeResult> => {
+    let lastProbe = await runProbe({ ...probeOptions, mxHost, port });
+    for (let i = 1; i <= retryAttempts; i++) {
+      if (lastProbe.result !== null || !isConnectionFailure(lastProbe.reason)) break;
+      const delay = retryDelayFor(i);
+      log(`retry ${i}/${retryAttempts} on ${mxHost}:${port} after ${delay}ms (last: ${lastProbe.reason})`);
+      await new Promise((r) => setTimeout(r, delay));
+      portAttempts++;
+      lastProbe = await runProbe({ ...probeOptions, mxHost, port });
+    }
+    return lastProbe;
+  };
+
+  outer: for (const mxHost of mxRecords) {
+    if (maxMxHosts !== undefined && mxAttempts >= maxMxHosts) {
+      stoppedEarly = 'max_mx_hosts';
+      break;
+    }
     mxHostsTried.push(mxHost);
     mxAttempts++;
 
@@ -191,9 +230,13 @@ export async function verifyMailboxSMTP(
       mxHost === primaryMx && cachedPort ? [cachedPort, ...ports.filter((p) => p !== cachedPort)] : ports;
 
     for (const port of portsForThisMx) {
+      if (totalDeadlineMs !== undefined && Date.now() - startedAtMs >= totalDeadlineMs) {
+        stoppedEarly = 'deadline';
+        break outer;
+      }
       portAttempts++;
       log(`Testing ${mxHost}:${port}`);
-      const probe = await runProbe({ ...probeOptions, mxHost, port });
+      const probe = await probeWithRetry(mxHost, port);
       collectTranscript(transcript, commands, probe, mxHost, port);
       lastReason = probe.reason;
       if (probe.enhancedStatus !== undefined) lastEnhancedStatus = probe.enhancedStatus;
@@ -212,8 +255,16 @@ export async function verifyMailboxSMTP(
         if (mxHost === primaryMx) await safeCacheSet(portCache, primaryMx, port);
         return { smtpResult, cached: false, port, portCached: cachedPort === port };
       }
+
+      // Track consecutive connection-class failures for the early-stop policy.
+      consecutiveFailures = isConnectionFailure(probe.reason) ? consecutiveFailures + 1 : 0;
+      if (maxConsecutiveFailures !== undefined && consecutiveFailures >= maxConsecutiveFailures) {
+        stoppedEarly = 'consecutive_failures';
+        break outer;
+      }
     }
   }
+  if (stoppedEarly) log(`Stopped early: ${stoppedEarly}`);
 
   // Every MX×port returned indeterminate — surface the LAST attempt's reason
   // so callers can see the failure mode (e.g. tls_error tells a different
@@ -324,9 +375,9 @@ async function safeCacheSet<T>(
 interface ProbeOptions {
   local: string;
   domain: string;
-  timeout: number;
+  perAttemptTimeoutMs: number;
   tlsConfig: boolean | SMTPTLSConfig;
-  hostname: string;
+  heloHostname: string;
   sequence?: SMTPSequence;
   log: (...args: unknown[]) => void;
   catchAllProbeLocal?: SMTPVerifyOptions['catchAllProbeLocal'];
@@ -472,18 +523,18 @@ class SMTPProbeConnection {
     } else {
       this.socket = net.connect({ host: this.p.mxHost, port: this.p.port }, onConnect);
     }
-    this.socket.setTimeout(this.p.timeout, () => this.finish(null, 'socket_timeout'));
+    this.socket.setTimeout(this.p.perAttemptTimeoutMs, () => this.finish(null, 'socket_timeout'));
     this.socket.on('error', () => this.finish(null, 'connection_error'));
     this.socket.on('close', () => this.finish(null, 'connection_closed'));
   }
 
   private armConnectionTimer(): void {
-    this.connectionTimer = setTimeout(() => this.finish(null, 'connection_timeout'), this.p.timeout);
+    this.connectionTimer = setTimeout(() => this.finish(null, 'connection_timeout'), this.p.perAttemptTimeoutMs);
   }
 
   private resetStepTimer(): void {
     if (this.stepTimer) clearTimeout(this.stepTimer);
-    this.stepTimer = setTimeout(() => this.finish(null, 'step_timeout'), this.p.timeout);
+    this.stepTimer = setTimeout(() => this.finish(null, 'step_timeout'), this.p.perAttemptTimeoutMs);
   }
 
   private onData = (data: Buffer | string): void => {
@@ -521,10 +572,10 @@ class SMTPProbeConnection {
       case SMTPStep.greeting:
         return; // server-driven; nothing to send
       case SMTPStep.ehlo:
-        this.send(`EHLO ${this.p.hostname}`);
+        this.send(`EHLO ${this.p.heloHostname}`);
         return;
       case SMTPStep.helo:
-        this.send(`HELO ${this.p.hostname}`);
+        this.send(`HELO ${this.p.heloHostname}`);
         return;
       case SMTPStep.startTls:
         this.executeStartTls();
@@ -611,7 +662,7 @@ class SMTPProbeConnection {
       this.supportsStartTls = false;
       this.supportsPipelining = false;
       this.postUpgradeReEhlo = true;
-      this.send(`EHLO ${this.p.hostname}`);
+      this.send(`EHLO ${this.p.heloHostname}`);
     });
 
     this.socket = tlsSocket;
@@ -622,7 +673,7 @@ class SMTPProbeConnection {
       this.finish(null, this.tlsUpgrading ? 'tls_handshake_failed' : 'connection_error');
     });
     this.socket.on('close', () => this.finish(null, 'connection_closed'));
-    this.socket.setTimeout(this.p.timeout, () => this.finish(null, 'socket_timeout'));
+    this.socket.setTimeout(this.p.perAttemptTimeoutMs, () => this.finish(null, 'socket_timeout'));
   }
 
   /**

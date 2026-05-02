@@ -46,7 +46,7 @@ describe('0110 SMTP Verifier Unit', () => {
       local: 'john',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { timeout: 200, ports: [25] },
+      options: { perAttemptTimeoutMs: 200, ports: [25] },
     });
 
     expect(port).toBe(25);
@@ -59,7 +59,7 @@ describe('0110 SMTP Verifier Unit', () => {
       local: 'john',
       domain: 'example.com',
       mxRecords: [],
-      options: { timeout: 50 },
+      options: { perAttemptTimeoutMs: 50 },
     });
 
     expect(port).toBe(0);
@@ -74,7 +74,7 @@ describe('0110 SMTP Verifier Unit', () => {
       local: 'missing',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { timeout: 200, ports: [587] },
+      options: { perAttemptTimeoutMs: 200, ports: [587] },
     });
 
     expect(smtpResult.isDeliverable).toBe(false);
@@ -93,7 +93,7 @@ describe('0110 SMTP Verifier Unit', () => {
       local: 'john',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { timeout: 200, ports: [587] },
+      options: { perAttemptTimeoutMs: 200, ports: [587] },
     });
 
     expect(smtpResult.isDeliverable).toBe(true);
@@ -107,7 +107,7 @@ describe('0110 SMTP Verifier Unit', () => {
       local: 'john',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25, 587], timeout: 100 },
+      options: { ports: [25, 587], perAttemptTimeoutMs: 100 },
     });
 
     expect(port).toBe(587);
@@ -124,7 +124,7 @@ describe('0110 SMTP Verifier Unit', () => {
       local: 'first',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25, 587], timeout: 200, cache },
+      options: { ports: [25, 587], perAttemptTimeoutMs: 200, cache },
     });
     expect(first.port).toBe(587);
     expect(first.portCached).toBe(false);
@@ -133,7 +133,7 @@ describe('0110 SMTP Verifier Unit', () => {
       local: 'second',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25, 587], timeout: 200, cache },
+      options: { ports: [25, 587], perAttemptTimeoutMs: 200, cache },
     });
     expect(second.port).toBe(587);
     expect(second.portCached).toBe(true);
@@ -158,7 +158,7 @@ describe('0110 SMTP Verifier Unit', () => {
       local: 'john',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, sequence },
+      options: { ports: [25], perAttemptTimeoutMs: 200, sequence },
     });
 
     // The caller's sequence object should be unmutated — the verifier maps EHLO→HELO
@@ -173,7 +173,7 @@ describe('0110 SMTP Verifier Unit', () => {
       local: 'john',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25, 587], timeout: 100 },
+      options: { ports: [25, 587], perAttemptTimeoutMs: 100 },
     });
 
     expect(port).toBe(0);

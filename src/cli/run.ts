@@ -53,7 +53,7 @@ export async function run(args: ParsedArgs, deps: CliRunDeps = {}): Promise<numb
     emailAddress: args.email,
     verifyMx: args.verifyMx,
     verifySmtp: args.verifySmtp,
-    timeout: args.timeoutMs ?? 5000,
+    smtpPerAttemptTimeoutMs: args.timeoutMs ?? 5000,
     debug: args.debug,
     smtpPort: args.smtpPort,
     checkDisposable: args.checkDisposable,
@@ -62,7 +62,7 @@ export async function run(args: ParsedArgs, deps: CliRunDeps = {}): Promise<numb
     suggestDomain: args.suggestDomain,
     checkDomainAge: args.checkDomainAge,
     checkDomainRegistration: args.checkDomainRegistration,
-    whoisTimeout: args.whoisTimeoutMs ?? 5000,
+    whoisTimeoutMs: args.whoisTimeoutMs ?? 5000,
     captureTranscript: args.captureTranscript,
   });
 

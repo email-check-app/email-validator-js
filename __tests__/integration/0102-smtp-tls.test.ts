@@ -23,7 +23,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [587, 465],
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -52,7 +52,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [25],
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -68,7 +68,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [587],
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -84,7 +84,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [465],
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -102,7 +102,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [587],
-            tls: {
+            tlsConfig: {
               rejectUnauthorized: false,
             },
           },
@@ -120,7 +120,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [465], // More likely to have valid certs
-            tls: {
+            tlsConfig: {
               rejectUnauthorized: true,
             },
           },
@@ -138,7 +138,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [587],
-            tls: {
+            tlsConfig: {
               rejectUnauthorized: true,
             },
           },
@@ -159,7 +159,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [587],
-            tls: {
+            tlsConfig: {
               minVersion: 'TLSv1.2',
             },
           },
@@ -177,7 +177,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [465], // More likely to support TLS 1.3
-            tls: {
+            tlsConfig: {
               minVersion: 'TLSv1.3',
             },
           },
@@ -195,7 +195,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [587],
-            tls: {
+            tlsConfig: {
               minVersion: 'TLSv1.2', // Most servers support this
             },
           },
@@ -241,7 +241,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [587],
-            tls: {
+            tlsConfig: {
               rejectUnauthorized: false,
               minVersion: 'TLSv1.2',
             },
@@ -264,7 +264,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [25],
-            tls: true,
+            tlsConfig: true,
             debug: true,
           },
         });
@@ -288,7 +288,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [587],
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -304,7 +304,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [465],
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -320,7 +320,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [25],
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -336,10 +336,10 @@ describe('0102 SMTP TLS', () => {
       'should compare TLS vs non-TLS performance',
       async () => {
         const testCases = [
-          { name: 'No TLS', tls: false, port: 25 },
-          { name: 'TLS Port 25', tls: true, port: 25 },
-          { name: 'TLS Port 587', tls: true, port: 587 },
-          { name: 'TLS Port 465', tls: true, port: 465 },
+          { name: 'No TLS', tlsConfig: false, port: 25 },
+          { name: 'TLS Port 25', tlsConfig: true, port: 25 },
+          { name: 'TLS Port 587', tlsConfig: true, port: 587 },
+          { name: 'TLS Port 465', tlsConfig: true, port: 465 },
         ];
 
         const results: { [key: string]: { result: boolean | null; duration: number } } = {};
@@ -348,7 +348,7 @@ describe('0102 SMTP TLS', () => {
           const params = createTestParams({
             options: {
               ports: [testCase.port],
-              tls: testCase.tls,
+              tlsConfig: testCase.tlsConfig,
               debug: false,
             },
           });
@@ -374,10 +374,10 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [465],
-            tls: {
+            tlsConfig: {
               rejectUnauthorized: true,
             },
-            timeout: 1000, // Short timeout for TLS handshake
+            perAttemptTimeoutMs: 1000, // Short timeout for TLS handshake
           },
         });
 
@@ -395,7 +395,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [465, 587, 25], // Secure ports first
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -411,7 +411,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [25, 587, 465], // Mixed order
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -427,7 +427,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [25],
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -446,7 +446,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [587],
-            tls: true,
+            tlsConfig: true,
             sequence: {
               steps: ['GREETING', 'EHLO', 'STARTTLS', 'MAIL_FROM', 'RCPT_TO'] as any,
             },
@@ -465,7 +465,7 @@ describe('0102 SMTP TLS', () => {
         const params = createTestParams({
           options: {
             ports: [587],
-            tls: true,
+            tlsConfig: true,
             sequence: {
               steps: ['GREETING', 'EHLO', 'MAIL_FROM', 'RCPT_TO'] as any, // No STARTTLS
             },

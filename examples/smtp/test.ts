@@ -29,9 +29,9 @@ async function testPortConnectivity() {
         mxRecords,
         options: {
           ports: [port], // Test single port
-          timeout: 5000,
+          perAttemptTimeoutMs: 5000,
           debug: true,
-          tls: {
+          tlsConfig: {
             rejectUnauthorized: false,
             minVersion: 'TLSv1.2',
           },
@@ -59,7 +59,7 @@ async function testMultiPortWithCaching() {
     domain,
     mxRecords,
     options: {
-      timeout: 3000,
+      perAttemptTimeoutMs: 3000,
       cache: getDefaultCache(),
       debug: false,
     },
@@ -75,7 +75,7 @@ async function testMultiPortWithCaching() {
     domain,
     mxRecords,
     options: {
-      timeout: 3000,
+      perAttemptTimeoutMs: 3000,
       cache: getDefaultCache(),
       debug: false,
     },
@@ -104,7 +104,7 @@ async function testTimeoutHandling() {
     domain,
     mxRecords,
     options: {
-      timeout: 1, // 1ms timeout
+      perAttemptTimeoutMs: 1, // 1ms timeout
       debug: false,
     },
   });
@@ -128,8 +128,8 @@ async function testTLSConfiguration() {
     mxRecords,
     options: {
       ports: [465], // Try implicit TLS first
-      timeout: 5000,
-      tls: {
+      perAttemptTimeoutMs: 5000,
+      tlsConfig: {
         rejectUnauthorized: true,
         minVersion: 'TLSv1.3',
       },
@@ -146,8 +146,8 @@ async function testTLSConfiguration() {
     mxRecords,
     options: {
       ports: [465],
-      timeout: 5000,
-      tls: {
+      perAttemptTimeoutMs: 5000,
+      tlsConfig: {
         rejectUnauthorized: false,
         minVersion: 'TLSv1.2',
       },
@@ -172,7 +172,7 @@ async function testCustomSequences() {
     domain,
     mxRecords,
     options: {
-      timeout: 5000,
+      perAttemptTimeoutMs: 5000,
       debug: false,
     },
   });
@@ -185,7 +185,7 @@ async function testCustomSequences() {
     domain,
     mxRecords,
     options: {
-      timeout: 5000,
+      perAttemptTimeoutMs: 5000,
       debug: false,
     },
   });

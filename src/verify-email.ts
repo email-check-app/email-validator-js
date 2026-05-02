@@ -202,14 +202,14 @@ async function runWhoisChecks(
     log(`[verifyEmail] WHOIS checks skipped for disposable: ${domain}`);
     return;
   }
-  const whoisTimeout = params.whoisTimeout ?? 5000;
+  const whoisTimeoutMs = params.whoisTimeoutMs ?? 5000;
   const debug = params.debug ?? false;
 
   if (params.checkDomainAge) {
     try {
       result.domainAge = await collector.record(
         'whois-age',
-        () => getDomainAge(domain, whoisTimeout, debug, params.cache),
+        () => getDomainAge(domain, whoisTimeoutMs, debug, params.cache),
         (info) => ({
           domain,
           found: info !== null,
@@ -230,7 +230,7 @@ async function runWhoisChecks(
     try {
       result.domainRegistration = await collector.record(
         'whois-registration',
-        () => getDomainRegistrationStatus(domain, whoisTimeout, debug, params.cache),
+        () => getDomainRegistrationStatus(domain, whoisTimeoutMs, debug, params.cache),
         (info) => ({
           domain,
           found: info !== null,
@@ -324,7 +324,11 @@ async function runSmtp(
           options: {
             cache: params.cache,
             ports: resolveSmtpPorts(params.smtpPort, mxRecords[0]),
-            timeout: params.timeout ?? 4000,
+            perAttemptTimeoutMs: params.smtpPerAttemptTimeoutMs ?? 4000,
+            totalDeadlineMs: params.smtpTotalDeadlineMs,
+            maxConsecutiveFailures: params.smtpMaxConsecutiveFailures,
+            maxMxHosts: params.smtpMaxMxHosts,
+            retry: params.smtpRetry,
             debug: params.debug ?? false,
             // Forward transcript capture so the SMTP step's details include
             // the full per-port transcript when the caller asked for it.

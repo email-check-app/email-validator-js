@@ -49,7 +49,7 @@ describe('0107 Socket Mock', () => {
         verifyMx: true,
         verifySmtp: true,
         debug: true,
-        timeout: 1000,
+        smtpPerAttemptTimeoutMs: 1000,
       });
       expect(fakeNet.mxCalls.length).toBeGreaterThan(0);
       expect(result.validFormat).toBe(true);
@@ -74,7 +74,7 @@ describe('0107 Socket Mock', () => {
           verifySmtp: true,
           verifyMx: true,
           debug: true,
-          timeout: 1000,
+          smtpPerAttemptTimeoutMs: 1000,
         });
         expect(result.validSmtp).toBe(true);
       });
@@ -86,7 +86,7 @@ describe('0107 Socket Mock', () => {
           verifySmtp: true,
           verifyMx: true,
           debug: true,
-          timeout: 1000,
+          smtpPerAttemptTimeoutMs: 1000,
         });
         expect(result.validSmtp).toBe(true);
       });
@@ -103,7 +103,7 @@ describe('0107 Socket Mock', () => {
           verifySmtp: true,
           verifyMx: true,
           debug: true,
-          timeout: 1000,
+          smtpPerAttemptTimeoutMs: 1000,
         });
         expect(result.validSmtp).toBe(false);
         expect(result.validFormat).toBe(true);
@@ -122,7 +122,7 @@ describe('0107 Socket Mock', () => {
           verifySmtp: true,
           verifyMx: true,
           debug: true,
-          timeout: 1000,
+          smtpPerAttemptTimeoutMs: 1000,
         });
         expect(result.validSmtp).toBe(true);
       });
@@ -139,7 +139,7 @@ describe('0107 Socket Mock', () => {
           verifySmtp: true,
           verifyMx: true,
           debug: true,
-          timeout: 1000,
+          smtpPerAttemptTimeoutMs: 1000,
         });
         expect(result.validSmtp).toBe(true);
       });
@@ -151,7 +151,7 @@ describe('0107 Socket Mock', () => {
           verifySmtp: true,
           verifyMx: true,
           debug: true,
-          timeout: 500,
+          smtpPerAttemptTimeoutMs: 500,
         });
         expect(result.validSmtp).toBe(null);
         expect(result.validMx).toBe(true);
@@ -172,7 +172,7 @@ describe('0107 Socket Mock', () => {
           emailAddress: 'bar@foo.com',
           verifySmtp: true,
           verifyMx: true,
-          timeout: 1000,
+          smtpPerAttemptTimeoutMs: 1000,
         });
         expect(result.validSmtp).toBe(true);
       });
@@ -183,7 +183,7 @@ describe('0107 Socket Mock', () => {
           emailAddress: 'bar@foo.com',
           verifySmtp: true,
           verifyMx: true,
-          timeout: 1000,
+          smtpPerAttemptTimeoutMs: 1000,
         });
         expect(result.validSmtp).toBe(null);
       });
@@ -194,7 +194,7 @@ describe('0107 Socket Mock', () => {
           emailAddress: 'bar@foo.com',
           verifySmtp: true,
           verifyMx: true,
-          timeout: 1000,
+          smtpPerAttemptTimeoutMs: 1000,
         });
         expect(result.validSmtp).toBe(false);
       });
@@ -210,7 +210,7 @@ describe('0107 Socket Mock', () => {
           emailAddress: 'bar@foo.com',
           verifySmtp: true,
           verifyMx: true,
-          timeout: 1000,
+          smtpPerAttemptTimeoutMs: 1000,
         });
         expect(result.validSmtp).toBe(null);
       });
@@ -226,7 +226,7 @@ describe('0107 Socket Mock', () => {
           emailAddress: 'bar@foo.com',
           verifySmtp: true,
           verifyMx: true,
-          timeout: 1000,
+          smtpPerAttemptTimeoutMs: 1000,
         });
         expect(result.validSmtp).toBe(null);
       });

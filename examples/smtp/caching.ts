@@ -141,7 +141,7 @@ async function demonstrateCustomCache() {
     mxRecords: ['gmail-smtp-in.l.google.com'],
     options: {
       ports: [25, 587, 465],
-      timeout: 5000,
+      perAttemptTimeoutMs: 5000,
       cache: customCache, // Pass the custom cache instance
       debug: true,
     },
@@ -159,7 +159,7 @@ async function demonstrateCustomCache() {
     mxRecords: ['gmail-smtp-in.l.google.com'],
     options: {
       ports: [25, 587, 465],
-      timeout: 5000,
+      perAttemptTimeoutMs: 5000,
       cache: customCache, // Same cache instance
       debug: true,
     },
@@ -181,7 +181,7 @@ async function demonstrateCustomCache() {
     mxRecords: ['outlook-com.olc.protection.outlook.com'],
     options: {
       ports: [25, 587, 465],
-      timeout: 5000,
+      perAttemptTimeoutMs: 5000,
       cache: customCache,
       debug: true,
     },
@@ -205,7 +205,7 @@ async function demonstrateDefaultCache() {
     mxRecords: ['gmail-smtp-in.l.google.com'],
     options: {
       ports: [25, 587, 465],
-      timeout: 5000,
+      perAttemptTimeoutMs: 5000,
       cache: defaultCache, // Use default cache
       debug: true,
     },
@@ -220,7 +220,7 @@ async function demonstrateDefaultCache() {
     mxRecords: ['gmail-smtp-in.l.google.com'],
     options: {
       ports: [25, 587, 465],
-      timeout: 5000,
+      perAttemptTimeoutMs: 5000,
       cache: defaultCache, // Same cache instance
       debug: true,
     },
@@ -235,7 +235,7 @@ async function demonstrateDefaultCache() {
     mxRecords: ['gmail-smtp-in.l.google.com'],
     options: {
       ports: [25, 587, 465],
-      timeout: 5000,
+      perAttemptTimeoutMs: 5000,
       cache: null, // No caching
       debug: true,
     },
