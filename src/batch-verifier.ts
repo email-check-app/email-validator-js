@@ -9,7 +9,11 @@ export async function verifyEmailBatch(params: BatchVerifyParams): Promise<Batch
   const {
     emailAddresses,
     concurrency = 5,
-    timeout = 4000,
+    smtpPerAttemptTimeoutMs = 4000,
+    smtpTotalDeadlineMs,
+    smtpMaxConsecutiveFailures,
+    smtpMaxMxHosts,
+    smtpRetry,
     verifyMx = true,
     verifySmtp = false,
     checkDisposable = true,
@@ -42,7 +46,11 @@ export async function verifyEmailBatch(params: BatchVerifyParams): Promise<Batch
       try {
         const result = await verifyEmail({
           emailAddress: email,
-          timeout,
+          smtpPerAttemptTimeoutMs,
+          smtpTotalDeadlineMs,
+          smtpMaxConsecutiveFailures,
+          smtpMaxMxHosts,
+          smtpRetry,
           verifyMx,
           verifySmtp,
           checkDisposable,

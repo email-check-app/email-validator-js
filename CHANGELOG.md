@@ -1,5 +1,249 @@
 # Change Log
 
+## v5.0.0 - 2026-05-02
+
+### 🎯 SMTP probe: full control surface, clearer names, RFC-correct dialogue
+
+The v4 refactor shipped multi-MX iteration, the catch-all dual-probe,
+PIPELINING, enhanced-status surfacing, and operational metrics — all
+hard-coded with no caller-side knobs. v5 adds the missing control
+surface (deadline / retry / max-failures / max-MX), restores STARTTLS
+upgrade (which v4 dropped on a wrong assumption), normalizes the
+reason vocabulary, and renames the ambiguous fields callers had been
+complaining about.
+
+### ⚠️ Breaking changes
+
+#### 1. Renamed `SMTPVerifyOptions` fields for clarity
+
+Old names were unitless or ambiguous about scope. No aliases —
+TypeScript flags every old call site with a `Did you mean…?` hint.
+
+| Before | After | Why |
+| --- | --- | --- |
+| `timeout` | `perAttemptTimeoutMs` | Per-MX×port budget; units in name |
+| `tls` | `tlsConfig` | Matches the `SMTPTLSConfig` type name |
+| `hostname` | `heloHostname` | What it actually is — the EHLO/HELO identity |
+
+#### 2. Renamed `VerifyEmailParams` fields (and `BatchVerifyParams`)
+
+| Before | After | Why |
+| --- | --- | --- |
+| `timeout` | `smtpPerAttemptTimeoutMs` | Scope (SMTP only) + units in name |
+| `whoisTimeout` | `whoisTimeoutMs` | Units in name |
+
+`BatchVerifyParams.timeout` likewise renamed to `smtpPerAttemptTimeoutMs`.
+
+#### 3. SMTP reason vocabulary normalized
+
+`connect_throw:<message>` (synchronous net/tls.connect throws) is gone
+— those now resolve as plain `connection_error`, same key as async
+failures. The diagnostic message is `console.log()`'d via the debug
+logger but no longer baked into the result. One stable value to filter
+on; prefix-matching `startsWith('connect_throw:')` patterns can collapse
+to plain equality checks.
+
+#### 4. Default SMTP sequence includes STARTTLS
+
+The default per-attempt step list went from
+`[greeting, ehlo, mailFrom, rcptTo]` (v4) to
+`[greeting, ehlo, startTls, mailFrom, rcptTo]` (v5). The startTls step
+is conditional — skipped when the port is already TLS (465), when EHLO
+didn't advertise STARTTLS in `'auto'` mode, or when
+`startTls === 'never'` — so existing scripts that don't include
+STARTTLS in their EHLO multi-line continue to work unchanged. Tests
+that DO advertise STARTTLS need to add a `220 ready` line for the
+upgrade response or pass `startTls: 'never'`.
+
+Without this, port 587 submission MXes (Gmail / Outlook / Office 365 /
+ProtonMail / many corporates) reject `MAIL FROM` with
+`530 Must issue STARTTLS first` — v4 had a real-world correctness gap.
+
+#### 5. Dead-weight fields removed from `SmtpVerificationResult`
+
+`success?`, `canConnect?`, `providerUsed?`, `providerSpecific?` —
+declared in the type but never set by the verifier. Removed for a
+cleaner public surface. Provider detection is intentionally
+consumer-side (too domain-specific for a generic library).
+
+#### 6. Dead enum values removed from `VerificationErrorCode`
+
+`mailboxFull` and `freeEmailProvider` were declared but never set or
+read anywhere. `over_quota` is surfaced via the SMTP probe's `error`
+string + `hasFullInbox` boolean; free-email is a positive signal
+(`result.isFree`) and never an error.
+
+### ✨ Added
+
+#### Configuration presets — `serverless` / `dedicated` / `batch` / `fast`
+
+Pick a sensible default for your deployment shape instead of guessing
+timeouts:
+
+```ts
+import { verifyEmail, VERIFY_EMAIL_PRESETS } from '@emailcheck/email-validator-js';
+
+await verifyEmail({
+  emailAddress: 'alice@example.com',
+  verifySmtp: true,
+  ...VERIFY_EMAIL_PRESETS.serverless,
+});
+```
+
+Four presets covering common workloads:
+
+| Preset | Per-attempt | Total | Max consecutive failures | Max MX | Retry |
+| --- | --- | --- | --- | --- | --- |
+| `serverless` | 2.5 s | **5 s** | 3 | 2 | none |
+| `dedicated` | 5 s | 30 s | unbounded | unbounded | 1 retry, 500 ms exp |
+| `batch` | 10 s | 60 s | unbounded | unbounded | 2 retries, 1 s exp |
+| `fast` | 1.5 s | **3 s** | 2 | **1** | none |
+
+Two parallel exports: `SMTP_PRESETS` (unprefixed field names for
+`verifyMailboxSMTP({ options })`) and `VERIFY_EMAIL_PRESETS` (smtp-prefixed
+field names for `verifyEmail`). Spread + override individual fields as
+needed.
+
+#### `verifyMailboxSMTP` control options
+
+All on `SMTPVerifyOptions` (and re-exported on `VerifyEmailParams`
+with an `smtp` prefix):
+
+```ts
+await verifyMailboxSMTP({
+  local: 'alice', domain: 'example.com', mxRecords: [...],
+  options: {
+    perAttemptTimeoutMs: 3000,        // bound a single MX × port attempt
+    totalDeadlineMs: 8000,            // bound the entire probe (NEW)
+    maxConsecutiveFailures: 3,        // bail after 3 connection-class failures in a row (NEW)
+    maxMxHosts: 2,                    // try first N MXes only (NEW)
+    retry: {                          // retry connection-class failures (NEW)
+      attempts: 1,
+      delayMs: 200,
+      backoff: 'exponential',         // or 'fixed'
+    },
+  },
+});
+```
+
+For `verifyEmail`, the same knobs are available as
+`smtpTotalDeadlineMs`, `smtpMaxConsecutiveFailures`, `smtpMaxMxHosts`,
+`smtpRetry`. Real-world example — a Yahoo MX-timeout case from a user
+log:
+
+```ts
+await verifyEmail({
+  emailAddress: 'maria.hernandez+news@yahoo.com',
+  verifySmtp: true,
+  smtpTotalDeadlineMs: 5000,         // bail after 5s total
+  smtpMaxConsecutiveFailures: 3,     // OR after 3 timeouts in a row
+});
+// → isDeliverable: false, error: 'connection_timeout' in ~5s
+// instead of 9 attempts × 3s = 27s wall-clock.
+```
+
+#### STARTTLS upgrade (restored from v3)
+
+```ts
+// 'auto' (default) — upgrade if the MX advertises STARTTLS in EHLO.
+// 'never'          — never upgrade; send MAIL FROM in plaintext.
+// 'force'          — send STARTTLS unconditionally; testing only.
+options: { startTls: 'auto' }
+```
+
+After 220, the plaintext socket is wrapped via
+`tls.connect({ socket: plain, ... })` in place. RFC 3207 §4.2 mandates
+re-EHLO after upgrade — pre-TLS state is discarded and capabilities
+are re-read from the post-TLS EHLO. New reasons in the vocabulary:
+`tls_upgrade_failed` (server returned non-220 to STARTTLS) and
+`tls_handshake_failed` (TLS layer errored after 220).
+
+#### `refineReasonByEnhancedStatus` (RFC 3463 helper)
+
+Pure utility that maps RFC 3463 enhanced-status codes to richer reason
+strings. Pure function, no I/O — opt-in refinement, never mutates
+input.
+
+```ts
+import { refineReasonByEnhancedStatus, verifyMailboxSMTP } from '@emailcheck/email-validator-js';
+
+const { smtpResult } = await verifyMailboxSMTP({ ... });
+const refined = refineReasonByEnhancedStatus(smtpResult.error, smtpResult.enhancedStatus);
+// 'mailbox_does_not_exist' instead of 'not_found' when MX returned 550 5.1.1
+```
+
+Mappings: `5.1.1` → `mailbox_does_not_exist`, `5.1.2`/`5.1.3` →
+`bad_destination_*`, `5.1.6` → `mailbox_moved`, `5.2.x` →
+`mailbox_disabled` / `mailbox_full` / `message_too_long` /
+`mailing_list_expansion_problem`, `4.4.x` → `no_answer_from_host` /
+`bad_connection`, `5.7.x` → `delivery_not_authorized` /
+`no_reverse_dns` / `multiple_authentication_failures`. Codes outside
+the table return the input reason unchanged.
+
+#### `result.responseCode` — last SMTP response code
+
+`SmtpVerificationResult.responseCode?: number` carries the most recent
+3-digit SMTP code observed during the probe (e.g. `250`, `550`).
+Removes the need for callers to re-parse `result.transcript` for the
+last code. The type field already existed in v4; v5 actually populates
+it.
+
+#### Public API surface — re-export missing utilities
+
+These were exported from their submodules but weren't reachable from
+the package root (deep imports aren't part of `package.json#exports`):
+
+- `verifyMailboxSMTP` (the direct SMTP probe — primary consumer-facing
+  function)
+- `parseDsn` + `ParsedDsn` (RFC 3463 enhanced-status parser)
+- `parseWhoisData` + `ParsedWhoisResult` (TLD-aware WHOIS parser)
+- `resolveMxRecords` (DNS MX lookup with cache)
+- `defaultDomainSuggestionMethodAsync` (async variant)
+
+`src/index.ts` reorganised with section comments documenting the
+"every `src/*.ts` `export` re-exports through this barrel" rule.
+
+### 🔧 Internal cleanups
+
+- Removed dead `VerificationErrorCode` values (`mailboxFull`,
+  `freeEmailProvider`) and dead `SmtpVerificationResult` fields
+  (`success`, `canConnect`, `providerUsed`, `providerSpecific`).
+- Removed `parseCompositeNamePart`'s `.base` backward-compat field.
+- Cleared the last `noExplicitAny` in `src/`
+  (`CacheStore<T = any>` → `CacheStore<T = unknown>`).
+- Adapter doc-blocks no longer claim "backward compatibility" for
+  legitimate deploy-mode variants (AWS Lambda's
+  `apiGatewayHandler` / `lambdaHandler` / `handler` and Vercel's
+  `edgeHandler` / `nodeHandler` / `handler` are deploy modes, not
+  legacy).
+
+### 📚 Documentation
+
+- **`SMTPVerifyOptions`, `VerifyEmailParams`, `BatchVerifyParams`** —
+  every field has a JSDoc block listing the default value and
+  explaining when each value is the right choice. Fields grouped into
+  sections (Connection envelope / Caching / Time budget + early-stop /
+  Dialogue customization) so the interface reads top-down.
+- README — new "Time-budget controls" section showing the
+  `smtpTotalDeadlineMs` / `smtpMaxConsecutiveFailures` /
+  `smtpMaxMxHosts` / `smtpRetry` recipes.
+- `MIGRATION_email-smtp-probe.md` — updated step-7 (sequence handling
+  now reflects STARTTLS in the default sequence) and step-6 (reason
+  refinement helper now ships in the library).
+
+### Tests
+
+- `__tests__/unit/0117-smtp-control-options.test.ts` — 7 new tests
+  covering every control-option decision path
+- `__tests__/unit/0115-smtp-starttls.test.ts` — 8 new tests for
+  STARTTLS auto / never / force / port 465 no-op / 5xx rejection
+- `__tests__/unit/0116-refine-reason.test.ts` — 23 new tests
+  covering every RFC 3463 mapping + null/undefined handling
+
+Total: **807 unit + 37 isolated + 207 extras = 1051 tests passing.**
+
+---
+
 ## v4.0.0 - 2026-05-01
 
 ### 🚀 Major refactor: Bun-first toolchain, CLI, transcripts, full serverless coverage

@@ -20,7 +20,7 @@ async function basicVerification(email: string) {
       domain,
       mxRecords: mxHosts,
       options: {
-        timeout: 5000,
+        perAttemptTimeoutMs: 5000,
         debug: true, // Enable debug logging
       },
     });
@@ -49,9 +49,9 @@ async function customPortVerification(email: string) {
       mxRecords: mxHosts,
       options: {
         ports: [587, 25], // Try STARTTLS first, then standard SMTP
-        timeout: 3000,
+        perAttemptTimeoutMs: 3000,
         debug: true,
-        tls: {
+        tlsConfig: {
           rejectUnauthorized: false, // For testing environments
           minVersion: 'TLSv1.2',
         },
@@ -81,10 +81,10 @@ async function secureVerification(email: string) {
       mxRecords: mxHosts,
       options: {
         cache: getDefaultCache(),
-        hostname: 'your-domain.com', // Use your actual domain
-        timeout: 10000, // Longer timeout for secure connections
+        heloHostname: 'your-domain.com', // Use your actual domain
+        perAttemptTimeoutMs: 10000, // Longer timeout for secure connections
         debug: true,
-        tls: {
+        tlsConfig: {
           rejectUnauthorized: true, // Strict certificate validation
           minVersion: 'TLSv1.3', // Require TLS 1.3
         },
@@ -115,9 +115,9 @@ async function testSpecificPort(email: string, port: number) {
       mxRecords: mxHosts,
       options: {
         ports: [port],
-        timeout: 3000,
+        perAttemptTimeoutMs: 3000,
         debug: true,
-        tls: {
+        tlsConfig: {
           rejectUnauthorized: false,
         },
       },
@@ -149,10 +149,10 @@ async function fastVerification(emails: string[]) {
         domain,
         mxRecords: mxHosts,
         options: {
-          timeout: 2000, // Short timeout
+          perAttemptTimeoutMs: 2000, // Short timeout
           debug: false, // No debug logging for speed
           cache: getDefaultCache(), // Enable caching
-          tls: {
+          tlsConfig: {
             rejectUnauthorized: false, // Skip validation for speed
           },
         },

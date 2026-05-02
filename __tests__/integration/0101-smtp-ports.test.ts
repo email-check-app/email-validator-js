@@ -69,7 +69,7 @@ describe('0101 SMTP Ports', () => {
       const params = createTestParams({
         options: {
           ports: [9999], // Invalid port
-          timeout: 2000,
+          perAttemptTimeoutMs: 2000,
         },
       });
 
@@ -81,7 +81,7 @@ describe('0101 SMTP Ports', () => {
       const params = createTestParams({
         options: {
           ports: [80, 443], // HTTP/HTTPS ports (not SMTP)
-          timeout: 2000,
+          perAttemptTimeoutMs: 2000,
         },
       });
 
@@ -113,7 +113,7 @@ describe('0101 SMTP Ports', () => {
         const params = createTestParams({
           options: {
             ports: [25, 587, 465],
-            timeout: 3000,
+            perAttemptTimeoutMs: 3000,
           },
         });
 
@@ -132,7 +132,7 @@ describe('0101 SMTP Ports', () => {
         const params = createTestParams({
           options: {
             ports: [465, 587, 25], // Reverse order
-            timeout: 3000,
+            perAttemptTimeoutMs: 3000,
           },
         });
 
@@ -148,7 +148,7 @@ describe('0101 SMTP Ports', () => {
         const params = createTestParams({
           options: {
             ports: [587, 587, 465, 465], // Duplicates
-            timeout: 3000,
+            perAttemptTimeoutMs: 3000,
           },
         });
 
@@ -166,7 +166,7 @@ describe('0101 SMTP Ports', () => {
         const params = createTestParams({
           options: {
             ports: [25],
-            tls: true,
+            tlsConfig: true,
             debug: true, // Enable to see TLS upgrade
           },
         });
@@ -183,7 +183,7 @@ describe('0101 SMTP Ports', () => {
         const params = createTestParams({
           options: {
             ports: [587],
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -199,7 +199,7 @@ describe('0101 SMTP Ports', () => {
         const params = createTestParams({
           options: {
             ports: [465],
-            tls: true,
+            tlsConfig: true,
           },
         });
 
@@ -215,7 +215,7 @@ describe('0101 SMTP Ports', () => {
         const params = createTestParams({
           options: {
             ports: [25],
-            tls: false,
+            tlsConfig: false,
           },
         });
 
@@ -233,7 +233,7 @@ describe('0101 SMTP Ports', () => {
         const params = createTestParams({
           options: {
             ports: [587], // Start with most likely to work
-            timeout: 2000,
+            perAttemptTimeoutMs: 2000,
           },
         });
 
@@ -255,7 +255,7 @@ describe('0101 SMTP Ports', () => {
         const params = createTestParams({
           options: {
             ports: [25],
-            timeout: 1000, // Short timeout to trigger retries
+            perAttemptTimeoutMs: 1000, // Short timeout to trigger retries
             debug: false,
           },
         });
@@ -270,7 +270,7 @@ describe('0101 SMTP Ports', () => {
       const params = createTestParams({
         options: {
           ports: [9999], // Closed port → immediate connection_error or short timeout
-          timeout: 1000,
+          perAttemptTimeoutMs: 1000,
         },
       });
 
@@ -303,7 +303,7 @@ describe('0101 SMTP Ports', () => {
             mxRecords: domain.mx,
             options: {
               ports: [domain.preferredPort],
-              timeout: 5000,
+              perAttemptTimeoutMs: 5000,
             },
           });
 
@@ -331,7 +331,7 @@ describe('0101 SMTP Ports', () => {
       const params = createTestParams({
         options: {
           ports: [0],
-          timeout: 1000,
+          perAttemptTimeoutMs: 1000,
         },
       });
 
@@ -343,7 +343,7 @@ describe('0101 SMTP Ports', () => {
       const params = createTestParams({
         options: {
           ports: [-1, 25],
-          timeout: 1000,
+          perAttemptTimeoutMs: 1000,
         },
       });
 
@@ -355,7 +355,7 @@ describe('0101 SMTP Ports', () => {
       const params = createTestParams({
         options: {
           ports: [65535],
-          timeout: 1000,
+          perAttemptTimeoutMs: 1000,
         },
       });
 

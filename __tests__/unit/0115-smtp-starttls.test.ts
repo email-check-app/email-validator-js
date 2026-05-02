@@ -42,7 +42,7 @@ describe('0115 SMTP — STARTTLS opt-in / opt-out', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [587], timeout: 200, startTls: 'auto', pipelining: 'never' },
+      options: { ports: [587], perAttemptTimeoutMs: 200, startTls: 'auto', pipelining: 'never' },
     });
 
     const startTlsCommands = fakeNet.writes.filter((w) => w.data.startsWith('STARTTLS'));
@@ -56,7 +56,7 @@ describe('0115 SMTP — STARTTLS opt-in / opt-out', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [587], timeout: 200, startTls: 'auto', pipelining: 'never' },
+      options: { ports: [587], perAttemptTimeoutMs: 200, startTls: 'auto', pipelining: 'never' },
     });
 
     const startTlsCommands = fakeNet.writes.filter((w) => w.data.startsWith('STARTTLS'));
@@ -72,7 +72,7 @@ describe('0115 SMTP — STARTTLS opt-in / opt-out', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [587], timeout: 200, startTls: 'never', pipelining: 'never' },
+      options: { ports: [587], perAttemptTimeoutMs: 200, startTls: 'never', pipelining: 'never' },
     });
 
     const startTlsCommands = fakeNet.writes.filter((w) => w.data.startsWith('STARTTLS'));
@@ -88,7 +88,7 @@ describe('0115 SMTP — STARTTLS opt-in / opt-out', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [587], timeout: 200, startTls: 'force', pipelining: 'never' },
+      options: { ports: [587], perAttemptTimeoutMs: 200, startTls: 'force', pipelining: 'never' },
     });
 
     const startTlsCommands = fakeNet.writes.filter((w) => w.data.startsWith('STARTTLS'));
@@ -103,7 +103,7 @@ describe('0115 SMTP — STARTTLS opt-in / opt-out', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [465], timeout: 200, startTls: 'auto', pipelining: 'never' },
+      options: { ports: [465], perAttemptTimeoutMs: 200, startTls: 'auto', pipelining: 'never' },
     });
 
     const startTlsCommands = fakeNet.writes.filter((w) => w.data.startsWith('STARTTLS'));
@@ -117,7 +117,7 @@ describe('0115 SMTP — STARTTLS opt-in / opt-out', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [587], timeout: 200, startTls: 'auto', pipelining: 'never' },
+      options: { ports: [587], perAttemptTimeoutMs: 200, startTls: 'auto', pipelining: 'never' },
     });
 
     expect(smtpResult.error).toBe('tls_upgrade_failed');
@@ -131,7 +131,7 @@ describe('0115 SMTP — STARTTLS opt-in / opt-out', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, startTls: 'auto', pipelining: 'never' },
+      options: { ports: [25], perAttemptTimeoutMs: 200, startTls: 'auto', pipelining: 'never' },
     });
 
     const startTlsCommands = fakeNet.writes.filter((w) => w.data.startsWith('STARTTLS'));
@@ -146,7 +146,7 @@ describe('0115 SMTP — STARTTLS opt-in / opt-out', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [587], timeout: 200, pipelining: 'never' },
+      options: { ports: [587], perAttemptTimeoutMs: 200, pipelining: 'never' },
     });
 
     // Default behavior should be 'auto' (i.e. attempt the upgrade when advertised).

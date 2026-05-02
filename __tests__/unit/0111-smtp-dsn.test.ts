@@ -65,7 +65,7 @@ describe('0111 isInvalidMailboxError — DSN class-7 carve-out', () => {
       local: 'missing',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [587], timeout: 200 },
+      options: { ports: [587], perAttemptTimeoutMs: 200 },
     });
     expect(smtpResult.isDeliverable).toBe(false);
     expect(smtpResult.error).toBe('not_found');
@@ -77,7 +77,7 @@ describe('0111 isInvalidMailboxError — DSN class-7 carve-out', () => {
       local: 'real-user',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [587], timeout: 200 },
+      options: { ports: [587], perAttemptTimeoutMs: 200 },
     });
     // Result must be ambiguous (canConnectSmtp false → null), NOT a hard "not deliverable" verdict.
     expect(smtpResult.error).not.toBe('not_found');
@@ -89,7 +89,7 @@ describe('0111 isInvalidMailboxError — DSN class-7 carve-out', () => {
       local: 'real-user',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [587], timeout: 200 },
+      options: { ports: [587], perAttemptTimeoutMs: 200 },
     });
     expect(smtpResult.error).not.toBe('not_found');
   });
@@ -103,7 +103,7 @@ describe('0111 isInvalidMailboxError — DSN class-7 carve-out', () => {
       local: 'user',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [587], timeout: 200 },
+      options: { ports: [587], perAttemptTimeoutMs: 200 },
     });
     // High-volume heuristic fires before the policy-block guard.
     expect(smtpResult.isDeliverable).toBe(true);
@@ -117,7 +117,7 @@ describe('0111 isInvalidMailboxError — DSN class-7 carve-out', () => {
       local: 'missing',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [587], timeout: 200 },
+      options: { ports: [587], perAttemptTimeoutMs: 200 },
     });
     expect(smtpResult.isDeliverable).toBe(false);
     expect(smtpResult.error).toBe('not_found');

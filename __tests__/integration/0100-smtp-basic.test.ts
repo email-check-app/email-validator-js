@@ -117,7 +117,7 @@ describe('0100 SMTP Basic', () => {
           options: {
             debug: true,
             ports: [587],
-            timeout: 3000,
+            perAttemptTimeoutMs: 3000,
           },
         });
 
@@ -139,7 +139,7 @@ describe('0100 SMTP Basic', () => {
           options: {
             debug: false,
             ports: [587],
-            timeout: 3000,
+            perAttemptTimeoutMs: 3000,
           },
         });
 
@@ -160,7 +160,7 @@ describe('0100 SMTP Basic', () => {
       async () => {
         const params = createTestParams({
           options: {
-            hostname: 'custom-test.example.com',
+            heloHostname: 'custom-test.example.com',
             ports: [587],
           },
         });
@@ -176,7 +176,7 @@ describe('0100 SMTP Basic', () => {
       async () => {
         const params = createTestParams({
           options: {
-            hostname: 'localhost',
+            heloHostname: 'localhost',
             ports: [587],
           },
         });
@@ -269,7 +269,7 @@ describe('0100 SMTP Basic', () => {
             mxRecords: mx,
             options: {
               ports: [587],
-              timeout: 5000,
+              perAttemptTimeoutMs: 5000,
             },
           });
 

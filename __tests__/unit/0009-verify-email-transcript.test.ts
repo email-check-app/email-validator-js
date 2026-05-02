@@ -137,7 +137,7 @@ describe('0009 verifyEmail transcript', () => {
       emailAddress: 'alice@example.com',
       verifyMx: true,
       verifySmtp: true,
-      timeout: 1000,
+      smtpPerAttemptTimeoutMs: 1000,
       captureTranscript: true,
     });
     const smtp = step(result.transcript, 'smtp-probe');
@@ -161,14 +161,14 @@ describe('0009 verifyEmail transcript', () => {
       emailAddress: 'alice@example.com',
       verifyMx: true,
       verifySmtp: true,
-      timeout: 1000,
+      smtpPerAttemptTimeoutMs: 1000,
     });
     // Second call — should hit the SMTP cache.
     const result = await verifyEmail({
       emailAddress: 'alice@example.com',
       verifyMx: true,
       verifySmtp: true,
-      timeout: 1000,
+      smtpPerAttemptTimeoutMs: 1000,
       captureTranscript: true,
     });
     const smtp = step(result.transcript, 'smtp-probe');
@@ -211,7 +211,7 @@ describe('0009 verifyEmail transcript', () => {
       emailAddress: 'alice@example.com',
       verifyMx: false,
       checkDomainAge: true,
-      whoisTimeout: 2000,
+      whoisTimeoutMs: 2000,
       captureTranscript: true,
     });
     const age = step(result.transcript, 'whois-age');

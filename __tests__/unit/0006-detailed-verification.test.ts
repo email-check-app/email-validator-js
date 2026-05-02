@@ -67,7 +67,7 @@ describe('0006 Detailed Email Verification', () => {
         verifyMx: true,
         verifySmtp: true,
         debug: true,
-        timeout: 1000,
+        smtpPerAttemptTimeoutMs: 1000,
       });
 
       // 550 = mailbox not found → SMTP responded, recipient invalid.
@@ -82,7 +82,7 @@ describe('0006 Detailed Email Verification', () => {
         emailAddress: 'test@example.com',
         verifyMx: true,
         verifySmtp: true,
-        timeout: 500,
+        smtpPerAttemptTimeoutMs: 500,
       });
       expect(result.validSmtp).toBe(null);
     });
@@ -105,7 +105,7 @@ describe('0006 Detailed Email Verification', () => {
         verifyMx: true,
         verifySmtp: true,
         cache: sharedCache,
-        timeout: 2000,
+        smtpPerAttemptTimeoutMs: 2000,
       });
       expect(result1.metadata?.cached).toBe(false);
 
@@ -114,7 +114,7 @@ describe('0006 Detailed Email Verification', () => {
         verifyMx: true,
         verifySmtp: true,
         cache: sharedCache,
-        timeout: 2000,
+        smtpPerAttemptTimeoutMs: 2000,
       });
       expect(result2.metadata?.cached).toBe(true);
     });

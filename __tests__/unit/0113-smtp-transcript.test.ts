@@ -32,7 +32,7 @@ describe('0113 SMTP transcript capture', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200 },
+      options: { ports: [25], perAttemptTimeoutMs: 200 },
     });
     expect(smtpResult.transcript).toBeUndefined();
     expect(smtpResult.commands).toBeUndefined();
@@ -44,7 +44,7 @@ describe('0113 SMTP transcript capture', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, captureTranscript: true },
+      options: { ports: [25], perAttemptTimeoutMs: 200, captureTranscript: true },
     });
     expect(Array.isArray(smtpResult.transcript)).toBe(true);
     expect(Array.isArray(smtpResult.commands)).toBe(true);
@@ -58,7 +58,7 @@ describe('0113 SMTP transcript capture', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, captureTranscript: true },
+      options: { ports: [25], perAttemptTimeoutMs: 200, captureTranscript: true },
     });
     for (const line of smtpResult.transcript ?? []) {
       expect(line.startsWith('mx.example.com:25|s| ')).toBe(true);
@@ -71,7 +71,7 @@ describe('0113 SMTP transcript capture', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, captureTranscript: true },
+      options: { ports: [25], perAttemptTimeoutMs: 200, captureTranscript: true },
     });
     for (const cmd of smtpResult.commands ?? []) {
       expect(cmd.startsWith('mx.example.com:25|c| ')).toBe(true);
@@ -84,7 +84,7 @@ describe('0113 SMTP transcript capture', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, captureTranscript: true },
+      options: { ports: [25], perAttemptTimeoutMs: 200, captureTranscript: true },
     });
     const transcript = smtpResult.transcript!;
     // We sent 4 commands → got 4 replies (greeting + 3 step responses).
@@ -100,7 +100,7 @@ describe('0113 SMTP transcript capture', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, captureTranscript: true },
+      options: { ports: [25], perAttemptTimeoutMs: 200, captureTranscript: true },
     });
     const cmds = smtpResult.commands!;
     expect(cmds.some((c) => c.includes('EHLO'))).toBe(true);
@@ -122,7 +122,7 @@ describe('0113 SMTP transcript capture', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25, 587], timeout: 50, captureTranscript: true },
+      options: { ports: [25, 587], perAttemptTimeoutMs: 50, captureTranscript: true },
     });
     const transcript = smtpResult.transcript ?? [];
     const commands = smtpResult.commands ?? [];
@@ -138,7 +138,7 @@ describe('0113 SMTP transcript capture', () => {
       local: 'missing',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, captureTranscript: true },
+      options: { ports: [25], perAttemptTimeoutMs: 200, captureTranscript: true },
     });
     expect(smtpResult.isDeliverable).toBe(false);
     expect(smtpResult.transcript!.some((l) => l.includes('550 5.1.1 user unknown'))).toBe(true);
@@ -150,7 +150,7 @@ describe('0113 SMTP transcript capture', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, captureTranscript: true },
+      options: { ports: [25], perAttemptTimeoutMs: 200, captureTranscript: true },
     });
     first.smtpResult.transcript!.push('garbage');
     first.smtpResult.commands!.push('garbage');
@@ -160,7 +160,7 @@ describe('0113 SMTP transcript capture', () => {
       local: 'bob',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, captureTranscript: true },
+      options: { ports: [25], perAttemptTimeoutMs: 200, captureTranscript: true },
     });
     expect(second.smtpResult.transcript).not.toContain('garbage');
     expect(second.smtpResult.commands).not.toContain('garbage');
@@ -172,7 +172,7 @@ describe('0113 SMTP transcript capture', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25, 587], timeout: 100, captureTranscript: true },
+      options: { ports: [25, 587], perAttemptTimeoutMs: 100, captureTranscript: true },
     });
     // Error mirrors the LAST attempt's reason, not a generic message.
     expect(smtpResult.error).toBe('connection_error');

@@ -14,7 +14,7 @@ async function basicUsage() {
     emailAddress: 'user@example.com',
     verifyMx: true,
     verifySmtp: true,
-    timeout: 5000,
+    smtpPerAttemptTimeoutMs: 5000,
   });
 
   console.log('Valid format:', result.validFormat);
@@ -31,7 +31,7 @@ async function detailedVerification() {
     verifySmtp: false,
     checkDisposable: true,
     checkFree: true,
-    timeout: 5000,
+    smtpPerAttemptTimeoutMs: 5000,
   });
 
   console.log('Valid:', result.validFormat && result.validMx);
@@ -66,7 +66,7 @@ async function batchVerification() {
     verifySmtp: false,
     checkDisposable: true,
     checkFree: true,
-    timeout: 5000,
+    smtpPerAttemptTimeoutMs: 5000,
   });
 
   console.log('Summary:');

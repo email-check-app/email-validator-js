@@ -40,37 +40,37 @@ export const TEST_CONFIGS = {
   // Port configurations
   SINGLE_PORT_25: {
     ports: [25],
-    timeout: 5000,
+    perAttemptTimeoutMs: 5000,
   },
 
   SINGLE_PORT_587: {
     ports: [587],
-    timeout: 5000,
+    perAttemptTimeoutMs: 5000,
   },
 
   SINGLE_PORT_465: {
     ports: [465],
-    timeout: 5000,
+    perAttemptTimeoutMs: 5000,
   },
 
   SECURE_PORTS_ONLY: {
     ports: [587, 465],
-    timeout: 5000,
+    perAttemptTimeoutMs: 5000,
   },
 
   // TLS configurations
   TLS_DISABLED: {
-    tls: false,
+    tlsConfig: false,
     ports: [25],
   },
 
   TLS_ENABLED: {
-    tls: true,
+    tlsConfig: true,
     ports: [587, 465],
   },
 
   TLS_STRICT: {
-    tls: {
+    tlsConfig: {
       rejectUnauthorized: true,
       minVersion: 'TLSv1.3' as const,
     },
@@ -78,7 +78,7 @@ export const TEST_CONFIGS = {
   },
 
   TLS_LENIENT: {
-    tls: {
+    tlsConfig: {
       rejectUnauthorized: false,
       minVersion: 'TLSv1.2' as const,
     },
@@ -87,15 +87,15 @@ export const TEST_CONFIGS = {
 
   // Timeout configurations
   FAST: {
-    timeout: 2000,
+    perAttemptTimeoutMs: 2000,
   },
 
   SLOW: {
-    timeout: 10000,
+    perAttemptTimeoutMs: 10000,
   },
 
   VERY_SLOW: {
-    timeout: 30000,
+    perAttemptTimeoutMs: 30000,
   },
 } as const;
 

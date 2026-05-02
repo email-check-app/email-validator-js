@@ -113,7 +113,8 @@ const result = await verifyEmail({
   emailAddress: 'user@mydomain.com',
   verifyMx: true,
   verifySmtp: true,
-  timeout: 3000
+  smtpPerAttemptTimeoutMs: 3000,    // bounds a single MX × port attempt
+  smtpTotalDeadlineMs: 8000,        // bounds the entire SMTP probe (NEW in v5)
 });
 
 console.log(result.validFormat);  // true
@@ -249,25 +250,31 @@ If you're using an IDE with refactoring support (like VS Code), you can use find
 Comprehensive email verification with detailed results and error codes.
 
 **Parameters:**
-- `emailAddress` (string, required): Email address to verify
-- `timeout` (number): Timeout in milliseconds (default: 4000)
-- `verifyMx` (boolean): Check MX records (default: true)
-- `verifySmtp` (boolean): Verify SMTP connection (default: false)
-- `smtpPort` (number): Custom SMTP port
-- `debug` (boolean): Enable debug logging (default: false)
-- `checkDisposable` (boolean): Check for disposable emails (default: true)
-- `checkFree` (boolean): Check for free email providers (default: true)
-- `retryAttempts` (number): Retry attempts for failures (default: 1)
-- `detectName` (boolean): Detect names from email address (default: false)
-- `nameDetectionMethod` (function): Custom name detection method
-- `suggestDomain` (boolean): Enable domain typo suggestions (default: true)
-- `domainSuggestionMethod` (function): Custom domain suggestion method
-- `commonDomains` (string[]): Custom list of domains for suggestions
-- `checkDomainAge` (boolean): Check domain age (default: false)
-- `checkDomainRegistration` (boolean): Check domain registration status (default: false)
-- `whoisTimeout` (number): WHOIS lookup timeout (default: 5000)
-- `debug` (boolean): Enable debug logging including WHOIS lookups (default: false)
-- `cache` (ICache): Optional custom cache instance
+- `emailAddress` (string, required) — Email address to verify.
+- `verifyMx` (boolean) — Resolve MX records (default: `true`).
+- `verifySmtp` (boolean) — Run live SMTP probe (default: `false`).
+- `checkDisposable` (boolean) — Disposable-provider list check (default: `true`).
+- `checkFree` (boolean) — Free-provider list check (default: `true`).
+- `detectName` (boolean) — Extract first/last name from local-part (default: `false`).
+- `suggestDomain` (boolean) — Suggest a corrected domain on typos (default: `true`).
+- `checkDomainAge` (boolean) — WHOIS creation-date lookup (default: `false`).
+- `checkDomainRegistration` (boolean) — WHOIS registration / expiry / lock lookup (default: `false`).
+- `skipMxForDisposable` (boolean) — Skip MX/SMTP for disposable addresses (default: `false`).
+- `skipDomainWhoisForDisposable` (boolean) — Skip WHOIS for disposable addresses (default: `false`).
+- `smtpPort` (number) — Force a specific port for the SMTP probe (overrides the `[25, 587, 465]` walk).
+- **SMTP time-budget controls** (NEW in v5):
+  - `smtpPerAttemptTimeoutMs` (number) — Per-MX × port budget in ms (default: `4000`).
+  - `smtpTotalDeadlineMs` (number) — Hard cap on total wall-clock for the SMTP probe. Use this from a request handler with a tight latency budget. Default: unbounded.
+  - `smtpMaxConsecutiveFailures` (number) — Bail after N connection-class failures in a row (`connection_error` / `connection_timeout` / `connection_closed`). Default: unbounded.
+  - `smtpMaxMxHosts` (number) — Cap the MX walk to the first N hostnames. Default: unbounded.
+  - `smtpRetry` (`{ attempts, delayMs?, backoff? }`) — Retry connection-class failures on the same MX × port. Default: no retries.
+- `whoisTimeoutMs` (number) — Per-WHOIS-query timeout (default: `5000`).
+- `debug` (boolean) — Per-line `console.debug` trace (default: `false`).
+- `captureTranscript` (boolean) — Populate `result.transcript` with a per-step structured trace (default: `false`).
+- `nameDetectionMethod` (function) — Override the default name-detection heuristic.
+- `domainSuggestionMethod` (function) — Override the default typo-suggestion heuristic.
+- `commonDomains` (string[]) — Custom canonical-domain list for the typo suggester.
+- `cache` (Cache) — Optional shared cache (MX, WHOIS, disposable / free, SMTP, domain results all stored).
 
 **Returns:**
 ```typescript
@@ -736,7 +743,7 @@ const result = await verifyEmail({
   emailAddress: 'foo@email.com',
   verifyMx: true,
   verifySmtp: true,
-  timeout: 3000
+  smtpPerAttemptTimeoutMs: 3000,
 });
 console.log(result.validFormat);  // true
 console.log(result.validMx);      // true
@@ -790,22 +797,113 @@ const { smtpResult, port, cached, portCached } = await verifyMailboxSMTP({
   domain: 'example.com',
   mxRecords: ['mx.example.com'],
   options: {
-    ports: [25, 587, 465],   // Plain → STARTTLS-able → implicit-TLS
-    timeout: 5000,
-    cache: getDefaultCache(), // Per-isolate verdict + port cache
+    ports: [25, 587, 465],         // Plain → STARTTLS-able → implicit-TLS
+    perAttemptTimeoutMs: 5000,     // Per-MX × port budget (renamed from `timeout` in v5)
+    totalDeadlineMs: 12_000,       // Hard cap on total wall-clock (NEW in v5)
+    maxConsecutiveFailures: 3,     // Bail after N connection-class failures (NEW in v5)
+    cache: getDefaultCache(),      // Per-isolate verdict + port cache
     debug: false,
-    tls: {
+    tlsConfig: {                   // Renamed from `tls` in v5
       rejectUnauthorized: false,
       minVersion: 'TLSv1.2',
     },
-    hostname: 'your-domain.com',  // EHLO/HELO identity
-    captureTranscript: false,     // see "SMTP Transcript Capture" below
+    heloHostname: 'your-domain.com', // EHLO/HELO identity (renamed from `hostname` in v5)
+    startTls: 'auto',              // STARTTLS upgrade on plaintext ports (NEW in v5)
+    pipelining: 'auto',            // Use SMTP PIPELINING when advertised
+    captureTranscript: false,      // See "SMTP Transcript Capture" below
   },
 });
 
 console.log(`SMTP result: ${smtpResult.isDeliverable} via port ${port}`);
 console.log(`canConnectSmtp=${smtpResult.canConnectSmtp}, error=${smtpResult.error ?? 'none'}`);
 ```
+
+### Configuration presets (NEW in v5)
+
+Don't want to think about timeouts and retries? Pick a preset that matches your deployment shape:
+
+```typescript
+import { verifyEmail, VERIFY_EMAIL_PRESETS } from '@emailcheck/email-validator-js';
+
+// Lambda / Vercel / Cloudflare-Workers handler
+await verifyEmail({
+  emailAddress: 'alice@example.com',
+  verifySmtp: true,
+  ...VERIFY_EMAIL_PRESETS.serverless,
+});
+
+// Long-running worker / dyno
+await verifyEmail({ ..., ...VERIFY_EMAIL_PRESETS.dedicated });
+
+// Bulk processing
+await verifyEmail({ ..., ...VERIFY_EMAIL_PRESETS.batch });
+
+// Form-autocomplete UX (sub-3s)
+await verifyEmail({ ..., ...VERIFY_EMAIL_PRESETS.fast });
+```
+
+| Preset | Per-attempt | Total deadline | Max consecutive failures | Max MX | Retry |
+| --- | --- | --- | --- | --- | --- |
+| `serverless` | 2500 ms | **5 s** | 3 | 2 | none — fail fast |
+| `dedicated` | 5000 ms | 30 s | unbounded | unbounded | 1 retry, 500 ms exp backoff |
+| `batch` | 10 000 ms | 60 s | unbounded | unbounded | 2 retries, 1 s exp backoff |
+| `fast` | 1500 ms | **3 s** | 2 | **1** | none — fail fast |
+
+`SMTP_PRESETS` is a parallel set with the unprefixed field names for `verifyMailboxSMTP({ options })` callers — same values, same shape.
+
+You can spread + override:
+
+```typescript
+await verifyEmail({
+  emailAddress: 'alice@example.com',
+  ...VERIFY_EMAIL_PRESETS.serverless,
+  smtpTotalDeadlineMs: 3000, // tighter than the preset's 5s
+});
+```
+
+### Time-budget controls (NEW in v5)
+
+The probe walks `mxRecords × ports` (worst-case 4 × 3 = 12 attempts at 3s each = 36s). Four orthogonal knobs let you bound that:
+
+```typescript
+import { verifyEmail, verifyMailboxSMTP } from '@emailcheck/email-validator-js';
+
+await verifyEmail({
+  emailAddress: 'maria.hernandez+news@yahoo.com',
+  verifySmtp: true,
+  smtpPerAttemptTimeoutMs: 3000,    // Bound a single MX × port attempt
+  smtpTotalDeadlineMs: 5000,        // Hard cap on total wall-clock
+  smtpMaxConsecutiveFailures: 3,    // Bail after 3 connection failures in a row
+  smtpMaxMxHosts: 2,                // Try only the first 2 MXes
+  smtpRetry: {                      // Retry connection-class failures
+    attempts: 1,
+    delayMs: 200,
+    backoff: 'exponential',         // or 'fixed'
+  },
+});
+
+// On verifyMailboxSMTP directly, the same knobs are unprefixed:
+await verifyMailboxSMTP({
+  local: 'alice', domain: 'example.com', mxRecords: [...],
+  options: {
+    perAttemptTimeoutMs: 3000,
+    totalDeadlineMs: 5000,
+    maxConsecutiveFailures: 3,
+    maxMxHosts: 2,
+    retry: { attempts: 1, delayMs: 200, backoff: 'exponential' },
+  },
+});
+```
+
+| Knob | Default | When to use |
+| --- | --- | --- |
+| `(smtp)PerAttemptTimeoutMs` | `4000` (verifyEmail) / `3000` (verifyMailboxSMTP) | Per-MX × port budget. Bound a single attempt. |
+| `(smtp)TotalDeadlineMs` | unbounded | Hard wall-clock cap. Use from a request handler with a tight latency budget. |
+| `(smtp)MaxConsecutiveFailures` | unbounded | Cut off probes when the network path is dead. Counter resets on any non-connection-class outcome. |
+| `(smtp)MaxMxHosts` | unbounded | Cap the MX walk regardless of how many DNS returned. |
+| `(smtp)Retry` | no retries | Retry connection-class failures on the same MX × port. Definitive answers (250 / 550 / 552) are never retried. |
+
+`PerAttemptTimeout` and `TotalDeadline` are **orthogonal** — use both when you have both a per-attempt SLO and a hard caller-side budget.
 
 ### Custom SMTP step sequence
 
@@ -839,11 +937,11 @@ const { smtpResult } = await verifyMailboxSMTP({
   local: 'user',
   domain: 'example.com',
   mxRecords: ['mx.example.com'],
-  options: { ports: [25, 587], timeout: 5000, captureTranscript: true },
+  options: { ports: [25, 587], perAttemptTimeoutMs: 5000, captureTranscript: true },
 });
 
-// Both arrays aggregate across every port attempted, prefixed with the port:
-//   "25|s| 220 mx.example.com ESMTP"
+// Both arrays aggregate across every MX × port attempted, prefixed:
+//   "mx.example.com:25|s| 220 mx.example.com ESMTP"
 //   "25|c| EHLO localhost"
 console.log(smtpResult.transcript);
 console.log(smtpResult.commands);

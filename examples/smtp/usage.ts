@@ -27,7 +27,7 @@ async function customPorts(email: string, mxRecords: string[]) {
     mxRecords,
     options: {
       ports: [587, 465], // Only try secure ports
-      timeout: 5000,
+      perAttemptTimeoutMs: 5000,
     },
   });
 }
@@ -42,12 +42,12 @@ async function secureVerify(email: string, mxRecords: string[]) {
     mxRecords,
     options: {
       ports: [465], // Only SMTPS with implicit TLS
-      timeout: 10000,
-      tls: {
+      perAttemptTimeoutMs: 10000,
+      tlsConfig: {
         rejectUnauthorized: true,
         minVersion: 'TLSv1.3',
       },
-      hostname: 'your-domain.com',
+      heloHostname: 'your-domain.com',
       cache: getDefaultCache(),
     },
   });
@@ -67,7 +67,7 @@ async function fastBulk(emails: string[], mxMap: Map<string, string[]>) {
       mxRecords,
       options: {
         ports: [25, 587],
-        timeout: 2000,
+        perAttemptTimeoutMs: 2000,
         cache: getDefaultCache(),
         debug: false,
       },
@@ -89,7 +89,7 @@ async function debugVerify(email: string, mxRecords: string[]) {
     mxRecords,
     options: {
       debug: true,
-      timeout: 5000,
+      perAttemptTimeoutMs: 5000,
       cache: null, // No caching
     },
   });
@@ -105,7 +105,7 @@ async function tryPortOnly(email: string, mxRecords: string[], port: number) {
     mxRecords,
     options: {
       ports: [port],
-      timeout: 3000,
+      perAttemptTimeoutMs: 3000,
       debug: true,
     },
   });

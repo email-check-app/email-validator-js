@@ -81,56 +81,147 @@ export interface VerificationResult {
 }
 
 /**
- * Parameters for email verification
+ * Parameters for `verifyEmail` — the high-level orchestrator that runs the
+ * full pipeline (syntax → typo / name / domain → disposable / free → WHOIS
+ * → MX → SMTP).
  */
 export interface VerifyEmailParams {
+  /** The full email address to verify (`local@domain`). */
   emailAddress: string;
-  timeout?: number;
+  // ── Step toggles (each defaults are listed inline) ────────────────────────
+  /** Resolve MX records via DNS to confirm the domain accepts mail. Default: `true`. */
   verifyMx?: boolean;
+  /** Open an SMTP connection to the highest-priority MX and probe `RCPT TO`. Default: `false`. */
   verifySmtp?: boolean;
-  debug?: boolean;
-  smtpPort?: number;
+  /** Check the address against the bundled disposable-provider list. Default: `true`. */
   checkDisposable?: boolean;
+  /** Check the address against the bundled free-provider list. Default: `true`. */
   checkFree?: boolean;
+  /** Extract first/last name from the local-part. Default: `false` (cheap, but not free). */
   detectName?: boolean;
-  nameDetectionMethod?: NameDetectionMethod;
+  /** Suggest a corrected domain on typos (e.g. `gnail.com` → `gmail.com`). Default: `true`. */
   suggestDomain?: boolean;
-  domainSuggestionMethod?: DomainSuggestionMethod;
-  commonDomains?: string[];
+  /** Look up the domain creation date via WHOIS. Slow + external dep. Default: `false`. */
   checkDomainAge?: boolean;
+  /** Look up domain registration status (registered / expired / locked). Default: `false`. */
   checkDomainRegistration?: boolean;
-  whoisTimeout?: number;
-  skipMxForDisposable?: boolean;
-  skipDomainWhoisForDisposable?: boolean;
-  cache?: Cache;
+  // ── Skip-on-disposable shortcuts ────────────────────────────────────────
   /**
-   * When true, populates `result.transcript` with a per-step trace covering
-   * every subsystem (syntax / disposable / free / MX / SMTP / WHOIS / name
-   * detection / domain suggestion). Each step records timing + step-specific
-   * structured details. Safe to leave off for production; turn on for
-   * diagnostics or building debug UIs.
+   * When the address is identified as disposable, skip the (expensive) MX +
+   * SMTP probe and accept the disposable verdict as the final answer.
+   * Default: `false`.
+   */
+  skipMxForDisposable?: boolean;
+  /**
+   * When the address is identified as disposable, skip the WHOIS checks too.
+   * Default: `false`.
+   */
+  skipDomainWhoisForDisposable?: boolean;
+  // ── Custom strategies (extension points for callers) ──────────────────────
+  /** Override the default name-detection heuristic. Receives the email; returns `DetectedName | null`. */
+  nameDetectionMethod?: NameDetectionMethod;
+  /** Override the default domain-suggestion heuristic. Receives the domain; returns `DomainSuggestion | null`. */
+  domainSuggestionMethod?: DomainSuggestionMethod;
+  /** Custom domain list for the typo suggester. Defaults to the bundled common-domain set. */
+  commonDomains?: string[];
+  // ── SMTP probe wiring ─────────────────────────────────────────────────────
+  /**
+   * Per-attempt timeout for the SMTP probe, in milliseconds. Bounds both the
+   * TCP/TLS connection setup AND the inactivity gap between SMTP commands
+   * within an attempt. Default: `4000` ms.
+   *
+   * To bound the total wall-clock across all MX × port attempts, use
+   * `smtpTotalDeadlineMs` instead. To control retries on connection-class
+   * failures, use `smtpRetry`.
+   */
+  smtpPerAttemptTimeoutMs?: number;
+  /**
+   * Hard cap on total wall-clock time for the SMTP probe across all MX × port
+   * × retry attempts. Reasonable when calling from a request handler with a
+   * tight latency budget. Default: unbounded.
+   */
+  smtpTotalDeadlineMs?: number;
+  /**
+   * Stop the SMTP probe after this many connection-class failures in a row
+   * (counting `connection_error` / `connection_timeout` / `connection_closed`
+   * across MX × port attempts). Resets on any non-connection-class outcome.
+   * Default: unbounded.
+   */
+  smtpMaxConsecutiveFailures?: number;
+  /**
+   * Hard cap on how many MX hostnames the SMTP probe will try, regardless of
+   * how many DNS returned. Default: unbounded — try them all.
+   */
+  smtpMaxMxHosts?: number;
+  /** Optional retry policy for connection-class failures on a single MX × port. Default: no retries. */
+  smtpRetry?: RetryPolicy;
+  /**
+   * Force a specific port for the SMTP probe (e.g. `587`). When set, this
+   * port is the only one tried — overrides the default `[25, 587, 465]` walk
+   * and any per-MX hint cached from a previous probe.
+   */
+  smtpPort?: number;
+  // ── WHOIS probe wiring ────────────────────────────────────────────────────
+  /** Per-WHOIS-query timeout in milliseconds. Default: `5000`. */
+  whoisTimeoutMs?: number;
+  // ── Caching + diagnostics ────────────────────────────────────────────────
+  /** Optional shared cache for MX, WHOIS, disposable / free, SMTP, and domain results. */
+  cache?: Cache;
+  /** When true, the pipeline writes a per-line trace to `console.debug`. Default: `false`. */
+  debug?: boolean;
+  /**
+   * When true, populates `result.transcript` with a per-step structured trace
+   * covering every subsystem (syntax / disposable / free / MX / SMTP / WHOIS /
+   * name detection / domain suggestion). Each step records timing +
+   * step-specific details (raw WHOIS data, SMTP transcript, MX records, cache
+   * hit/miss, etc.). Safe to leave off for production; turn on for diagnostics
+   * or debug UIs. Default: `false`.
    */
   captureTranscript?: boolean;
 }
 
 /**
- * Parameters for batch verification
+ * Parameters for `verifyEmailBatch` — fan-out wrapper around `verifyEmail`
+ * that runs many addresses through the same pipeline with a concurrency cap.
  */
 export interface BatchVerifyParams {
+  /** Email addresses to verify, in order. */
   emailAddresses: string[];
+  /** Maximum number of in-flight `verifyEmail` calls. Default: `5`. */
   concurrency?: number;
-  timeout?: number;
+  /** Per-attempt SMTP timeout in milliseconds (forwarded to each `verifyEmail` call). Default: `4000`. */
+  smtpPerAttemptTimeoutMs?: number;
+  /** Hard cap on total wall-clock for each individual SMTP probe. Forwarded to `verifyEmail`. */
+  smtpTotalDeadlineMs?: number;
+  /** Stop each individual SMTP probe after this many connection-class failures in a row. */
+  smtpMaxConsecutiveFailures?: number;
+  /** Hard cap on MX hostnames per individual SMTP probe. */
+  smtpMaxMxHosts?: number;
+  /** Optional retry policy per MX×port for each individual SMTP probe. */
+  smtpRetry?: RetryPolicy;
+  /** Resolve MX records per address. Default: `true`. */
   verifyMx?: boolean;
+  /** Run the SMTP probe per address. Default: `false`. */
   verifySmtp?: boolean;
+  /** Check disposable list per address. Default: `true`. */
   checkDisposable?: boolean;
+  /** Check free-provider list per address. Default: `true`. */
   checkFree?: boolean;
+  /** Extract first/last name from each local-part. Default: `false`. */
   detectName?: boolean;
+  /** Override the name-detection heuristic. */
   nameDetectionMethod?: NameDetectionMethod;
+  /** Suggest a corrected domain on typos. Default: `false` for batches (it's per-call cost). */
   suggestDomain?: boolean;
+  /** Override the domain-suggestion heuristic. */
   domainSuggestionMethod?: DomainSuggestionMethod;
+  /** Custom canonical-domain list for the typo suggester. */
   commonDomains?: string[];
+  /** Skip MX/SMTP probe for disposable addresses. Default: `false`. */
   skipMxForDisposable?: boolean;
+  /** Skip WHOIS lookups for disposable addresses. Default: `false`. */
   skipDomainWhoisForDisposable?: boolean;
+  /** Optional shared cache (re-used across all addresses in the batch). */
   cache?: Cache;
 }
 
@@ -313,47 +404,176 @@ export interface SMTPSequence {
   from?: string;
 }
 
+/**
+ * Optional retry policy for connection-class failures (timeout / connection
+ * error / connection closed) on a single MX × port. Definitive answers
+ * (250 / 550 / 552 / etc.) are never retried — they're stable verdicts.
+ */
+export interface RetryPolicy {
+  /**
+   * How many extra attempts to make on the same MX × port after a
+   * connection-class failure. `0` means no retry (the default).
+   */
+  attempts: number;
+  /**
+   * Delay between retries, in milliseconds. With `backoff: 'exponential'`
+   * (the default), the actual delay is `delayMs * 2^(attemptIndex - 1)`.
+   * Default: `200` ms.
+   */
+  delayMs?: number;
+  /**
+   * Backoff strategy between retries.
+   * - `'exponential'` (default): `delayMs * 2^(attemptIndex - 1)`.
+   * - `'fixed'`: every retry waits `delayMs` exactly.
+   */
+  backoff?: 'exponential' | 'fixed';
+}
+
+/**
+ * Options for `verifyMailboxSMTP` and `verifyEmail`'s SMTP probe.
+ *
+ * Time-budget defaults are tuned for a 4-MX × 3-port worst case. If you
+ * call this from a request handler with a tight latency budget, set
+ * `totalDeadlineMs` so the probe gives up before your handler does.
+ */
 export interface SMTPVerifyOptions {
+  // ── Connection envelope ───────────────────────────────────────────────────
+  /**
+   * Ports to walk per MX, in priority order. The probe stops on the first
+   * port that yields a definitive answer; indeterminate outcomes (timeout /
+   * connection error / etc.) fall through to the next port.
+   *
+   * Default: `[25, 587, 465]` — plain → STARTTLS-able → implicit-TLS.
+   */
   ports?: number[];
-  timeout?: number;
-  tls?: boolean | SMTPTLSConfig;
-  hostname?: string;
+  /**
+   * Per-attempt timeout in milliseconds. Bounds both the TCP/TLS connection
+   * setup AND the inactivity gap between SMTP commands within an attempt.
+   * Each MX × port pair gets its own budget — to bound the total wall-clock,
+   * use `totalDeadlineMs` instead.
+   *
+   * Default: `3000` ms.
+   */
+  perAttemptTimeoutMs?: number;
+  /**
+   * TLS configuration applied to implicit-TLS ports (465) and to STARTTLS
+   * upgrades on plaintext ports.
+   *
+   * - `true` (default): use sensible TLS defaults (`rejectUnauthorized: false`,
+   *   `minVersion: 'TLSv1.2'`) — picks up CA quirks of long-tail MXes.
+   * - `false`: disable TLS entirely (port 465 will fail to handshake; STARTTLS
+   *   step is skipped).
+   * - `SMTPTLSConfig` object: override individual fields. Merged onto the defaults.
+   */
+  tlsConfig?: boolean | SMTPTLSConfig;
+  /**
+   * Hostname this client identifies itself as in the `EHLO` / `HELO` argument.
+   * Should be a real FQDN — `localhost` from a public IP is a textbook spam-bot
+   * signature and gets rejected by careful MXes.
+   *
+   * Default: `'localhost'`. Override with your delivery domain in production.
+   */
+  heloHostname?: string;
+  // ── Caching ──────────────────────────────────────────────────────────────
+  /**
+   * Optional cache instance. When provided, the probe reuses prior verdicts
+   * keyed on `<primary mx>:<local>@<domain>` and remembers the last
+   * successful port per primary MX (so a re-probe skips the failed-port
+   * walk).
+   *
+   * Pass `null` or omit to skip caching entirely.
+   */
   cache?: Cache | null;
+  /**
+   * When true, a per-line `[SMTP] …` trace is written to `console.log`.
+   * Useful for diagnosing real-MX behavior; off by default for production.
+   */
   debug?: boolean;
   /**
-   * When true, the returned `SmtpVerificationResult` carries `transcript` and
-   * `commands` arrays prefixed with `<host>:<port>|s| …` / `<host>:<port>|c| …`.
-   * Aggregated across every MX×port attempted.
+   * When true, the returned `SmtpVerificationResult` carries `transcript`
+   * and `commands` arrays prefixed with `<host>:<port>|s| …` /
+   * `<host>:<port>|c| …`. Aggregated across every MX × port attempted.
    *
-   * Default: `false`. The strings are O(N×wire-bytes); skip when you don't
-   * need the trace.
+   * Default: `false`. The strings are O(N × wire-bytes); skip when you
+   * don't need the trace.
    */
   captureTranscript?: boolean;
+  // ── Time budget + early-stop policy ───────────────────────────────────────
+  /**
+   * Hard cap on total wall-clock time for the entire probe (across all
+   * MX × port × retry attempts). When the deadline passes, the in-flight
+   * attempt is allowed to finish (it has its own per-attempt budget) and
+   * no new attempts are started.
+   *
+   * Use this to bound latency from a request-handler caller. A reasonable
+   * value matches your handler's deadline minus headroom for everything
+   * else it does.
+   *
+   * Default: unbounded — only `perAttemptTimeoutMs × ports.length × mxRecords.length`
+   * limits the worst case (e.g. `3000 × 3 × 4 = 36s`).
+   */
+  totalDeadlineMs?: number;
+  /**
+   * Stop probing after this many connection-class failures in a row.
+   * Counts consecutive `connection_error` / `connection_timeout` /
+   * `connection_closed` outcomes across MX × port attempts; resets on any
+   * non-connection-class outcome. Useful for cutting off probes when the
+   * network path to the MX is wholly unreachable instead of waiting for
+   * every port × MX combination to time out.
+   *
+   * Default: unbounded.
+   */
+  maxConsecutiveFailures?: number;
+  /**
+   * Hard cap on how many MX hostnames to try, regardless of how many were
+   * supplied in `mxRecords`. The probe walks them in priority order
+   * (`mxRecords[0]` first) and stops after this many.
+   *
+   * Default: unbounded.
+   */
+  maxMxHosts?: number;
+  /**
+   * Optional retry policy for connection-class failures on a single MX × port.
+   * Definitive answers (250 / 550 / 552 / 421 / etc.) are never retried —
+   * they're stable verdicts.
+   *
+   * Default: no retries.
+   */
+  retry?: RetryPolicy;
+  // ── Dialogue customization ───────────────────────────────────────────────
+  /**
+   * Override the per-attempt SMTP step list. Defaults to
+   * `[greeting, ehlo, startTls, mailFrom, rcptTo]` — covering the entire
+   * RFC 5321 envelope plus optional TLS upgrade. Most callers never need
+   * to override this; useful for advanced testing scenarios (e.g. probe
+   * RFC compliance with `[greeting, helo, mailFrom, rcptTo]`).
+   */
   sequence?: SMTPSequence;
   /**
-   * Override the random-local-part generator used by the catch-all probe.
-   * Useful for deterministic tests; receives the real local-part and domain
-   * so callers can derive a probe-local that matches the MX's syntax rules.
+   * Override the random local-part generator used by the catch-all dual
+   * probe. Useful for deterministic tests; receives the real local-part
+   * and domain so callers can derive a probe-local that matches the MX's
+   * syntax rules.
    *
    * Default: `<16 hex chars>-noexist` — long enough to never collide,
-   * structured so it's clearly synthetic and passes common syntax filters.
+   * structured so it's clearly synthetic, and passes common syntax filters.
    */
   catchAllProbeLocal?: (realLocal: string, domain: string) => string;
   /**
-   * Use SMTP PIPELINING (RFC 2920) to batch the envelope phase
+   * SMTP PIPELINING (RFC 2920) — batch the envelope phase
    * (RCPT TO real + RCPT TO probe + RSET) into one `socket.write()` when
    * the MX advertises support.
    *
-   * - `'auto'` (default): pipeline when EHLO multi-line includes
-   *   `PIPELINING`, sequential otherwise.
+   * - `'auto'` (default): pipeline when EHLO multi-line includes `PIPELINING`,
+   *   sequential otherwise.
    * - `'never'`: always sequential — useful for deterministic wire-level
-   *   assertions in tests, or when investigating a flaky pipeline-buggy MX.
+   *   assertions in tests or when investigating a pipeline-buggy MX.
    * - `'force'`: pipeline without checking — testing escape hatch.
    */
   pipelining?: 'auto' | 'never' | 'force';
   /**
-   * Controls STARTTLS upgrade on plaintext ports (25, 587). Implicit-TLS
-   * ports (465) ignore this option — they're already TLS from the start.
+   * STARTTLS upgrade on plaintext ports (25, 587). Implicit-TLS ports (465)
+   * ignore this option — they're already TLS from the start.
    *
    * - `'auto'` (default): upgrade if the MX advertises STARTTLS in EHLO.
    *   Submission-port (587) MXes typically require this — without it,

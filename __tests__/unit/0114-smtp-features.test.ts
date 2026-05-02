@@ -54,7 +54,7 @@ describe('0114 SMTP — multi-MX iteration', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx1.example.com', 'mx2.example.com'],
-      options: { ports: [25, 587], timeout: 200 },
+      options: { ports: [25, 587], perAttemptTimeoutMs: 200 },
     });
 
     expect(smtpResult.isDeliverable).toBe(true);
@@ -79,7 +79,7 @@ describe('0114 SMTP — multi-MX iteration', () => {
       local: 'missing',
       domain: 'example.com',
       mxRecords: ['mx1.example.com', 'mx2.example.com'],
-      options: { ports: [25], timeout: 200 },
+      options: { ports: [25], perAttemptTimeoutMs: 200 },
     });
 
     expect(smtpResult.isDeliverable).toBe(false);
@@ -96,7 +96,7 @@ describe('0114 SMTP — multi-MX iteration', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx1.example.com', 'mx2.example.com'],
-      options: { ports: [25], timeout: 100 },
+      options: { ports: [25], perAttemptTimeoutMs: 100 },
     });
 
     expect(smtpResult.isDeliverable).toBe(false);
@@ -112,7 +112,7 @@ describe('0114 SMTP — multi-MX iteration', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [-1, 65536], timeout: 50 },
+      options: { ports: [-1, 65536], perAttemptTimeoutMs: 50 },
     });
 
     expect(smtpResult.isDeliverable).toBe(false);
@@ -131,7 +131,7 @@ describe('0114 SMTP — catch-all detection (always-on dual-probe)', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, pipelining: 'never' },
+      options: { ports: [25], perAttemptTimeoutMs: 200, pipelining: 'never' },
     });
 
     expect(smtpResult.isDeliverable).toBe(true);
@@ -145,7 +145,7 @@ describe('0114 SMTP — catch-all detection (always-on dual-probe)', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, pipelining: 'never' },
+      options: { ports: [25], perAttemptTimeoutMs: 200, pipelining: 'never' },
     });
 
     expect(smtpResult.isDeliverable).toBe(true);
@@ -159,7 +159,7 @@ describe('0114 SMTP — catch-all detection (always-on dual-probe)', () => {
       local: 'missing',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, pipelining: 'never' },
+      options: { ports: [25], perAttemptTimeoutMs: 200, pipelining: 'never' },
     });
 
     // No second RCPT (probe) command should be on the wire.
@@ -177,7 +177,7 @@ describe('0114 SMTP — catch-all detection (always-on dual-probe)', () => {
       local: 'full',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, pipelining: 'never' },
+      options: { ports: [25], perAttemptTimeoutMs: 200, pipelining: 'never' },
     });
 
     expect(smtpResult.isDeliverable).toBe(false);
@@ -197,7 +197,7 @@ describe('0114 SMTP — catch-all detection (always-on dual-probe)', () => {
       mxRecords: ['mx.example.com'],
       options: {
         ports: [25],
-        timeout: 200,
+        perAttemptTimeoutMs: 200,
         pipelining: 'never',
         catchAllProbeLocal: (realLocal, domain) => {
           captured.realLocal = realLocal;
@@ -233,7 +233,7 @@ describe('0114 SMTP — PIPELINING (RFC 2920)', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 300, pipelining: 'auto' },
+      options: { ports: [25], perAttemptTimeoutMs: 300, pipelining: 'auto' },
     });
 
     // Look at writes after MAIL FROM. With pipelining, the envelope (RCPT real
@@ -251,7 +251,7 @@ describe('0114 SMTP — PIPELINING (RFC 2920)', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 300, pipelining: 'auto' },
+      options: { ports: [25], perAttemptTimeoutMs: 300, pipelining: 'auto' },
     });
 
     const rcptWrites = fakeNet.writes.filter((w) => w.data.startsWith('RCPT TO:'));
@@ -277,7 +277,7 @@ describe('0114 SMTP — PIPELINING (RFC 2920)', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 300, pipelining: 'never' },
+      options: { ports: [25], perAttemptTimeoutMs: 300, pipelining: 'never' },
     });
 
     const rcptWrites = fakeNet.writes.filter((w) => w.data.startsWith('RCPT TO:'));
@@ -298,7 +298,7 @@ describe('0114 SMTP — PIPELINING (RFC 2920)', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 300, pipelining: 'force' },
+      options: { ports: [25], perAttemptTimeoutMs: 300, pipelining: 'force' },
     });
 
     const envelopeWrites = fakeNet.writes.filter((w) => w.data.includes('RCPT TO:') || w.data.startsWith('RSET'));
@@ -317,7 +317,7 @@ describe('0114 SMTP — enhancedStatus (RFC 3463)', () => {
       local: 'missing',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, pipelining: 'never' },
+      options: { ports: [25], perAttemptTimeoutMs: 200, pipelining: 'never' },
     });
 
     expect(smtpResult.enhancedStatus).toBe('5.1.1');
@@ -330,7 +330,7 @@ describe('0114 SMTP — enhancedStatus (RFC 3463)', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, pipelining: 'never' },
+      options: { ports: [25], perAttemptTimeoutMs: 200, pipelining: 'never' },
     });
 
     // The probe-RCPT 550 line in our envelope DOES contain '5.1.1' — so the
@@ -348,7 +348,7 @@ describe('0114 SMTP — enhancedStatus (RFC 3463)', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200 },
+      options: { ports: [25], perAttemptTimeoutMs: 200 },
     });
 
     expect(smtpResult.enhancedStatus).toBe('4.7.0');
@@ -361,7 +361,7 @@ describe('0114 SMTP — enhancedStatus (RFC 3463)', () => {
       local: 'missing',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, pipelining: 'never' },
+      options: { ports: [25], perAttemptTimeoutMs: 200, pipelining: 'never' },
     });
 
     expect(smtpResult.responseCode).toBe(550);
@@ -381,7 +381,7 @@ describe('0114 SMTP — enhancedStatus (RFC 3463)', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200, pipelining: 'never' },
+      options: { ports: [25], perAttemptTimeoutMs: 200, pipelining: 'never' },
     });
 
     expect(smtpResult.enhancedStatus).toBe('5.7.1');
@@ -399,7 +399,7 @@ describe('0114 SMTP — metrics', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx.example.com'],
-      options: { ports: [25], timeout: 200 },
+      options: { ports: [25], perAttemptTimeoutMs: 200 },
     });
 
     expect(smtpResult.metrics).toBeDefined();
@@ -419,7 +419,7 @@ describe('0114 SMTP — metrics', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx1.example.com', 'mx2.example.com'],
-      options: { ports: [25, 587], timeout: 200 },
+      options: { ports: [25, 587], perAttemptTimeoutMs: 200 },
     });
 
     expect(smtpResult.isDeliverable).toBe(true);
@@ -436,7 +436,7 @@ describe('0114 SMTP — metrics', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: ['mx1.example.com', 'mx2.example.com'],
-      options: { ports: [25], timeout: 100 },
+      options: { ports: [25], perAttemptTimeoutMs: 100 },
     });
 
     expect(smtpResult.isDeliverable).toBe(false);
@@ -451,7 +451,7 @@ describe('0114 SMTP — metrics', () => {
       local: 'alice',
       domain: 'example.com',
       mxRecords: [],
-      options: { timeout: 50 },
+      options: { perAttemptTimeoutMs: 50 },
     });
 
     expect(smtpResult.error).toBe('no_mx_records');
