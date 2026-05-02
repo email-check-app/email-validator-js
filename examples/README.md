@@ -120,7 +120,7 @@ const { smtpResult } = await verifyMailboxSMTP({
   local: 'alice',
   domain: 'example.com',
   mxRecords: ['mx.example.com'],
-  options: { ports: [25, 587], timeout: 5000, captureTranscript: true },
+  options: { ports: [25, 587], perAttemptTimeoutMs: 5000, captureTranscript: true },
 });
 
 console.log(smtpResult.transcript); // ["25|s| 220 mx ESMTP", ...]
