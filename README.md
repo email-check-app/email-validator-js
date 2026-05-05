@@ -1133,10 +1133,38 @@ clearAllCaches();
 
 ## 💻 Command-line Tool (`email-validate`)
 
-`bun add -g @emailcheck/email-validator-js` (or the npm equivalent) installs an
-`email-validate` binary. It runs the full validation pipeline against one
-address, captures a structured transcript, prints the result to stdout, and
-saves the JSON result to `./logs/` by default.
+The package ships an `email-validate` binary that runs the full validation
+pipeline against one address, captures a structured transcript, prints the
+result to stdout, and saves the JSON result to `./logs/` by default.
+
+### Run without installing (npx / bunx / pnpm dlx)
+
+```bash
+# One-off check — pulls the latest published version, no install required
+npx -p @emailcheck/email-validator-js email-validate alice@example.com
+
+# Same with bunx / pnpm dlx
+bunx -p @emailcheck/email-validator-js email-validate alice@example.com
+pnpm dlx -p @emailcheck/email-validator-js email-validate alice@example.com
+
+# Pin a version (avoids npx caching surprises in CI)
+npx -p @emailcheck/email-validator-js@4.0.0 email-validate alice@example.com
+```
+
+> The `-p <package>` form is the safest because the bin name
+> (`email-validate`) differs from the package name. The shorthand
+> `npx @emailcheck/email-validator-js alice@example.com` also works since the
+> package has exactly one bin.
+
+### Install globally
+
+```bash
+bun add -g @emailcheck/email-validator-js
+# or: npm i -g @emailcheck/email-validator-js
+# or: pnpm add -g @emailcheck/email-validator-js
+```
+
+### Examples
 
 ```bash
 # Quick interactive check — full pipeline, pretty colored output

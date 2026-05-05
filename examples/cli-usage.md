@@ -7,6 +7,14 @@ transcript, prints to stdout, and saves a JSON result to `./logs/` by default.
 ## Install
 
 ```bash
+# Zero-install — run the published binary directly via npx / bunx / pnpm dlx
+npx -p @emailcheck/email-validator-js email-validate alice@example.com
+bunx -p @emailcheck/email-validator-js email-validate alice@example.com
+pnpm dlx -p @emailcheck/email-validator-js email-validate alice@example.com
+
+# Pin a version (recommended for CI / reproducible runs)
+npx -p @emailcheck/email-validator-js@4.0.0 email-validate alice@example.com
+
 # Globally
 bun add -g @emailcheck/email-validator-js
 # or npm i -g @emailcheck/email-validator-js
@@ -16,6 +24,12 @@ bun add -g @emailcheck/email-validator-js
 bun add -d @emailcheck/email-validator-js
 bunx email-validate alice@example.com
 ```
+
+> The `-p <package>` flag is the safe form because the bin name
+> (`email-validate`) differs from the package name
+> (`@emailcheck/email-validator-js`). The shorthand
+> `npx @emailcheck/email-validator-js alice@example.com` also works since the
+> package publishes exactly one bin.
 
 ## Defaults
 
