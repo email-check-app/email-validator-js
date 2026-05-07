@@ -268,6 +268,14 @@ Comprehensive email verification with detailed results and error codes.
   - `smtpMaxConsecutiveFailures` (number) — Bail after N connection-class failures in a row (`connection_error` / `connection_timeout` / `connection_closed`). Default: unbounded.
   - `smtpMaxMxHosts` (number) — Cap the MX walk to the first N hostnames. Default: unbounded.
   - `smtpRetry` (`{ attempts, delayMs?, backoff? }`) — Retry connection-class failures on the same MX × port. Default: no retries.
+- **SMTP envelope controls** (anti-spam — recommended for production):
+  - `smtpSender` (`SMTPSenderStrategy`) — Strategy for the `MAIL FROM:` envelope. The library default is `<recipient@domain>`, which blocklists key on as the textbook verification-probe fingerprint. Pick a deliberate strategy:
+    - `{ kind: 'null-sender' }` → `MAIL FROM:<>` (RFC 5321 §4.5.5; DSN-shaped, best on Gmail / Outlook).
+    - `{ kind: 'fixed', address: 'verify@your-domain.com' }` → fixed real address (best with valid SPF / PTR / DMARC).
+    - `{ kind: 'random-at-recipient', localPrefix? }` → random local-part on the recipient's domain.
+    - `{ kind: 'random-at-domain', domain, localPrefix? }` → random local-part on a configured domain.
+    - `{ kind: 'custom', build: r => ... }` → full escape hatch.
+  - `smtpHeloHostname` (string) — Hostname presented to the MX in `EHLO` / `HELO`. Default: `'localhost'` (a spam-bot signature from a public IP — override with a real FQDN in production).
 - `whoisTimeoutMs` (number) — Per-WHOIS-query timeout (default: `5000`).
 - `debug` (boolean) — Per-line `console.debug` trace (default: `false`).
 - `captureTranscript` (boolean) — Populate `result.transcript` with a per-step structured trace (default: `false`).

@@ -54,6 +54,9 @@ export {
   type VerifyEmailPresetName,
 } from './presets';
 export { refineReasonByEnhancedStatus } from './refine-reason';
+// MAIL FROM strategy resolver — exposed so advanced callers can preview the
+// payload (e.g. for logging) without invoking the SMTP probe.
+export { resolveSenderAddress } from './sender-strategy';
 export { type ParsedSmtpError, parseSmtpError } from './smtp-error-parser';
 export { type ParsedDsn, parseDsn, verifyMailboxSMTP } from './smtp-verifier';
 // Transcript collector primitives — opt-in pipeline tracing.

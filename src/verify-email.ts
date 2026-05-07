@@ -333,6 +333,11 @@ async function runSmtp(
             // Forward transcript capture so the SMTP step's details include
             // the full per-port transcript when the caller asked for it.
             captureTranscript: params.captureTranscript ?? false,
+            // Forward the high-level envelope strategy and HELO override so
+            // callers can control the spam-fingerprint of the probe without
+            // dropping down to `verifyMailboxSMTP` directly.
+            ...(params.smtpSender !== undefined && { sender: params.smtpSender }),
+            ...(params.smtpHeloHostname !== undefined && { heloHostname: params.smtpHeloHostname }),
           },
         });
         await smtpCache.set(cacheKey, probe.smtpResult);
