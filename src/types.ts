@@ -161,6 +161,22 @@ export interface VerifyEmailParams {
    * and any per-MX hint cached from a previous probe.
    */
   smtpPort?: number;
+  /**
+   * Strategy for the `MAIL FROM:` envelope sender during the SMTP probe.
+   * See `SMTPSenderStrategy` for the menu. Picking a deliberate strategy
+   * (e.g. `{ kind: 'null-sender' }`) reduces spam-flagging vs. the library
+   * default of `<recipient@domain>`. Default: unset → uses recipient address
+   * (preserved for backwards compatibility, but not recommended for
+   * production probes).
+   */
+  smtpSender?: SMTPSenderStrategy;
+  /**
+   * EHLO/HELO hostname presented to the MX during the SMTP probe. Should be
+   * a real FQDN — `'localhost'` from a public IP is a spam-bot signature
+   * and gets rejected by careful MXes. Default: `'localhost'` (preserved for
+   * backwards compatibility; override in production).
+   */
+  smtpHeloHostname?: string;
   // ── WHOIS probe wiring ────────────────────────────────────────────────────
   /** Per-WHOIS-query timeout in milliseconds. Default: `5000`. */
   whoisTimeoutMs?: number;
@@ -405,6 +421,38 @@ export interface SMTPSequence {
 }
 
 /**
+ * High-level policy for picking the `MAIL FROM:` payload sent during SMTP
+ * verification. Most callers should use this rather than `SMTPSequence.from`.
+ *
+ * Why this matters: `MAIL FROM:` is the single biggest spam-fingerprint on a
+ * verification probe. The library's historical default (`<recipient@domain>`)
+ * is exactly what blocklists key on — sender == recipient is the textbook
+ * "fake bounce probe" pattern. Picking a deliberate strategy lets you choose
+ * how the probe presents itself to the MX:
+ *
+ *  - `'null-sender'`: RFC 5321 §4.5.5 null reverse-path `<>`. DSN/bounce-shaped.
+ *    Best deliverability vs spam-flagging on Gmail / Outlook (they whitelist
+ *    `<>` so they don't recursively bounce a bounce). Some strict gateways
+ *    (Yahoo / Proofpoint / Mimecast) reject `<>` from unknown IPs — those
+ *    rejections are clean `550`s, they don't burn IP reputation.
+ *  - `'fixed'`: a real address on a domain you own (with valid SPF / PTR /
+ *    DMARC). Best deliverability when properly authenticated; worst when not.
+ *  - `'random-at-recipient'`: random local-part on the recipient's own domain
+ *    (e.g. `<probe-a3x9…@gmail.com>` when probing `alice@gmail.com`). Looks
+ *    like internal-domain mail to MTAs that prefer same-envelope-domain.
+ *  - `'random-at-domain'`: random local-part on a fixed sender domain. Useful
+ *    when you control a domain but want unique probe envelopes per call.
+ *  - `'custom'`: full escape hatch — receives the recipient, returns the
+ *    literal `MAIL FROM:` payload (with angle brackets).
+ */
+export type SMTPSenderStrategy =
+  | { kind: 'null-sender' }
+  | { kind: 'fixed'; address: string }
+  | { kind: 'random-at-recipient'; localPrefix?: string }
+  | { kind: 'random-at-domain'; domain: string; localPrefix?: string }
+  | { kind: 'custom'; build: (recipient: { local: string; domain: string }) => string };
+
+/**
  * Optional retry policy for connection-class failures (timeout / connection
  * error / connection closed) on a single MX × port. Definitive answers
  * (250 / 550 / 552 / etc.) are never retried — they're stable verdicts.
@@ -541,6 +589,18 @@ export interface SMTPVerifyOptions {
    */
   retry?: RetryPolicy;
   // ── Dialogue customization ───────────────────────────────────────────────
+  /**
+   * Strategy for picking the `MAIL FROM:` envelope sender. See
+   * `SMTPSenderStrategy` for the full menu (`null-sender` / `fixed` /
+   * `random-at-recipient` / `random-at-domain` / `custom`).
+   *
+   * When set, this overrides any `sequence.from`. When unset, the probe falls
+   * back to `sequence.from` (legacy low-level override) and finally to the
+   * default `<local@domain>` (the recipient's own address — note that this
+   * default is the textbook spam-probe fingerprint, so opting into a real
+   * strategy is recommended for production use).
+   */
+  sender?: SMTPSenderStrategy;
   /**
    * Override the per-attempt SMTP step list. Defaults to
    * `[greeting, ehlo, startTls, mailFrom, rcptTo]` — covering the entire

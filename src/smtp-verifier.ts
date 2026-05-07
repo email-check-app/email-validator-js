@@ -30,7 +30,9 @@ import { randomBytes } from 'node:crypto';
 import * as net from 'node:net';
 import * as tls from 'node:tls';
 import { getCacheStore } from './cache';
+import { resolveSenderAddress } from './sender-strategy';
 import type {
+  SMTPSenderStrategy,
   SMTPSequence,
   SMTPTLSConfig,
   SMTPVerifyOptions,
@@ -131,6 +133,7 @@ export async function verifyMailboxSMTP(
   const debug = options.debug ?? false;
   const captureTranscript = options.captureTranscript ?? false;
   const sequence = options.sequence;
+  const sender = options.sender;
   const cache = options.cache;
   const log = debug ? (...args: unknown[]) => console.log('[SMTP]', ...args) : () => {};
 
@@ -162,6 +165,7 @@ export async function verifyMailboxSMTP(
     tlsConfig,
     heloHostname,
     sequence,
+    sender,
     log,
     catchAllProbeLocal: options.catchAllProbeLocal,
     pipelining: options.pipelining ?? 'auto',
@@ -379,6 +383,7 @@ interface ProbeOptions {
   tlsConfig: boolean | SMTPTLSConfig;
   heloHostname: string;
   sequence?: SMTPSequence;
+  sender?: SMTPSenderStrategy;
   log: (...args: unknown[]) => void;
   catchAllProbeLocal?: SMTPVerifyOptions['catchAllProbeLocal'];
   pipelining: 'auto' | 'never' | 'force';
@@ -581,7 +586,13 @@ class SMTPProbeConnection {
         this.executeStartTls();
         return;
       case SMTPStep.mailFrom: {
-        const from = this.p.sequence?.from ?? `<${this.p.local}@${this.p.domain}>`;
+        // Precedence: high-level `sender` strategy → low-level `sequence.from`
+        // literal → backwards-compat default of recipient address. The default
+        // is preserved for compat but is the worst-case spam fingerprint —
+        // callers should explicitly pick a `sender` strategy in production.
+        const from = this.p.sender
+          ? resolveSenderAddress(this.p.sender, { local: this.p.local, domain: this.p.domain })
+          : (this.p.sequence?.from ?? `<${this.p.local}@${this.p.domain}>`);
         this.send(`MAIL FROM:${from}`);
         return;
       }
