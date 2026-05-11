@@ -104,6 +104,7 @@
     "prepublishOnly": "bun run build",
     "release": "semantic-release",
     "release:dry": "semantic-release --dry-run",
+    "release:local": "bun run scripts/release-local.mjs",
     "test": "bun run test:unit && bun run test:isolated",
     "test:unit": "bun test __tests__/unit --concurrency=1",
     "test:isolated": "bun test __tests__/isolated --concurrency=1",
