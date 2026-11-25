@@ -24,11 +24,10 @@ on:
       - 'bun.lock'
       - '.releaserc.json'
 
-# Never cancel an in-flight release — interrupting between npm publish and
-# git tag/GitHub release leaves the registry inconsistent. Queue instead.
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: false
+  # Newer pushes supersede older in-flight runs. Set the org or repo variable CI_CANCEL_IN_PROGRESS=false to stop that.
+  cancel-in-progress: ${{ vars.CI_CANCEL_IN_PROGRESS != 'false' }}
 
 permissions:
   contents: read

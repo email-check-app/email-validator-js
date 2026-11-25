@@ -27,11 +27,10 @@ on:
       - '.releaserc.json'
       - '.github/workflows/**'
 
-# Cancel superseded runs on the same branch — feature-branch CI is cheap to
-# re-run and the only thing that matters is the latest commit's verdict.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Newer pushes supersede older in-flight runs. Set the org or repo variable CI_CANCEL_IN_PROGRESS=false to stop that.
+  cancel-in-progress: ${{ vars.CI_CANCEL_IN_PROGRESS != 'false' }}
 
 permissions:
   contents: read
