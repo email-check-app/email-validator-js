@@ -26,8 +26,7 @@ on:
 
 concurrency:
   group: release-${{ github.ref }}
-  # Newer pushes supersede older in-flight runs. Set the org or repo variable CI_CANCEL_IN_PROGRESS=false to stop that.
-  cancel-in-progress: ${{ vars.CI_CANCEL_IN_PROGRESS != 'false' }}
+  cancel-in-progress: true # newer pushes cancel older in-flight runs; set false here to let them finish
 
 permissions:
   contents: read
