@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'bun:test';
 /**
  * Tests for Redis adapter implementation of the cache interface
  */

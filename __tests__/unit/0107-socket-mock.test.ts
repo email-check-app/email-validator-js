@@ -4,7 +4,7 @@
  * Tests SMTP verification with mocked socket connections, simulating various
  * SMTP server responses, errors, and edge cases without real network calls.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, test } from 'bun:test';
 import { clearDefaultCache, verifyEmail } from '../../src';
 import { resolveMxRecords } from '../../src/mx-resolver';
 import { fakeNet } from '../helpers/fake-net';

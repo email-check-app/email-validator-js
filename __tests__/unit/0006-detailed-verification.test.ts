@@ -4,7 +4,7 @@
  * mocked once across the suite, no cross-file mock collision.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, test } from 'bun:test';
 import { clearDefaultCache, getDefaultCache, VerificationErrorCode, verifyEmail } from '../../src';
 import { fakeNet } from '../helpers/fake-net';
 

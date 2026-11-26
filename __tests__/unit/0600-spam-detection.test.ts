@@ -1,3 +1,4 @@
+import { describe, expect, it, test } from 'bun:test';
 import { isSpamEmail, isSpamName } from '../../src';
 
 describe('Spam Detection', () => {

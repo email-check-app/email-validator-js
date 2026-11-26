@@ -1,3 +1,4 @@
+import { describe, expect, it, jest, test } from 'bun:test';
 import type { NameDetectionMethod } from '../../src';
 import { defaultNameDetectionMethod, detectName, detectNameFromEmail } from '../../src';
 

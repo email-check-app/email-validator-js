@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from 'bun:test';
 /**
  * Tests for serverless core functionality
  */

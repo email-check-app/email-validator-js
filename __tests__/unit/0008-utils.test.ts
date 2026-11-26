@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'bun:test';
 /**
  * Test suite for utility functions including email validation and disposable email detection
  */

@@ -1,3 +1,4 @@
+import { describe, expect, it, test } from 'bun:test';
 /**
  * Integration tests for cache functionality
  * Tests that caching works correctly with email validation functions

@@ -21,7 +21,7 @@
  *   });
  */
 
-import { mock } from 'bun:test';
+import { beforeEach, it, mock, test } from 'bun:test';
 import { EventEmitter } from 'node:events';
 
 interface FakeSocket {

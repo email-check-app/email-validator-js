@@ -2,7 +2,7 @@
  * SMTP verifier unit tests — uses fake-net (no jest.spyOn / no custom FakeSocket).
  * Mocks node:net + node:tls once per process via the shared helper.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, jest } from 'bun:test';
 import { clearDefaultCache, getDefaultCache, SMTPStep } from '../../src';
 import { verifyMailboxSMTP } from '../../src/smtp-verifier';
 import { fakeNet } from '../helpers/fake-net';

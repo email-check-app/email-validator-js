@@ -2,7 +2,7 @@
  * Tests for Vercel Edge Functions adapter
  */
 
-import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, it, jest, mock } from 'bun:test';
 
 const validateEmailCore = mock(async (email: string) => ({
   valid: email.includes('@'),

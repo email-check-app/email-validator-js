@@ -11,7 +11,7 @@
  * All tests use the shared fake-net mock. The dual-probe is unconditional, so
  * each test scripts the full envelope (real RCPT + probe RCPT + RSET).
  */
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { verifyMailboxSMTP } from '../../src/smtp-verifier';
 import { fakeNet } from '../helpers/fake-net';
 

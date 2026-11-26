@@ -3,7 +3,7 @@
 // Tests port-specific behavior including single port testing, multiple port
 // configurations, port-specific TLS behavior, retry logic, and edge cases.
 
-import { describe as _bunDescribe, beforeEach, expect, it } from 'bun:test';
+import { describe as _bunDescribe, beforeEach, expect, it, test } from 'bun:test';
 
 // Skip the file unless INTEGRATION=1 is set in the env.
 const describe = (process.env.INTEGRATION === '1' ? _bunDescribe : _bunDescribe.skip) as typeof _bunDescribe;

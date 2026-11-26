@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'bun:test';
 import { cleanNameForAlgorithm, detectName, detectNameForAlgorithm } from '../../src';
 
 describe('0402 Name Detector', () => {

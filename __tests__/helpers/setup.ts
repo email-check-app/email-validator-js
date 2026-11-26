@@ -8,7 +8,7 @@
  * etc. We polyfill that namespace from `bun:test` once here so we don't have
  * to mechanically rewrite every test.
  */
-import { mock as bunMock, spyOn as bunSpyOn } from 'bun:test';
+import { mock as bunMock, spyOn as bunSpyOn, jest, spyOn, test } from 'bun:test';
 
 // Track every mock/spy created via the polyfill so `clearAllMocks` /
 // `restoreAllMocks` can act on the same set jest would have.

@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'bun:test';
 import { parseWhoisData } from '../../src/whois-parser';
 import { amazonCaData } from './0303-domain-whois-data/amazon-ca-data';
 import { bbcCoUkData } from './0303-domain-whois-data/bbc-co-uk-data';

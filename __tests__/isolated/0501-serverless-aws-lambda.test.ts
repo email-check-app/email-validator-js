@@ -2,7 +2,7 @@
  * Tests for AWS Lambda serverless adapter
  */
 
-import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, it, jest, mock } from 'bun:test';
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 
 // Mock the serverless verifier module BEFORE importing the handler that

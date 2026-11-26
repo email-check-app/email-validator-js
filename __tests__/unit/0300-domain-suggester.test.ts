@@ -1,3 +1,4 @@
+import { describe, expect, it, jest, test } from 'bun:test';
 import type { DomainSuggestionMethod } from '../../src';
 import {
   commonEmailDomains,

@@ -5,3 +5,8 @@
 [test]
 preload = ["./__tests__/helpers/setup.ts"]
 timeout = 30000
+
+[install]
+# Isolated installs: each package sees only what it declares (no phantom deps). Dev machines and CI share
+# one global store (install.globalStore in ~/.bunfig.toml / BUN_INSTALL_GLOBAL_STORE=1); Docker builds do not.
+linker = "isolated"

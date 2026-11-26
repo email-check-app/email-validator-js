@@ -1,3 +1,4 @@
+import { describe, expect, test } from 'bun:test';
 import { isSpamName } from '../../src/is-spam-name';
 
 describe('0503 isSpamName - LEGITIMATE names (should return FALSE)', () => {

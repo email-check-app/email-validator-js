@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'bun:test';
 import type { NameDetectionMethod } from '../../src';
 import { verifyEmail, verifyEmailBatch } from '../../src';
 

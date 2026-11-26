@@ -3,7 +3,7 @@
 // Tests TLS/SSL security configurations including certificate validation,
 // TLS version settings, STARTTLS behavior, and performance comparisons.
 
-import { describe as _bunDescribe, beforeEach, expect, it } from 'bun:test';
+import { describe as _bunDescribe, beforeEach, expect, it, jest } from 'bun:test';
 
 // Skip the file unless INTEGRATION=1 is set in the env.
 const describe = (process.env.INTEGRATION === '1' ? _bunDescribe : _bunDescribe.skip) as typeof _bunDescribe;

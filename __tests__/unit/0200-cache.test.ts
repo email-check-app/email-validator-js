@@ -2,7 +2,7 @@
  * Cache test suite — uses fake-net (no sinon).
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, test } from 'bun:test';
 import type { Cache } from '../../src';
 import { isDisposableEmail, isFreeEmail, isValidEmailDomain, LRUAdapter } from '../../src';
 import { clearDefaultCache, DEFAULT_CACHE_OPTIONS, getDefaultCache } from '../../src/cache';
