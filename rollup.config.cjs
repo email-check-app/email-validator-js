@@ -1,6 +1,5 @@
 const { readFileSync } = require('fs');
 const esbuild = require('rollup-plugin-esbuild').default;
-const typescript = require('@rollup/plugin-typescript');
 const json = require('@rollup/plugin-json');
 const resolve = require('@rollup/plugin-node-resolve');
 const commonjs = require('@rollup/plugin-commonjs');
@@ -39,19 +38,6 @@ const cliPlugins = [
   }),
 ];
 
-const declarationPlugin = typescript({
-  tsconfig: './tsconfig.json',
-  declaration: true,
-  declarationDir: './dist',
-  emitDeclarationOnly: true,
-  rootDir: './src',
-  exclude: ['**/*.test.ts', '**/*.spec.ts', '__tests__/**/*', 'src/serverless/**/*'],
-  compilerOptions: {
-    module: 'esnext',
-    sourceMap: true,
-  },
-});
-
 const external = [
   ...Object.keys(pkg.dependencies || {}),
   ...Object.keys(pkg.peerDependencies || {}),
@@ -82,7 +68,7 @@ module.exports = [
       },
     ],
     external,
-    plugins: [...plugins, declarationPlugin],
+    plugins,
   },
   // CLI bundle — single CJS file with a Node shebang. Wired into package.json
   // as `bin: { "email-validate": "./dist/cli/index.js" }`.

@@ -4,7 +4,6 @@ const json = require('@rollup/plugin-json');
 const resolve = require('@rollup/plugin-node-resolve');
 const commonjs = require('@rollup/plugin-commonjs');
 const terser = require('@rollup/plugin-terser');
-const typescript = require('@rollup/plugin-typescript');
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8'));
 
@@ -34,21 +33,6 @@ const plugins = [
   }),
 ];
 
-// For declaration generation only
-const declarationPlugin = typescript({
-  tsconfig: './tsconfig.json',
-  declaration: true,
-  declarationDir: './dist/serverless',
-  emitDeclarationOnly: true,
-  rootDir: './src',
-  include: ['src/serverless/**/*', 'src/types.ts'],
-  exclude: ['**/*.test.ts', '**/*.spec.ts', '__tests__/**/*'],
-  compilerOptions: {
-    module: 'esnext',
-    sourceMap: true,
-  },
-});
-
 const productionPlugins = [
   ...plugins,
   terser({
@@ -72,7 +56,7 @@ module.exports = [
       sourcemap: true,
     },
     external: [], // Bundle all dependencies including string-similarity-js
-    plugins: [...plugins, declarationPlugin],
+    plugins,
   },
 
   // Core serverless bundle (CommonJS)

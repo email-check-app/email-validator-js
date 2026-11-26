@@ -92,7 +92,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "rm -rf dist && rollup -c rollup.config.cjs && rollup -c rollup.config.serverless.cjs && cp src/*.json dist/ && chmod +x dist/cli/index.js",
+    "build": "rm -rf dist && rollup -c rollup.config.cjs && rollup -c rollup.config.serverless.cjs && tsc -p tsconfig.build.json && cp src/*.json dist/ && chmod +x dist/cli/index.js",
     "build:main": "rollup -c rollup.config.cjs",
     "build:serverless": "rollup -c rollup.config.serverless.cjs",
     "cli": "bun run src/cli/index.ts",
@@ -135,28 +135,25 @@
     "tiny-lru": "^13.1.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.8",
+    "@biomejs/biome": "^2.6.9",
     "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.2",
-    "@rollup/plugin-typescript": "^12.3.1",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/github": "^12.0.11",
     "@semantic-release/npm": "^13.2.0",
     "@semantic-release/release-notes-generator": "^14.1.1",
     "@types/aws-lambda": "^8.10.164",
     "@types/bun": "^1.4.5",
-    "@types/node": "25.6.0",
-    "conventional-changelog-conventionalcommits": "^9.3.1",
+    "@types/node": "^26.6.11",
     "esbuild": "^0.28.2",
-    "husky": "9.1.7",
-    "lint-staged": "17.0.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.2",
     "rollup": "^4.68.8",
     "rollup-plugin-esbuild": "^6.2.1",
-    "semantic-release": "^25.0.9",
-    "tslib": "^2.9.1",
-    "typescript": "6.0.3"
+    "semantic-release": "^26.0.1",
+    "typescript": "^7.0.2"
   },
   "packageManager": "bun@1.4.5",
   "engines": {
